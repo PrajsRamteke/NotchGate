@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Menu-bar utility: no Dock icon, never steals focus on launch.
         NSApp.setActivationPolicy(.accessory)
         if CommandLineActions.runIfRequested() { return }
+        LaunchAtLogin.enableByDefault()
         coordinator.start()
         Log.app.info("NotchGate started")
     }

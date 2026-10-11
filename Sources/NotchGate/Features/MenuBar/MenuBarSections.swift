@@ -127,7 +127,7 @@ struct PreferencesSection: View {
             SettingRow("Play a sound", isOn: $settings.playSound)
             SettingRow("“Claude finished” notices", detail: "A brief note in the notch when a task ends", isOn: $settings.showNotices)
             SettingRow("Check for updates", detail: "Looks for a newer NotchGate on GitHub", isOn: $settings.checkForUpdates)
-            SettingRow("Launch at login", isOn: $launchAtLogin)
+            SettingRow("Launch at login", detail: "Opens the notch when you turn on your Mac", isOn: $launchAtLogin)
                 .disabled(!LaunchAtLogin.isAvailable)
                 .onChange(of: launchAtLogin) { _, enabled in LaunchAtLogin.setEnabled(enabled) }
         }
