@@ -1,0 +1,100 @@
+import Foundation
+import NotchGateKit
+
+/// Pure transformations of a Claude Code `settings.json` document that add or
+/// remove NotchGate's hook entries without touching anything else.
+struct HookSettingsEditor {
+    /// Substring that identifies our hook commands.
+    static let marker = "notchgate-hook"
+
+    struct Registration {
+        let event: HookEvent
+        let matcher: String?
+        let timeout: Int
+    }
+
+    static let registrations: [Registration] = [
+        Registration(event: .permissionRequest, matcher: "*", timeout: 3600),
+        Registration(event: .preToolUse, matcher: "AskUserQuestion|ExitPlanMode", timeout: 3600),
+        Registration(event: .elicitation, matcher: nil, timeout: 3600),
+        Registration(event: .stop, matcher: nil, timeout: 600),
+        Registration(event: .postToolUse, matcher: "*", timeout: 5),
+        Registration(event: .notification, matcher: nil, timeout: 5),
+        Registration(event: .userPromptSubmit, matcher: nil, timeout: 5),
+        Registration(event: .sessionEnd, matcher: nil, timeout: 5),
+    ]
+
+    let hookPath: String
+
+    var command: String { "\"\(hookPath)\"" }
+
+    // MARK: Queries
+
+    func isInstalled(in settings: JSONValue) -> Bool {
+        Self.registrations.allSatisfy { registration in
+            groups(in: settings, for: registration.event).contains(where: Self.containsOurHook)
+        }
+    }
+
+    /// Other tools' `PermissionRequest` commands. They would race NotchGate
+    /// to answer the same prompt, so setup warns about them.
+    func conflictingCommands(in settings: JSONValue) -> [String] {
+        groups(in: settings, for: .permissionRequest)
+            .flatMap { $0["hooks"]?.arrayValue ?? [] }
+            .filter { !Self.isOurHook($0) }
+            .compactMap { $0["command"]?.stringValue }
+    }
+
+    // MARK: Mutations
+
+    /// Idempotent: removes any previous NotchGate entries, then adds fresh ones.
+    func installing(into settings: JSONValue) -> JSONValue {
+        var hooks = uninstalling(from: settings)["hooks"]?.objectValue ?? [:]
+        for registration in Self.registrations {
+            var groups = hooks[registration.event.rawValue]?.arrayValue ?? []
+            groups.append(group(for: registration))
+            hooks[registration.event.rawValue] = .array(groups)
+        }
+        return settings.setting("hooks", to: .object(hooks))
+    }
+
+    /// Removes only NotchGate's hook commands, pruning containers left empty.
+    func uninstalling(from settings: JSONValue) -> JSONValue {
+        guard var hooks = settings["hooks"]?.objectValue else { return settings }
+
+        for (event, value) in hooks {
+            let groups = (value.arrayValue ?? []).compactMap { group -> JSONValue? in
+                let remaining = (group["hooks"]?.arrayValue ?? []).filter { !Self.isOurHook($0) }
+                return remaining.isEmpty ? nil : group.setting("hooks", to: .array(remaining))
+            }
+            hooks[event] = groups.isEmpty ? nil : .array(groups)
+        }
+        return settings.setting("hooks", to: .object(hooks))
+    }
+
+    // MARK: Helpers
+
+    private func group(for registration: Registration) -> JSONValue {
+        var group: [String: JSONValue] = [
+            "hooks": .array([.object([
+                "type": .string("command"),
+                "command": .string(command),
+                "timeout": .number(Double(registration.timeout)),
+            ])]),
+        ]
+        if let matcher = registration.matcher { group["matcher"] = .string(matcher) }
+        return .object(group)
+    }
+
+    private func groups(in settings: JSONValue, for event: HookEvent) -> [JSONValue] {
+        settings["hooks"]?[event.rawValue]?.arrayValue ?? []
+    }
+
+    private static func containsOurHook(_ group: JSONValue) -> Bool {
+        (group["hooks"]?.arrayValue ?? []).contains(where: isOurHook)
+    }
+
+    private static func isOurHook(_ hook: JSONValue) -> Bool {
+        hook["command"]?.stringValue?.contains(marker) == true
+    }
+}
