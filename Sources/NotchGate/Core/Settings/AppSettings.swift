@@ -24,6 +24,7 @@ final class AppSettings {
         static let waterSnoozeMinutes = "waterSnoozeMinutes"
         static let waterDailyGoal = "waterDailyGoal"
         static let usageWidget = "widgetUsage"
+        static let usageCardShown = "usageCardShown"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -92,6 +93,10 @@ final class AppSettings {
     /// Plan limits (5-hour and weekly) in the notch (see `UsageMonitor`).
     var usageWidget: Bool { didSet { defaults.set(usageWidget, forKey: Key.usageWidget) } }
 
+    /// Whether the usage card is open in the hover panel. Toggled from the
+    /// gauge button beside the Activity header, so it stays out of the way by default.
+    var usageCardShown: Bool { didSet { defaults.set(usageCardShown, forKey: Key.usageCardShown) } }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         defaults.register(defaults: [
@@ -113,6 +118,7 @@ final class AppSettings {
             Key.waterSnoozeMinutes: 10,
             Key.waterDailyGoal: 8,
             Key.usageWidget: true,
+            Key.usageCardShown: false,
         ])
         playSound = defaults.bool(forKey: Key.playSound)
         autoExpand = defaults.bool(forKey: Key.autoExpand)
@@ -132,6 +138,7 @@ final class AppSettings {
         waterSnoozeMinutes = defaults.integer(forKey: Key.waterSnoozeMinutes)
         waterDailyGoal = defaults.integer(forKey: Key.waterDailyGoal)
         usageWidget = defaults.bool(forKey: Key.usageWidget)
+        usageCardShown = defaults.bool(forKey: Key.usageCardShown)
     }
 
     var routerOptions: RequestRouter.Options {

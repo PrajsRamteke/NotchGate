@@ -2,12 +2,13 @@ import NotchGateKit
 import SwiftUI
 
 /// Glanceable widgets at the top of the hover panel. Each is switched on in
-/// the menu bar's Widgets section; new widgets get a line here.
+/// the menu bar's Widgets section and opened from its header button; new
+/// widgets get a line here.
 struct NotchWidgetsView: View {
     let usage: UsageMonitor
 
     var body: some View {
-        if usage.isEnabled {
+        if usage.isEnabled, usage.settings.usageCardShown {
             UsageWidgetView(snapshot: usage.snapshot)
         }
     }

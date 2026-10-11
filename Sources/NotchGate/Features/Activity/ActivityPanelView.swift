@@ -72,6 +72,7 @@ struct ActivityPanelView: View {
         }
         .animation(Theme.Motion.content, value: settings.showQuickSettingsInNotch)
         .animation(Theme.Motion.content, value: settings.usageWidget)
+        .animation(Theme.Motion.content, value: settings.usageCardShown)
         .animation(Theme.Motion.content, value: model.isDraggingImages)
         // With a single session, dropping anywhere on the panel is unambiguous.
         .onDrop(of: Self.dropTypes, isTargeted: $isPanelTargeted) { _ in
@@ -173,6 +174,27 @@ struct ActivityPanelView: View {
                     .font(Theme.Typeface.caption)
                     .foregroundStyle(Theme.Palette.textTertiary)
             }
+            if settings.usageWidget {
+                usageToggle
+            }
         }
+    }
+
+    /// Gauge button that opens or closes the usage card below the header.
+    private var usageToggle: some View {
+        let shown = settings.usageCardShown
+        return Button {
+            withAnimation(Theme.Motion.content) { settings.usageCardShown.toggle() }
+        } label: {
+            Image(systemName: "gauge.with.dots.needle.50percent")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(shown ? Theme.Palette.clay : Theme.Palette.textTertiary)
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(shown ? Theme.Palette.clay.opacity(0.12) : Color.clear))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(shown ? "Hide usage" : "Show usage")
+        .accessibilityLabel(shown ? "Hide usage" : "Show usage")
     }
 }
