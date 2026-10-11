@@ -14,6 +14,15 @@ and keep working — no tab switching.
 | Claude stopped *(opt-in)* | Read the summary, optionally **reply to continue** |
 | **Hover the notch** anytime | Live activity for every session: current step, to-do progress, elapsed time, last prompt. Click to jump to its terminal |
 
+**Auto-allow permissions:** flip it from any permission card, the hover panel, or
+the menu bar, and prompts are approved instantly with no card. Risky commands
+(`rm -rf`, `sudo`, `git push --force`, `git reset --hard`, `curl … | sh`, `DROP TABLE` …)
+still ask unless you turn that safeguard off. Your Claude Code deny rules always apply.
+
+**Claude's questions:** choose **Notch** (answer from the notch), **Terminal**
+(the notch stays out of it), or **Don't ask** (Claude picks the most reasonable
+option, states its assumption, and keeps going).
+
 By default the notch appears **only when Claude is actually waiting on you**.
 "Claude finished" notices and reply-to-continue are off by default and can be
 turned on from the menu-bar popover.

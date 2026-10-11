@@ -57,6 +57,9 @@ struct PreferencesSection: View {
             SectionLabel("Behavior")
             Toggle("Expand automatically on new requests", isOn: $settings.autoExpand)
             Toggle("Show live activity when hovering the notch", isOn: $settings.showActivityOnHover)
+            Toggle("Show quick settings in the notch", isOn: $settings.showQuickSettingsInNotch)
+                .disabled(!settings.showActivityOnHover)
+                .padding(.leading, 20)
             Toggle("Play a sound", isOn: $settings.playSound)
             Toggle("Show “Claude finished” notices", isOn: $settings.showNotices)
             Toggle("Reply from the notch when Claude stops", isOn: $settings.holdForReplyOnStop)
@@ -77,6 +80,31 @@ struct PreferencesSection: View {
             Toggle("Launch at login", isOn: $launchAtLogin)
                 .disabled(!LaunchAtLogin.isAvailable)
                 .onChange(of: launchAtLogin) { _, enabled in LaunchAtLogin.setEnabled(enabled) }
+        }
+        .toggleStyle(.checkbox)
+        .font(.callout)
+    }
+}
+
+/// Auto-allow and question handling.
+struct PermissionsSection: View {
+    @Bindable var settings: AppSettings
+    let onSetAutoAllow: @MainActor (Bool) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Permissions & questions")
+            Toggle("Auto-allow permissions", isOn: Binding(get: { settings.autoAllowPermissions }, set: { [onSetAutoAllow] in onSetAutoAllow($0) }))
+            Toggle("Still ask for risky commands (rm -rf, sudo, force push…)", isOn: $settings.askForRiskyCommands)
+                .disabled(!settings.autoAllowPermissions)
+                .padding(.leading, 20)
+            Picker("Claude's questions", selection: $settings.questionMode) {
+                ForEach(QuestionMode.allCases) { mode in Text(mode.title).tag(mode) }
+            }
+            .pickerStyle(.segmented)
+            Text(settings.questionMode.detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .toggleStyle(.checkbox)
         .font(.callout)

@@ -4,6 +4,8 @@ import SwiftUI
 /// Allow / Deny / Always allow for a tool call.
 struct PermissionCardView: View {
     let permission: ToolPermission
+    let isAutoAllowOn: Bool
+    let onSetAutoAllow: @MainActor (Bool) -> Void
     let onFocus: () -> Void
     let onDecision: (BridgeDecision) -> Void
 
@@ -51,7 +53,21 @@ struct PermissionCardView: View {
                     .buttonStyle(.island(.primary, shortcut: "⏎"))
                     .keyboardShortcut(.defaultAction)
             }
+
+            Divider().overlay(Theme.Palette.hairline)
+
+            IslandToggleRow(
+                title: "Auto-allow permissions",
+                caption: autoAllowCaption,
+                symbol: "bolt.fill",
+                isOn: Binding(get: { isAutoAllowOn }, set: { [onSetAutoAllow] in onSetAutoAllow($0) })
+            )
         }
+    }
+
+    private var autoAllowCaption: String {
+        if RiskPolicy.isRisky(permission) { return "This command looks risky, so it always asks" }
+        return isAutoAllowOn ? "Approving automatically" : "Turn on to approve this and future requests"
     }
 
     private func deny() {

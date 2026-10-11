@@ -31,7 +31,12 @@ struct ExpandedIslandView: View {
                     onDismiss: model.dismissNotice
                 )
             } else {
-                ActivityPanelView(tracker: model.activity, onOpen: model.openTerminal(for:))
+                ActivityPanelView(
+                    tracker: model.activity,
+                    settings: model.settings,
+                    onOpen: model.openTerminal(for:),
+                    onSetAutoAllow: model.setAutoAllow
+                )
                     .transition(.opacity)
             }
         }
@@ -46,7 +51,13 @@ struct ExpandedIslandView: View {
         let respond: (BridgeDecision) -> Void = { model.respond($0) }
         switch request.kind {
         case .permission(let permission):
-            PermissionCardView(permission: permission, onFocus: model.requestKeyFocus, onDecision: respond)
+            PermissionCardView(
+                permission: permission,
+                isAutoAllowOn: model.settings.autoAllowPermissions,
+                onSetAutoAllow: model.setAutoAllow,
+                onFocus: model.requestKeyFocus,
+                onDecision: respond
+            )
         case .question(let prompt):
             QuestionCardView(prompt: prompt, onFocus: model.requestKeyFocus, onDecision: respond)
         case .plan(let plan):

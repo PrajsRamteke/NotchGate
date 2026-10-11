@@ -11,6 +11,8 @@ enum RequestRoute: Equatable {
     case clearSession(String)
     /// A tool finished, so any card still asking about it was answered elsewhere.
     case toolCompleted(sessionID: String, toolName: String, input: JSONValue)
+    /// Answer immediately without showing anything (auto-allow, questions off).
+    case autoRespond(BridgeDecision)
     /// Not ours to handle; reply `.passthrough` if the hook is waiting.
     case ignore
 }
@@ -22,6 +24,9 @@ struct RequestRouter {
         var holdForReplyOnStop: Bool
         var replyWindow: TimeInterval
         var showNotices: Bool
+        var autoAllowPermissions = false
+        var askForRiskyCommands = true
+        var questionMode: QuestionMode = .notch
     }
 
     var options: Options
@@ -54,9 +59,16 @@ struct RequestRouter {
             // PermissionRequest, the user chose the terminal: stay out of the way.
             guard !HookPolicy.interactiveTools.contains(toolName) else { return .ignore }
             let suggestions = payload["permission_suggestions"]?.arrayValue ?? []
-            return present(.permission(ToolPermission(toolName: toolName, input: toolInput, suggestions: suggestions)))
+            let permission = ToolPermission(toolName: toolName, input: toolInput, suggestions: suggestions)
+            if shouldAutoAllow(permission) { return .autoRespond(.allow()) }
+            return present(.permission(permission))
 
         case .preToolUse where toolName == "AskUserQuestion":
+            switch options.questionMode {
+            case .terminal: return .ignore
+            case .off: return .autoRespond(.deny(message: QuestionMode.declineMessage))
+            case .notch: break
+            }
             guard let prompt = PayloadParsers.question(from: toolInput) else { return .ignore }
             return present(.question(prompt))
 
@@ -87,6 +99,10 @@ struct RequestRouter {
         default:
             return .ignore
         }
+    }
+
+    func shouldAutoAllow(_ permission: ToolPermission) -> Bool {
+        options.autoAllowPermissions && !(options.askForRiskyCommands && RiskPolicy.isRisky(permission))
     }
 
     /// When Claude stops, nothing it asked earlier in the turn can still be

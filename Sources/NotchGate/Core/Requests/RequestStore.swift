@@ -76,6 +76,14 @@ final class RequestStore {
         }
     }
 
+    /// Resolves every waiting permission card that `predicate` accepts.
+    func resolvePermissions(where predicate: (ToolPermission) -> Bool, with decision: BridgeDecision) {
+        for pending in queue {
+            guard case .permission(let permission) = pending.request.kind, predicate(permission) else { continue }
+            resolve(pending.request.id, with: decision)
+        }
+    }
+
     /// Releases every waiting hook back to Claude Code's terminal UI.
     func releaseAll() {
         for pending in queue { resolve(pending.request.id, with: .passthrough) }

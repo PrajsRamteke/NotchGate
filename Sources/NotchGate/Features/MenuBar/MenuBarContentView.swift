@@ -10,6 +10,8 @@ struct MenuBarContentView: View {
             Divider().padding(.vertical, 10)
             IntegrationSection(installer: coordinator.installer)
             Divider().padding(.vertical, 10)
+            PermissionsSection(settings: coordinator.settings, onSetAutoAllow: coordinator.island.setAutoAllow)
+            Divider().padding(.vertical, 10)
             PreferencesSection(settings: coordinator.settings)
             Divider().padding(.vertical, 10)
             PreviewSection(onPreview: coordinator.preview)

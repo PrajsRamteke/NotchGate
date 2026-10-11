@@ -84,6 +84,8 @@ final class AppCoordinator {
             store.clearSession(sessionID)
         case .toolCompleted(let sessionID, let toolName, let input):
             store.dismissCompletedTool(sessionID: sessionID, toolName: toolName, input: input)
+        case .autoRespond(let decision):
+            responder.send(decision)
         case .ignore:
             if message.expectsReply { responder.send(.passthrough) }
         }

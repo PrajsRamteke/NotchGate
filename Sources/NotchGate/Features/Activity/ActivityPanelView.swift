@@ -4,7 +4,9 @@ import SwiftUI
 /// every Claude Code session and what it's doing.
 struct ActivityPanelView: View {
     let tracker: ActivityTracker
+    let settings: AppSettings
     let onOpen: (SessionActivity) -> Void
+    let onSetAutoAllow: @MainActor (Bool) -> Void
 
     static let maxVisibleSessions = 4
 
@@ -17,7 +19,7 @@ struct ActivityPanelView: View {
             if sessions.isEmpty {
                 emptyState
             } else {
-                CappedScroll(maxHeight: 380) {
+                CappedScroll(maxHeight: 300) {
                     VStack(spacing: 8) {
                         ForEach(sessions) { session in
                             SessionActivityRow(session: session) { onOpen(session) }
@@ -27,7 +29,13 @@ struct ActivityPanelView: View {
                 }
                 .animation(Theme.Motion.content, value: sessions.map(\.id))
             }
+
+            if settings.showQuickSettingsInNotch {
+                QuickSettingsView(settings: settings, onSetAutoAllow: onSetAutoAllow)
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            }
         }
+        .animation(Theme.Motion.content, value: settings.showQuickSettingsInNotch)
     }
 
     private func header(count: Int) -> some View {
@@ -38,6 +46,11 @@ struct ActivityPanelView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(Capsule().fill(Theme.Palette.clay.opacity(0.12)))
+            if settings.autoAllowPermissions {
+                Label("Auto-allow", systemImage: "bolt.fill")
+                    .font(Theme.Typeface.micro)
+                    .foregroundStyle(Theme.Palette.textSecondary)
+            }
             Spacer()
             if count > 0 {
                 Text(count == 1 ? "1 session" : "\(count) sessions")

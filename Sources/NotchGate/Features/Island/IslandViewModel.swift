@@ -81,6 +81,14 @@ final class IslandViewModel {
         store.resolve(current.id, with: decision)
     }
 
+    /// Turns auto-allow on/off and immediately approves cards it now covers.
+    func setAutoAllow(_ enabled: Bool) {
+        settings.autoAllowPermissions = enabled
+        guard enabled else { return }
+        let router = RequestRouter(options: settings.routerOptions)
+        store.resolvePermissions(where: router.shouldAutoAllow, with: .allow())
+    }
+
     func expand() {
         isCollapsedByUser = false
         onNeedsKeyFocus?()
