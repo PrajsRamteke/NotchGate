@@ -55,24 +55,16 @@ struct PreferencesSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Behavior")
-            Toggle("Expand automatically on new requests", isOn: $settings.autoExpand)
-            Toggle("Show live activity when hovering the notch", isOn: $settings.showActivityOnHover)
-            Toggle("Show quick settings in the notch", isOn: $settings.showQuickSettingsInNotch)
+            SettingRow("Expand automatically", detail: "Open the full card as soon as Claude asks", isOn: $settings.autoExpand)
+            SettingRow("Live activity on hover", detail: "Hover the notch to see every session", isOn: $settings.showActivityOnHover)
+            SettingRow("Quick settings in the notch", isOn: $settings.showQuickSettingsInNotch, isIndented: true)
                 .disabled(!settings.showActivityOnHover)
-                .padding(.leading, 20)
-            Toggle("Play a sound", isOn: $settings.playSound)
-            Toggle("Show “Claude finished” notices", isOn: $settings.showNotices)
-            Toggle("Pop up a reply box when Claude finishes", isOn: $settings.replyFromNotch)
-            Text("Claude isn't paused. You can also reply anytime from the hover panel.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.leading, 20)
-            Toggle("Launch at login", isOn: $launchAtLogin)
+            SettingRow("Play a sound", isOn: $settings.playSound)
+            SettingRow("“Claude finished” notices", detail: "A brief note in the notch when a task ends", isOn: $settings.showNotices)
+            SettingRow("Launch at login", isOn: $launchAtLogin)
                 .disabled(!LaunchAtLogin.isAvailable)
                 .onChange(of: launchAtLogin) { _, enabled in LaunchAtLogin.setEnabled(enabled) }
         }
-        .toggleStyle(.checkbox)
-        .font(.callout)
     }
 }
 
@@ -84,20 +76,30 @@ struct PermissionsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Permissions & questions")
-            Toggle("Auto-allow permissions", isOn: Binding(get: { settings.autoAllowPermissions }, set: { [onSetAutoAllow] in onSetAutoAllow($0) }))
-            Toggle("Still ask for risky commands (rm -rf, sudo, force push…)", isOn: $settings.askForRiskyCommands)
-                .disabled(!settings.autoAllowPermissions)
-                .padding(.leading, 20)
-            Picker("Claude's questions", selection: $settings.questionMode) {
-                ForEach(QuestionMode.allCases) { mode in Text(mode.title).tag(mode) }
+            SettingRow(
+                "Auto-allow permissions",
+                detail: "Approve prompts instantly, with no card",
+                isOn: Binding(get: { settings.autoAllowPermissions }, set: { [onSetAutoAllow] in onSetAutoAllow($0) })
+            )
+            SettingRow(
+                "Still ask for risky commands",
+                detail: "rm -rf, sudo, force push, DROP TABLE…",
+                isOn: $settings.askForRiskyCommands,
+                isIndented: true
+            )
+            .disabled(!settings.autoAllowPermissions)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Claude's questions").font(.callout)
+                Picker("Claude's questions", selection: $settings.questionMode) {
+                    ForEach(QuestionMode.allCases) { mode in Text(mode.title).tag(mode) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                SettingNote(settings.questionMode.detail)
             }
-            .pickerStyle(.segmented)
-            Text(settings.questionMode.detail)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            .padding(.top, 2)
         }
-        .toggleStyle(.checkbox)
-        .font(.callout)
     }
 }
 
@@ -115,9 +117,7 @@ struct NotchFeaturesSection: View {
             row("Questions", detail: "Claude asking you to choose", sample: .question, isOn: questionsBinding)
             row("Plan approvals", detail: "Approve before Claude codes", sample: .plan, isOn: $settings.notchPlans)
             row("Reply when done", detail: "Pop-up box to send the next prompt", sample: .completion, isOn: $settings.replyFromNotch)
-            Text("Off means the terminal handles it, just like without NotchGate.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            SettingNote("Off means the terminal handles it, just like without NotchGate.")
                 .padding(.top, 2)
         }
     }
@@ -131,24 +131,13 @@ struct NotchFeaturesSection: View {
     }
 
     private func row(_ title: String, detail: String, sample: DemoRequests.Sample, isOn: Binding<Bool>) -> some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title).font(.callout)
-                Text(detail).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
+        SettingRow(title: title, detail: detail, isOn: isOn) {
             Button { onPreview(sample) } label: {
                 Image(systemName: "play.circle")
             }
             .buttonStyle(.borderless)
             .help("Preview this card")
-            Toggle(title, isOn: isOn)
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .tint(Theme.Palette.clay)
         }
-        .contentShape(Rectangle())
     }
 }
 
@@ -172,16 +161,5 @@ struct ShortcutsSection: View {
                 }
             }
         }
-    }
-}
-
-private struct SectionLabel: View {
-    let text: String
-    init(_ text: String) { self.text = text }
-
-    var body: some View {
-        Text(text.uppercased())
-            .font(.system(size: 10, weight: .semibold))
-            .foregroundStyle(.tertiary)
     }
 }
