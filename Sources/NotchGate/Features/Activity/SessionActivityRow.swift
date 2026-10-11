@@ -55,9 +55,13 @@ struct SessionActivityRow<Composer: View>: View {
                 IconButton(systemName: "arrow.up.forward.app", help: "Open this session's terminal", action: onOpen)
                 IconButton(
                     systemName: "xmark",
-                    help: "Remove from NotchGate. Claude keeps running; the session comes back when you prompt it.",
+                    help: session.canDismiss
+                        ? "Remove from NotchGate. The session comes back when you prompt it."
+                        : "Can be removed once Claude stops",
                     action: onDismiss
                 )
+                .disabled(!session.canDismiss)
+                .opacity(session.canDismiss ? 1 : 0.3)
                 .padding(.leading, -6)
             }
 

@@ -40,6 +40,15 @@ struct SessionActivity: Identifiable, Equatable, Sendable {
         }
     }
 
+    /// Stopped between turns, so it can be removed from the notch. Mid-turn
+    /// (working, or waiting on the user) it can't, so nothing it's doing goes unseen.
+    var canDismiss: Bool {
+        switch phase {
+        case .idle, .finished: return true
+        case .thinking, .running, .waiting, .compacting: return false
+        }
+    }
+
     var progress: TaskProgress? {
         tasks.isEmpty ? nil : TaskProgress(tasks: tasks)
     }

@@ -56,11 +56,15 @@ final class ActivityTracker {
         sessions = ActivityReducer.reduce(sessions, message, removedPaths: removedPaths(by: message), now: now)
     }
 
-    /// Removes a session from the panel; Claude keeps running. It comes back
-    /// when the user sends it a prompt or starts it over.
-    func dismiss(_ id: String, now: Date = .now) {
+    /// Removes a stopped session from the panel; Claude keeps running. It comes
+    /// back when the user sends it a prompt or starts it over.
+    /// - Returns: `false` (and keeps it) while the session is mid-turn.
+    @discardableResult
+    func dismiss(_ id: String, now: Date = .now) -> Bool {
+        guard let session = sessions[id], session.canDismiss else { return false }
         sessions[id] = nil
         dismissed[id] = now
+        return true
     }
 
     /// Hooks don't say what a shell command deleted, so look: note which of

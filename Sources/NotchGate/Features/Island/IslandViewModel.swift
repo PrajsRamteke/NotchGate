@@ -267,13 +267,14 @@ final class IslandViewModel {
         TerminalActivator.activate(claudePID: session.claudePID)
     }
 
-    /// Removes a session from the notch without touching Claude: its waiting
-    /// cards go back to the terminal and its queued prompt is dropped.
+    /// Removes a stopped session from the notch without touching Claude: its
+    /// leftover cards go back to the terminal and its queued prompt is dropped.
+    /// Does nothing while the session is mid-turn.
     func dismissSession(_ sessionID: String) {
+        guard activity.dismiss(sessionID) else { return }
         store.cancelQueuedPrompt(for: sessionID)
         store.clearSession(sessionID)
         prompts.drafts.clear(sessionID)
-        activity.dismiss(sessionID)
     }
 
     /// Opens a Terminal window running Claude Code, for when no session exists yet.

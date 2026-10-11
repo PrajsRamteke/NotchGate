@@ -66,7 +66,7 @@ private struct IslandBackground: View {
         ZStack {
             shape.fill(Theme.Palette.island)
             RadialGradient(
-                colors: [Theme.Palette.clay.opacity(isActive ? 0.16 : 0), .clear],
+                colors: [Theme.Palette.clay.opacity(0.16), .clear],
                 // Glow rises from the bottom-left so the top stays pure black
                 // and blends seamlessly into the hardware notch.
                 center: .init(x: 0.06, y: 1.0),
@@ -74,6 +74,12 @@ private struct IslandBackground: View {
                 endRadius: 260
             )
             .clipShape(shape)
+            // Scoped to the glow's opacity on purpose. An `.animation(_:value:)`
+            // here would also retime the background's size and silhouette, and a
+            // request arriving flips `isActive` as the island expands: the black
+            // fill would then grow slower than the clip, leaving the card's text
+            // briefly drawn over nothing.
+            .animation(.easeInOut(duration: 0.6)) { $0.opacity(isActive ? 1 : 0) }
             shape.stroke(
                 LinearGradient(
                     colors: [.clear, Color.white.opacity(0.10)],
@@ -82,6 +88,5 @@ private struct IslandBackground: View {
                 lineWidth: 1
             )
         }
-        .animation(.easeInOut(duration: 0.6), value: isActive)
     }
 }

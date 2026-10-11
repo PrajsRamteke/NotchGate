@@ -15,10 +15,40 @@ struct SessionDismissTests {
         return BridgeRequest(event: event, payload: .object(payload), origin: ProcessOrigin(claudePID: 0))
     }
 
+    /// Sessions that ran a turn and stopped, so they can be dismissed.
     private func tracker(with sessions: [String]) -> ActivityTracker {
         let tracker = ActivityTracker(fileExists: { _ in false })
-        for id in sessions { tracker.ingest(event(.userPromptSubmit, session: id), now: now) }
+        for id in sessions {
+            tracker.ingest(event(.userPromptSubmit, session: id), now: now)
+            tracker.ingest(event(.stop, session: id), now: now)
+        }
         return tracker
+    }
+
+    @Test func onlyStoppedSessionsCanBeDismissed() {
+        let tracker = ActivityTracker(fileExists: { _ in false })
+        let bash: [String: JSONValue] = ["tool_name": .string("Bash"), "tool_input": .object([:])]
+        let steps: [(BridgeRequest, Bool)] = [
+            (event(.sessionStart), true),                                   // idle
+            (event(.userPromptSubmit), false),                              // thinking
+            (event(.preToolUse, bash), false),                              // running a tool
+            (event(.permissionRequest, bash), false),                       // waiting on the user
+            (event(.preCompact), false),                                    // compacting
+            (event(.stop), true),                                           // finished
+        ]
+        for (step, dismissible) in steps {
+            tracker.ingest(step, now: now)
+            #expect(tracker.sessions["s1"]?.canDismiss == dismissible, "after \(step.event)")
+        }
+    }
+
+    @Test func refusesToDismissAWorkingSession() {
+        let tracker = ActivityTracker(fileExists: { _ in false })
+        tracker.ingest(event(.userPromptSubmit), now: now)
+        #expect(!tracker.dismiss("s1", now: now))
+        #expect(tracker.sessions["s1"] != nil)
+        #expect(tracker.dismissed.isEmpty)
+        #expect(!tracker.dismiss("unknown", now: now))
     }
 
     @Test func removesOnlyThatSession() {
@@ -76,6 +106,7 @@ struct SessionDismissTests {
             settings: AppSettings(defaults: UserDefaults(suiteName: "dismiss-\(UUID().uuidString)")!),
             activity: tracker
         )
+        // A leftover card (answered in the terminal, hook still open) and a queued prompt.
         store.enqueue(DemoRequests.make(.permission, sessionID: "demo-docs"), responder: DemoResponder())
         store.sendPrompt("later", to: "demo-docs")
         #expect(store.queuedPrompts["demo-docs"] != nil)
@@ -84,5 +115,21 @@ struct SessionDismissTests {
         #expect(store.pendingRequest(for: "demo-docs") == nil)
         #expect(store.queuedPrompts["demo-docs"] == nil)
         #expect(tracker.sessions["demo-docs"] == nil)
+    }
+
+    @Test func viewModelLeavesAWorkingSessionAlone() {
+        let store = RequestStore()
+        let tracker = ActivityTracker(fileExists: { _ in false })
+        tracker.ingest(event(.userPromptSubmit, session: "busy"), now: now)
+        let model = IslandViewModel(
+            store: store,
+            settings: AppSettings(defaults: UserDefaults(suiteName: "dismiss-\(UUID().uuidString)")!),
+            activity: tracker
+        )
+        store.sendPrompt("next", to: "busy")
+
+        model.dismissSession("busy")
+        #expect(tracker.sessions["busy"] != nil)
+        #expect(store.queuedPrompts["busy"] == "next")
     }
 }
