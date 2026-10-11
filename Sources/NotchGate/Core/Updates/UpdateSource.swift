@@ -39,9 +39,18 @@ enum UpdateSource {
         }
     }
 
-    /// Commits on `main` that `installedSHA` doesn't contain (empty = up to date).
+    /// Rolling release tag that `.github/workflows/release.yml` moves to each published build.
+    static let releaseTag = "latest"
+
+    /// Commits in the newest prebuilt release that `installedSHA` doesn't contain (empty = up to date).
+    /// Comparing against the release tag, not `main`, means an update only shows once its download exists.
     static func compare(installedSHA: String) async throws -> UpdateInfo {
-        info(fromCompare: try await fetch("compare/\(installedSHA)...\(branch)"), installedSHA: installedSHA)
+        do {
+            return info(fromCompare: try await fetch("compare/\(installedSHA)...\(releaseTag)"), installedSHA: installedSHA)
+        } catch Failure.unknownBuild {
+            // No release published yet: fall back to the branch (the installer then builds from source).
+            return info(fromCompare: try await fetch("compare/\(installedSHA)...\(branch)"), installedSHA: installedSHA)
+        }
     }
 
     /// Parses GitHub's compare response (commits arrive oldest first).

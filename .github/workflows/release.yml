@@ -1,0 +1,58 @@
+# Builds a universal NotchGate.app on every push to main and publishes it as the
+# rolling "latest" release. install.sh and the in-app Update button download it,
+# so users don't need Xcode or the Command Line Tools to install or update.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Only the newest push matters; an older build would publish a stale app.
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Test
+        run: swift test
+
+      - name: Build universal app
+        run: NOTCHGATE_UNIVERSAL=1 Scripts/bundle.sh
+
+      - name: Package
+        run: |
+          ditto -c -k --keepParent dist/NotchGate.app dist/NotchGate.zip
+          shasum -a 256 dist/NotchGate.zip | awk '{print $1}' > dist/NotchGate.zip.sha256
+
+      # Upload first, move the tag second: the app compares against the tag, so it
+      # only reports an update once the matching download is in place.
+      - name: Publish the "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          short="${GITHUB_SHA::7}"
+          title="NotchGate ($short)"
+          notes="Built from $GITHUB_SHA. Install or update with:
+          \`curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/install.sh | bash\`"
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest dist/NotchGate.zip dist/NotchGate.zip.sha256 --clobber
+            git tag -f latest "$GITHUB_SHA"
+            git push -f origin refs/tags/latest
+            gh release edit latest --title "$title" --notes "$notes" --latest
+          else
+            gh release create latest dist/NotchGate.zip dist/NotchGate.zip.sha256 \
+              --target "$GITHUB_SHA" --title "$title" --notes "$notes" --latest
+          fi

@@ -2,24 +2,19 @@ import AppKit
 import Foundation
 
 /// Installs the latest NotchGate by running the same one-line installer as
-/// the README, in the background. The installer builds first and only swaps
-/// the app (quitting this process) at the very end, then relaunches it.
+/// the README, in the background. The installer downloads the prebuilt app
+/// (building from source only if that's unavailable), swaps it in (quitting
+/// this process) at the very end, then relaunches it.
 enum Updater {
     static var logURL: URL {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/NotchGate/update.log")
     }
 
-    /// Problems that would make the update fail before it starts.
+    /// Problems that would make the update fail before it starts. The prebuilt
+    /// download needs only curl; if the installer has to build from source
+    /// instead, it reports missing developer tools in the log itself.
     static func preflight() async -> String? {
-        let tools = ["/usr/bin/curl", "/usr/bin/git", "/usr/bin/swift"]
-        if let missing = tools.first(where: { !FileManager.default.isExecutableFile(atPath: $0) }) {
-            return "Updating needs \(URL(fileURLWithPath: missing).lastPathComponent), which is missing."
-        }
-        let developerTools = try? await CommandRunner.run("/usr/bin/xcode-select", ["-p"])
-        if developerTools?.succeeded != true {
-            return "Updating builds NotchGate from source and needs Apple's Command Line Tools. Run `xcode-select --install`, then try again."
-        }
-        return nil
+        FileManager.default.isExecutableFile(atPath: "/usr/bin/curl") ? nil : "Updating needs curl, which is missing."
     }
 
     /// Starts the installer. `onExit` runs only if this app is still alive

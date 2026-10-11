@@ -9,15 +9,20 @@ struct MenuBarContentView: View {
             header
             UpdateBanner(updates: coordinator.updates)
             Divider().padding(.vertical, 10)
-            CollapsibleSection("Claude Code", id: "claudeCode", summary: integration.summary) { integration }
-            Divider().padding(.vertical, 10)
-            CollapsibleSection("Show in notch", id: "showInNotch", expandedByDefault: true, summary: features.summary) { features }
-            Divider().padding(.vertical, 10)
-            CollapsibleSection("Permissions & questions", id: "permissions", summary: permissions.summary) { permissions }
-            Divider().padding(.vertical, 10)
-            CollapsibleSection("Behavior", id: "behavior") { PreferencesSection(settings: coordinator.settings) }
-            Divider().padding(.vertical, 10)
-            CollapsibleSection("Shortcuts", id: "shortcuts", summary: "⌃⌥⏎ · ⌃⌥⌫ · ⌃⌥Space") { ShortcutsSection() }
+            // Header and footer stay put; with every section open the middle scrolls instead of running off screen.
+            CappedScroll(maxHeight: sectionsMaxHeight, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 0) {
+                    CollapsibleSection("Claude Code", id: "claudeCode", summary: integration.summary) { integration }
+                    Divider().padding(.vertical, 10)
+                    CollapsibleSection("Show in notch", id: "showInNotch", expandedByDefault: true, summary: features.summary) { features }
+                    Divider().padding(.vertical, 10)
+                    CollapsibleSection("Permissions & questions", id: "permissions", summary: permissions.summary) { permissions }
+                    Divider().padding(.vertical, 10)
+                    CollapsibleSection("Behavior", id: "behavior") { PreferencesSection(settings: coordinator.settings) }
+                    Divider().padding(.vertical, 10)
+                    CollapsibleSection("Shortcuts", id: "shortcuts", summary: "⌃⌥⏎ · ⌃⌥⌫ · ⌃⌥Space") { ShortcutsSection() }
+                }
+            }
             Divider().padding(.vertical, 10)
             footer
         }
@@ -27,6 +32,13 @@ struct MenuBarContentView: View {
             coordinator.installer.refresh()
             coordinator.editorHelper.refresh()
         }
+    }
+
+    /// Room for the sections: the screen's usable height minus the header, a
+    /// possible update banner and the footer, capped so the menu stays compact.
+    private var sectionsMaxHeight: CGFloat {
+        let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
+        return min(560, max(240, screenHeight - 320))
     }
 
     private var header: some View {

@@ -3,18 +3,23 @@
 #
 #   Scripts/bundle.sh            # build dist/NotchGate.app
 #   Scripts/bundle.sh --install  # …and copy it to /Applications
+#
+# NOTCHGATE_UNIVERSAL=1 builds for Apple silicon and Intel (needs Xcode); the
+# release workflow uses it for the prebuilt download.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist"
 APP="$DIST/NotchGate.app"
 CONFIG="release"
+BUILD_FLAGS=(-c "$CONFIG")
+[[ "${NOTCHGATE_UNIVERSAL:-}" == "1" ]] && BUILD_FLAGS+=(--arch arm64 --arch x86_64)
 
 cd "$ROOT"
 echo "→ Building ($CONFIG)…"
-swift build -c "$CONFIG" --product NotchGate
-swift build -c "$CONFIG" --product notchgate-hook
-BIN="$(swift build -c "$CONFIG" --show-bin-path)"
+swift build "${BUILD_FLAGS[@]}" --product NotchGate
+swift build "${BUILD_FLAGS[@]}" --product notchgate-hook
+BIN="$(swift build "${BUILD_FLAGS[@]}" --show-bin-path)"
 
 echo "→ Assembling $APP"
 rm -rf "$APP"

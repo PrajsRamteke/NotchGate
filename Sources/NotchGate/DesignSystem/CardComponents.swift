@@ -68,6 +68,7 @@ struct CappedScroll<Content: View>: View {
     var maxHeight: CGFloat = Theme.Metrics.expandedMaxContentHeight
     /// When set, the child with this `.id` is scrolled fully into view.
     var scrollTarget: String?
+    var showsIndicators = false
     @ViewBuilder var content: Content
 
     @State private var contentHeight: CGFloat = 0
@@ -75,7 +76,7 @@ struct CappedScroll<Content: View>: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView(axes, showsIndicators: false) {
+            ScrollView(axes, showsIndicators: showsIndicators) {
                 content
                     // Horizontal scroll views center narrow content; keep it leading.
                     .frame(minWidth: axes.contains(.horizontal) ? viewportWidth : nil, alignment: .leading)

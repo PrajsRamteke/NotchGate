@@ -47,7 +47,16 @@ enum SnapshotRenderer {
             .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5))
             .shadow(color: .black.opacity(0.45), radius: 24, y: 12)
-        let fitted = NSHostingView(rootView: panel).fittingSize
+        // Measure in a window after layout settles: the menu's scroll area sizes
+        // itself from a measurement that only arrives after the first pass.
+        let probe = NSHostingView(rootView: panel)
+        let probeWindow = NSWindow(contentRect: CGRect(x: -20_000, y: -20_000, width: 400, height: 400),
+                                   styleMask: [.borderless], backing: .buffered, defer: false)
+        probeWindow.contentView = probe
+        probeWindow.orderFrontRegardless()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+        let fitted = probe.fittingSize
+        probeWindow.orderOut(nil)
         let canvas = CGSize(width: fitted.width + 80, height: fitted.height + 80)
         SnapshotExport.write(
             SnapshotBackdrop(showsMenuBar: false) { panel.frame(maxWidth: .infinity, maxHeight: .infinity) },

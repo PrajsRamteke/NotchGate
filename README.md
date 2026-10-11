@@ -25,23 +25,27 @@ curl -fsSL https://raw.githubusercontent.com/PrajsRamteke/NotchGate/main/install
 Then **restart any running Claude Code sessions**. That's it: look for the ✦ in
 your menu bar.
 
-**Requirements:** macOS 14 or later · Claude Code · Apple's Command Line Tools
-(`xcode-select --install`, the installer offers to open it if missing).
+**Requirements:** macOS 14 or later (Apple silicon or Intel) · Claude Code.
 
 <details>
-<summary>Install from a clone instead</summary>
+<summary>Install from a clone instead (builds from source)</summary>
 
 ```bash
 git clone https://github.com/PrajsRamteke/NotchGate.git
 cd NotchGate && ./install.sh
 ```
 
+Building needs Apple's Command Line Tools (`xcode-select --install`; the
+installer offers to open it if missing).
+
 </details>
 
-The installer builds the app, puts it in `/Applications`, connects it to Claude
-Code (backing up `~/.claude/settings.json` first), installs a small helper in
-Cursor / VS Code if you have them, and turns on launch at login. Running it
-again simply updates NotchGate.
+The installer downloads the ready-built app from the
+[latest release](https://github.com/PrajsRamteke/NotchGate/releases/tag/latest)
+(a few seconds; if that's unavailable it builds from source instead), puts it in
+`/Applications`, connects it to Claude Code (backing up `~/.claude/settings.json`
+first), installs a small helper in Cursor / VS Code if you have them, and turns
+on launch at login. Running it again simply updates NotchGate.
 
 ---
 
@@ -135,8 +139,12 @@ Don't ask), live activity on hover, sounds and launch at login.
 ## Updating
 
 NotchGate checks GitHub for updates. When one is available, the ✦ icon gets a
-dot and the menu shows **Update available**. Click **Update**: it rebuilds in the
-background and relaunches itself. You can also re-run the install command.
+dot and the menu shows **Update available**. Click **Update**: it downloads the new
+build and relaunches itself in a few seconds. You can also re-run the install command.
+
+Every push to `main` is built by [`.github/workflows/release.yml`](.github/workflows/release.yml)
+into a universal `NotchGate.zip` on the rolling `latest` release; the app only
+offers an update once that build is published.
 
 ## Uninstall
 

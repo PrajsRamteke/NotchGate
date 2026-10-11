@@ -13,7 +13,7 @@ struct UpdateBanner: View {
                     ProgressView().controlSize(.small)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Updating NotchGate…").font(.callout.weight(.semibold))
-                        SettingNote("Building the new version (1–2 min). It restarts by itself.")
+                        SettingNote("Downloading the new version. It restarts by itself.")
                     }
                 }
                 UpdateLogView()
