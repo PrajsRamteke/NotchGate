@@ -116,3 +116,28 @@ struct IconButton: View {
         .animation(.easeOut(duration: 0.15), value: isHovered)
     }
 }
+
+/// Round icon button that opens or closes a card, tinted clay while it's open.
+struct CardToggleButton: View {
+    let systemName: String
+    /// What the card shows, as in "Show usage".
+    let name: String
+    let isOn: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            withAnimation(Theme.Motion.content) { action() }
+        } label: {
+            Image(systemName: systemName)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(isOn ? Theme.Palette.clay : Theme.Palette.textTertiary)
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(isOn ? Theme.Palette.clay.opacity(0.12) : Color.clear))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(isOn ? "Hide \(name)" : "Show \(name)")
+        .accessibilityLabel(isOn ? "Hide \(name)" : "Show \(name)")
+    }
+}

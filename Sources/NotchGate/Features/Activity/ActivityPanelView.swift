@@ -15,6 +15,8 @@ struct ActivityPanelView: View {
     @State private var dropTarget: String?
     /// Dragged images are over the panel but not a row (one session: still its drop).
     @State private var isPanelTargeted = false
+    /// Session rows showing their model, context, cost and branch.
+    @State private var openUsage: Set<String> = []
 
     static let dropTypes: [UTType] = [.fileURL, .image]
 
@@ -34,7 +36,7 @@ struct ActivityPanelView: View {
         VStack(alignment: .leading, spacing: 12) {
             header(count: tracker.sessions.count)
 
-            NotchWidgetsView(usage: model.usage, session: model.session)
+            NotchWidgetsView(usage: model.usage, session: model.session, sessions: tracker.ordered)
                 .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
 
             if model.isDraggingImages, !sessions.isEmpty {
@@ -90,6 +92,7 @@ struct ActivityPanelView: View {
             isComposerOpen: openComposer == session.id,
             hasQueuedPrompt: queued != nil,
             dropState: dropState(for: session),
+            usage: usage(for: session),
             onToggleComposer: { toggleComposer(session.id) },
             onOpen: { model.openTerminal(for: session) }
         ) {
@@ -150,6 +153,17 @@ struct ActivityPanelView: View {
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.Palette.clay.opacity(0.1)))
     }
 
+    /// The row's Session widget button, while that widget is on.
+    private func usage(for session: SessionActivity) -> SessionRowUsage? {
+        guard model.session.isEnabled else { return nil }
+        let id = session.id
+        return SessionRowUsage(
+            snapshot: model.session.snapshot(for: id),
+            isOpen: openUsage.contains(id),
+            toggle: { if openUsage.remove(id) == nil { openUsage.insert(id) } }
+        )
+    }
+
     private func toggleComposer(_ id: String) {
         withAnimation(Theme.Motion.content) {
             openComposer = openComposer == id ? nil : id
@@ -177,36 +191,19 @@ struct ActivityPanelView: View {
                     .foregroundStyle(Theme.Palette.textTertiary)
             }
             if settings.usageWidget {
-                cardToggle(
-                    systemImage: "gauge.with.dots.needle.50percent",
+                CardToggleButton(
+                    systemName: "gauge.with.dots.needle.50percent",
                     name: "usage",
-                    isShown: settings.usageCardShown
+                    isOn: settings.usageCardShown
                 ) { settings.usageCardShown.toggle() }
             }
             if settings.sessionWidget {
-                cardToggle(
-                    systemImage: "cpu",
-                    name: "session",
-                    isShown: settings.sessionCardShown
+                CardToggleButton(
+                    systemName: "cpu",
+                    name: "sessions",
+                    isOn: settings.sessionCardShown
                 ) { settings.sessionCardShown.toggle() }
             }
         }
-    }
-
-    /// Icon button that opens or closes one widget card below the header.
-    private func cardToggle(systemImage: String, name: String, isShown: Bool, toggle: @escaping () -> Void) -> some View {
-        Button {
-            withAnimation(Theme.Motion.content) { toggle() }
-        } label: {
-            Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(isShown ? Theme.Palette.clay : Theme.Palette.textTertiary)
-                .frame(width: 22, height: 22)
-                .background(Circle().fill(isShown ? Theme.Palette.clay.opacity(0.12) : Color.clear))
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .help(isShown ? "Hide \(name)" : "Show \(name)")
-        .accessibilityLabel(isShown ? "Hide \(name)" : "Show \(name)")
     }
 }

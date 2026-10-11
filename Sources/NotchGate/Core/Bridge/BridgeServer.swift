@@ -13,6 +13,12 @@ final class BridgeServer: @unchecked Sendable {
     private var listener: UnixSocket?
     private var acceptSource: DispatchSourceRead?
     private var connections: [ObjectIdentifier: BridgeConnection] = [:]
+    /// The socket file this server created, so it never deletes another instance's.
+    private var socketInode: ino_t?
+    private var watchdog: DispatchSourceTimer?
+
+    /// How often to check that the socket file is still there.
+    static let watchdogInterval: DispatchTimeInterval = .seconds(3)
 
     private let onMessage: MessageHandler
     private let onDisconnect: DisconnectHandler
@@ -33,6 +39,36 @@ final class BridgeServer: @unchecked Sendable {
             withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700]
         )
+        try queue.sync { try listen() }
+
+        let watchdog = DispatchSource.makeTimerSource(queue: queue)
+        watchdog.schedule(deadline: .now() + Self.watchdogInterval, repeating: Self.watchdogInterval)
+        watchdog.setEventHandler { [weak self] in self?.restoreSocketIfRemoved() }
+        watchdog.resume()
+        self.watchdog = watchdog
+    }
+
+    func stop() {
+        queue.sync {
+            watchdog?.cancel()
+            watchdog = nil
+            acceptSource?.cancel()
+            acceptSource = nil
+            listener = nil
+            // Only remove our own socket: when NotchGate is relaunched, the new
+            // instance may already be listening at this path.
+            if let socketInode, Self.inode(at: socketURL.path) == socketInode {
+                unlink(socketURL.path)
+            }
+            socketInode = nil
+        }
+    }
+
+    // MARK: Private
+
+    /// Binds the socket and starts accepting. Runs on `queue`.
+    private func listen() throws {
+        acceptSource?.cancel()
         let listener = try UnixSocket.listen(at: socketURL)
         listener.setNonBlocking()
 
@@ -43,17 +79,27 @@ final class BridgeServer: @unchecked Sendable {
 
         self.listener = listener
         self.acceptSource = source
+        socketInode = Self.inode(at: socketURL.path)
         Log.bridge.info("Listening on \(self.socketURL.path, privacy: .public)")
     }
 
-    func stop() {
-        acceptSource?.cancel()
-        acceptSource = nil
-        listener = nil
-        unlink(socketURL.path)
+    /// Hooks reach the app by the socket's path, so if the file disappears
+    /// while we're listening (an older instance quitting deleted it), every
+    /// hook would fail. Put it back. Runs on `queue`.
+    private func restoreSocketIfRemoved() {
+        guard listener != nil, Self.inode(at: socketURL.path) == nil else { return }
+        do {
+            try listen()
+            Log.bridge.notice("Socket file was removed; listening again")
+        } catch {
+            Log.bridge.error("Couldn't restore the socket: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
-    // MARK: Private
+    private static func inode(at path: String) -> ino_t? {
+        var info = stat()
+        return lstat(path, &info) == 0 ? info.st_ino : nil
+    }
 
     private func acceptPending() {
         guard let listener else { return }

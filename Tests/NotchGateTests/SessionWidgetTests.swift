@@ -11,6 +11,7 @@ struct SessionWidgetTests {
         var input: [String: JSONValue] = [
             "session_id": .string("abc123"),
             "model": .object(["display_name": .string("Opus")]),
+            "workspace": .object(["project_dir": .string("/Users/me/NotchGate")]),
         ]
         if let context { input["context_window"] = context }
         if let cost { input["cost"] = .object(["total_cost_usd": .number(cost)]) }
@@ -23,6 +24,8 @@ struct SessionWidgetTests {
             "context_window_size": .number(200_000),
         ]))
         let snapshot = try #require(SessionSnapshot(statusLine: input, branch: "main", now: now))
+        #expect(snapshot.sessionID == "abc123")
+        #expect(snapshot.projectName == "NotchGate")
         #expect(snapshot.model == "Opus")
         #expect(snapshot.contextPercent == 42.4)
         #expect(snapshot.contextSize == 200_000)
@@ -48,21 +51,81 @@ struct SessionWidgetTests {
         #expect(try #require(SessionSnapshot(statusLine: input, branch: nil, now: now)).contextPercent == 100)
     }
 
-    @Test func savesAndLoadsTheSnapshot() throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("session-\(UUID()).json")
-        defer { try? FileManager.default.removeItem(at: url) }
-        let snapshot = SessionSnapshot(
-            model: "Sonnet", contextPercent: 12, contextSize: 1_000_000,
-            costUSD: 1.5, branch: "feature/x", updatedAt: now
+    private func sample(_ id: String, cost: Double = 1.5, updatedAt: Date? = nil) -> SessionSnapshot {
+        SessionSnapshot(
+            sessionID: id, directory: "/Users/me/\(id)", model: "Sonnet", contextPercent: 12,
+            contextSize: 1_000_000, costUSD: cost, branch: "feature/x", updatedAt: updatedAt ?? now
         )
-        try snapshot.save(to: url)
-        #expect(SessionSnapshot.load(from: url) == snapshot)
+    }
+
+    private func temporaryDirectory() -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("sessions-\(UUID())", isDirectory: true)
+    }
+
+    @Test func savesEachSessionToItsOwnFile() throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try sample("one").save(in: directory)
+        try sample("two").save(in: directory)
+        #expect(SessionSnapshot.load(from: SessionSnapshot.fileURL(for: "one", in: directory)) == sample("one"))
+        #expect(SessionSnapshot.load(from: SessionSnapshot.fileURL(for: "two", in: directory)) == sample("two"))
+    }
+
+    @Test func sessionFileStaysInsideItsFolder() {
+        let directory = URL(fileURLWithPath: "/tmp/sessions")
+        #expect(SessionSnapshot.fileURL(for: "../../evil", in: directory).path == "/tmp/sessions/evil.json")
+    }
+
+    @MainActor
+    @Test func monitorKeepsEverySessionApart() throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let settings = AppSettings(defaults: UserDefaults(suiteName: "session-\(UUID())")!)
+        let monitor = SessionMonitor(settings: settings, directory: directory)
+
+        try sample("one", cost: 1, updatedAt: now).save(in: directory)
+        try sample("two", cost: 2, updatedAt: now.addingTimeInterval(60)).save(in: directory)
+        monitor.reload()
+
+        #expect(monitor.snapshots.count == 2)
+        #expect(monitor.snapshot(for: "one")?.costUSD == 1)
+        #expect(monitor.snapshot(for: "two")?.costUSD == 2)
+        #expect(monitor.latest?.sessionID == "two")
+
+        // A new reply in one session updates only that session.
+        try sample("one", cost: 3, updatedAt: now.addingTimeInterval(120)).save(in: directory)
+        let file = SessionSnapshot.fileURL(for: "one", in: directory)
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(1)], ofItemAtPath: file.path)
+        monitor.reload()
+        #expect(monitor.snapshot(for: "one")?.costUSD == 3)
+        #expect(monitor.snapshot(for: "two")?.costUSD == 2)
+        #expect(monitor.latest?.sessionID == "one")
+    }
+
+    @MainActor
+    @Test func monitorDeletesSessionsPastRetention() throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let settings = AppSettings(defaults: UserDefaults(suiteName: "session-\(UUID())")!)
+        let monitor = SessionMonitor(settings: settings, directory: directory)
+
+        try sample("old").save(in: directory)
+        try sample("new").save(in: directory)
+        let old = SessionSnapshot.fileURL(for: "old", in: directory)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date().addingTimeInterval(-SessionMonitor.retention - 60)],
+            ofItemAtPath: old.path
+        )
+        monitor.reload()
+
+        #expect(monitor.snapshots.keys.sorted() == ["new"])
+        #expect(!FileManager.default.fileExists(atPath: old.path))
     }
 
     @Test func shortensTokenCounts() {
-        #expect(SessionWidgetView.tokenPhrase(200_000) == "200K")
-        #expect(SessionWidgetView.tokenPhrase(1_000_000) == "1M")
-        #expect(SessionWidgetView.tokenPhrase(800) == "800")
+        #expect(SessionUsageDetails.tokenPhrase(200_000) == "200K")
+        #expect(SessionUsageDetails.tokenPhrase(1_000_000) == "1M")
+        #expect(SessionUsageDetails.tokenPhrase(800) == "800")
     }
 
     @Test func ignoresAnOutOfRangeContextSize() throws {

@@ -1,3 +1,4 @@
+import NotchGateKit
 import SwiftUI
 
 /// How a session row looks while images are dragged over the notch.
@@ -9,6 +10,14 @@ enum SessionDropState: Equatable {
     case targeted
 }
 
+/// A session row's Session widget button and the details it opens.
+struct SessionRowUsage {
+    /// `nil` until this session's status line has reported.
+    let snapshot: SessionSnapshot?
+    let isOpen: Bool
+    let toggle: () -> Void
+}
+
 /// One Claude session in the hover panel: what it's doing, how far along and
 /// for how long, plus a "Reply" dropdown to send that project a prompt.
 struct SessionActivityRow<Composer: View>: View {
@@ -16,6 +25,8 @@ struct SessionActivityRow<Composer: View>: View {
     let isComposerOpen: Bool
     let hasQueuedPrompt: Bool
     var dropState: SessionDropState = .none
+    /// `nil` while the Session widget is off.
+    var usage: SessionRowUsage?
     let onToggleComposer: () -> Void
     let onOpen: () -> Void
     @ViewBuilder var composer: Composer
@@ -35,6 +46,9 @@ struct SessionActivityRow<Composer: View>: View {
                     FileChangeBadge(changes: session.fileChanges)
                 }
                 ElapsedLabel(session: session)
+                if let usage {
+                    CardToggleButton(systemName: "cpu", name: "this session's usage", isOn: usage.isOpen, action: usage.toggle)
+                }
                 ReplyChip(isOpen: isComposerOpen, isQueued: hasQueuedPrompt, action: onToggleComposer)
                 IconButton(systemName: "arrow.up.forward.app", help: "Open this session's terminal", action: onOpen)
             }
@@ -59,6 +73,11 @@ struct SessionActivityRow<Composer: View>: View {
                     .lineLimit(1)
             }
 
+            if let usage, usage.isOpen {
+                usageDetails(usage.snapshot)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
             if isComposerOpen {
                 composer
                     .padding(.top, 2)
@@ -75,7 +94,28 @@ struct SessionActivityRow<Composer: View>: View {
         .onHover { isHovered = $0 }
         .animation(.easeOut(duration: 0.15), value: isHovered)
         .animation(Theme.Motion.content, value: isComposerOpen)
+        .animation(Theme.Motion.content, value: usage?.isOpen)
         .animation(Theme.Motion.press, value: dropState)
+    }
+
+    @ViewBuilder
+    private func usageDetails(_ snapshot: SessionSnapshot?) -> some View {
+        Group {
+            if let snapshot {
+                SessionUsageDetails(snapshot: snapshot)
+            } else {
+                Text("Appears after this session's next reply.")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Theme.Palette.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.white.opacity(0.035))
+        )
+        .padding(.top, 2)
     }
 
     private var statusRow: some View {

@@ -15,9 +15,12 @@ struct StatusLineRelay {
             try? snapshot.save()
         }
         if let payload {
-            let directory = payload["workspace"]?["current_dir"]?.stringValue ?? payload["cwd"]?.stringValue ?? ""
-            let session = SessionSnapshot(statusLine: payload, branch: GitBranch.current(in: directory))
-            try? session?.save()
+            // The branch where Claude is working now, which may be a worktree of the project.
+            let workingDirectory = payload["workspace"]?["current_dir"]?.stringValue
+                ?? payload["cwd"]?.stringValue
+                ?? SessionSnapshot.directory(in: payload)
+            let branch = workingDirectory.flatMap(GitBranch.current(in:))
+            try? SessionSnapshot(statusLine: payload, branch: branch)?.save()
         }
 
         if let command = Self.originalCommand() {

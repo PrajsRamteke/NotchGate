@@ -3,37 +3,50 @@ import NotchGateKit
 import Observation
 
 /// Backs the Session widget: keeps the status line relay installed while the
-/// widget is on, and picks up the latest session details the relay saves.
+/// widget is on, and picks up each session's details the relay saves.
 @MainActor
 @Observable
 final class SessionMonitor {
-    private(set) var snapshot: SessionSnapshot?
+    /// Every recently reported session, by Claude Code session id.
+    private(set) var snapshots: [String: SessionSnapshot] = [:]
     /// Why the relay couldn't be installed, shown in the menu bar.
     private(set) var setupError: String?
-    /// Showing a sample session (snapshots); nothing is installed or read.
+    /// Showing sample sessions (snapshots); nothing is installed or read.
     private(set) var isPreviewing = false
 
     let settings: AppSettings
 
     @ObservationIgnored private let installer: StatusLineInstaller
-    @ObservationIgnored private let snapshotURL: URL
+    @ObservationIgnored private let directory: URL
     @ObservationIgnored private var poller: Task<Void, Never>?
-    @ObservationIgnored private var lastModified: Date?
+    /// Each file's modification date and contents as last read, so only changed files are decoded.
+    @ObservationIgnored private var files: [URL: (modified: Date, snapshot: SessionSnapshot)] = [:]
 
-    /// The relay writes a file; checking its date is cheap.
+    /// The relay writes files; listing their dates is cheap.
     static let pollInterval: Duration = .seconds(5)
+    /// Files of sessions that haven't reported for this long are deleted.
+    static let retention: TimeInterval = 24 * 3600
 
     init(
         settings: AppSettings,
         installer: StatusLineInstaller = StatusLineInstaller(),
-        snapshotURL: URL = BridgeLocation.sessionURL
+        directory: URL = BridgeLocation.sessionsDirectory
     ) {
         self.settings = settings
         self.installer = installer
-        self.snapshotURL = snapshotURL
+        self.directory = directory
     }
 
     var isEnabled: Bool { settings.sessionWidget || isPreviewing }
+
+    /// The session that reported most recently.
+    var latest: SessionSnapshot? {
+        snapshots.values.max { $0.updatedAt < $1.updatedAt }
+    }
+
+    func snapshot(for sessionID: String) -> SessionSnapshot? {
+        snapshots[sessionID]
+    }
 
     func start() {
         guard isEnabled else { return }
@@ -63,19 +76,40 @@ final class SessionMonitor {
         }
     }
 
-    /// Shows `sample` (`nil`: the waiting state) without touching settings or the status line.
-    func showPreview(_ sample: SessionSnapshot?) {
+    /// Shows `samples` (empty: the waiting state) without touching settings or the status line.
+    func showPreview(_ samples: [SessionSnapshot]) {
         isPreviewing = true
-        snapshot = sample
+        snapshots = Dictionary(samples.map { ($0.sessionID, $0) }, uniquingKeysWith: { $1 })
     }
 
-    /// Reads the snapshot again if the relay has written a new one.
-    func reload() {
-        let modified = (try? FileManager.default.attributesOfItem(atPath: snapshotURL.path))?[.modificationDate] as? Date
-        guard modified != lastModified || snapshot == nil else { return }
-        lastModified = modified
-        let loaded = SessionSnapshot.load(from: snapshotURL)
-        if loaded != snapshot { snapshot = loaded }
+    /// Picks up new and changed session files, and deletes ones past `retention`.
+    func reload(now: Date = Date()) {
+        let listed = (try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: .skipsHiddenFiles
+        )) ?? []
+
+        var fresh: [URL: (modified: Date, snapshot: SessionSnapshot)] = [:]
+        for file in listed where file.pathExtension == "json" {
+            guard let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate else { continue }
+            if now.timeIntervalSince(modified) > Self.retention {
+                try? FileManager.default.removeItem(at: file)
+                continue
+            }
+            if let cached = files[file], cached.modified == modified {
+                fresh[file] = cached
+            } else if let snapshot = SessionSnapshot.load(from: file) {
+                fresh[file] = (modified, snapshot)
+            }
+        }
+        files = fresh
+
+        let next = Dictionary(
+            fresh.values.map { ($0.snapshot.sessionID, $0.snapshot) },
+            uniquingKeysWith: { $0.updatedAt >= $1.updatedAt ? $0 : $1 }
+        )
+        if next != snapshots { snapshots = next }
     }
 
     // MARK: Private

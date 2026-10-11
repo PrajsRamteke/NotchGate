@@ -7,6 +7,8 @@ import SwiftUI
 struct NotchWidgetsView: View {
     let usage: UsageMonitor
     let session: SessionMonitor
+    /// Sessions in the activity list, newest first; the Session card follows them.
+    let sessions: [SessionActivity]
 
     // No wrapping stack: each card joins the panel's stack on its own, so a
     // hidden card leaves no gap and each one animates in separately.
@@ -15,8 +17,22 @@ struct NotchWidgetsView: View {
             UsageWidgetView(snapshot: usage.snapshot)
         }
         if session.isEnabled, session.settings.sessionCardShown {
-            SessionWidgetView(snapshot: session.snapshot)
+            SessionWidgetView(entries: sessionEntries)
         }
+    }
+
+    /// The running sessions that have reported, or else the last one that did,
+    /// so the card isn't blank between sessions.
+    private var sessionEntries: [SessionWidgetView.Entry] {
+        let live = sessions.compactMap { activity in
+            session.snapshot(for: activity.id).map {
+                SessionWidgetView.Entry(id: activity.id, name: activity.projectName, snapshot: $0)
+            }
+        }
+        if !live.isEmpty { return live }
+        return session.latest.map {
+            [SessionWidgetView.Entry(id: $0.sessionID, name: $0.projectName ?? "Claude Code", snapshot: $0)]
+        } ?? []
     }
 }
 

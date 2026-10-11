@@ -22,9 +22,9 @@ public enum BridgeLocation {
         supportDirectory.appendingPathComponent("usage.json")
     }
 
-    /// The latest session's model, context, cost and branch (see `SessionSnapshot`).
-    public static var sessionURL: URL {
-        supportDirectory.appendingPathComponent("session.json")
+    /// One file per Claude Code session with its model, context, cost and branch (see `SessionSnapshot`).
+    public static var sessionsDirectory: URL {
+        supportDirectory.appendingPathComponent("sessions", isDirectory: true)
     }
 
     /// The user's own `statusLine` setting, kept while NotchGate's relay sits

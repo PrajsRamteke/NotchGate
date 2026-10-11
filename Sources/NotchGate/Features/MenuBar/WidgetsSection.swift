@@ -45,15 +45,17 @@ struct WidgetsSection: View {
 
     private var sessionStatus: String {
         if let error = session.setupError { return "Couldn't connect to Claude Code: \(error)" }
-        guard let snapshot = session.snapshot else {
-            return "Waiting for Claude Code's next reply. Shows the latest session."
+        guard let snapshot = session.latest else {
+            return "Waiting for Claude Code's next reply. Each session shows its own."
         }
         var parts: [String] = []
+        if session.snapshots.count > 1 { parts.append("\(session.snapshots.count) sessions, latest:") }
+        if let name = snapshot.projectName { parts.append(name) }
         if let model = snapshot.model { parts.append(model) }
         if let percent = snapshot.contextPercent { parts.append("\(Int(percent.rounded()))% context") }
-        if let cost = snapshot.costUSD { parts.append(cost.formatted(.currency(code: "USD"))) }
+        if let cost = snapshot.costUSD { parts.append(SessionUsageDetails.costPhrase(cost)) }
         if let branch = snapshot.branch { parts.append(branch) }
-        return parts.isEmpty ? "Waiting for Claude Code's next reply." : parts.joined(separator: " · ")
+        return parts.joined(separator: " · ")
     }
 
     private var usageStatus: String {
