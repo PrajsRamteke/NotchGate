@@ -209,6 +209,11 @@ final class IslandViewModel {
         TerminalActivator.activate(claudePID: session.claudePID)
     }
 
+    /// Opens a Terminal window running Claude Code, for when no session exists yet.
+    func startClaudeCode() {
+        ClaudeLauncher.openTerminalWithClaude()
+    }
+
     // MARK: Global shortcuts
 
     func perform(_ action: HotKeyCenter.Action) {

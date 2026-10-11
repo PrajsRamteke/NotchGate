@@ -24,8 +24,15 @@ struct ActivityPanelView: View {
             header(count: tracker.sessions.count)
 
             if sessions.isEmpty {
-                CardTitle(title: "Nothing running", subtitle: "Start Claude Code in any terminal and its progress shows up here.")
-                    .padding(.bottom, 4)
+                VStack(alignment: .leading, spacing: 12) {
+                    CardTitle(title: "Nothing running", subtitle: "Start Claude Code in any terminal and its progress shows up here.")
+                    Button(action: model.startClaudeCode) {
+                        Label("Open Claude Code", systemImage: "terminal")
+                    }
+                    .buttonStyle(.island(.primary))
+                    .help("Opens Terminal and starts Claude Code")
+                }
+                .padding(.bottom, 4)
             } else {
                 CappedScroll(maxHeight: 400, scrollTarget: openComposer) {
                     VStack(spacing: 8) {
