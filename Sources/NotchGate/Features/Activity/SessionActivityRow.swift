@@ -31,6 +31,9 @@ struct SessionActivityRow<Composer: View>: View {
                     .foregroundStyle(Theme.Palette.textPrimary)
                     .lineLimit(1)
                 Spacer(minLength: 8)
+                if !session.fileChanges.isEmpty {
+                    FileChangeBadge(changes: session.fileChanges)
+                }
                 ElapsedLabel(session: session)
                 ReplyChip(isOpen: isComposerOpen, isQueued: hasQueuedPrompt, action: onToggleComposer)
                 IconButton(systemName: "arrow.up.forward.app", help: "Open this session's terminal", action: onOpen)
@@ -160,6 +163,36 @@ private struct PhaseIndicator: View {
 
     private func dot(_ color: Color) -> some View {
         Circle().fill(color).frame(width: 7, height: 7).frame(width: 13, height: 13)
+    }
+}
+
+/// "+2 ~3 −1": files this session added (green), changed (yellow) and
+/// deleted (red). Hover for the line counts.
+private struct FileChangeBadge: View {
+    let changes: FileChanges
+
+    var body: some View {
+        HStack(spacing: 6) {
+            count("+", changes.added, Theme.Palette.success)
+            count("~", changes.modified, Theme.Palette.warning)
+            count("−", changes.deleted, Theme.Palette.danger)
+        }
+        .font(.system(size: 11, weight: .semibold, design: .rounded))
+        .monospacedDigit()
+        .fixedSize()
+        .help(changes.summary)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(changes.summary)
+        .animation(Theme.Motion.content, value: changes)
+    }
+
+    @ViewBuilder
+    private func count(_ sign: String, _ value: Int, _ color: Color) -> some View {
+        if value > 0 {
+            Text("\(sign)\(value)")
+                .foregroundStyle(color)
+                .contentTransition(.numericText())
+        }
     }
 }
 

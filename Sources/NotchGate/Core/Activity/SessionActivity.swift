@@ -21,6 +21,8 @@ struct SessionActivity: Identifiable, Equatable, Sendable {
     var lastMessage: String?
     var toolCount = 0
     var tasks: [TaskItem] = []
+    /// Files added, changed and deleted this session.
+    var fileChanges = FileChanges()
     var turnStartedAt: Date?
     var turnEndedAt: Date?
     var updatedAt: Date

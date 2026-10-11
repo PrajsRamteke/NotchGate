@@ -4,9 +4,12 @@ import NotchGateKit
 /// Pure state machine: (sessions, hook event) → sessions.
 /// Kept free of UI and timers so every transition is unit-testable.
 enum ActivityReducer {
+    /// - Parameter removedPaths: files a finished `Bash` call deleted (found
+    ///   by `ActivityTracker`, which can look at the disk).
     static func reduce(
         _ sessions: [String: SessionActivity],
         _ message: BridgeRequest,
+        removedPaths: [String] = [],
         now: Date = .now
     ) -> [String: SessionActivity] {
         let payload = message.payload
@@ -25,6 +28,9 @@ enum ActivityReducer {
         session.claudePID = message.origin.claudePID
         session.updatedAt = now
         apply(message.event, payload, to: &session, now: now)
+        if message.event == .postToolUse {
+            recordFileChanges(payload, removedPaths: removedPaths, in: &session.fileChanges)
+        }
         sessions[id] = session
         return sessions
     }
@@ -37,6 +43,7 @@ enum ActivityReducer {
         case .sessionStart:
             if payload["source"]?.stringValue != "compact" {
                 session.tasks = []
+                session.fileChanges = FileChanges()
                 session.prompt = nil
                 session.lastMessage = nil
             }
@@ -83,6 +90,24 @@ enum ActivityReducer {
         default:
             break
         }
+    }
+
+    /// File tools report what they did in `file_change` (see `HookPolicy`); an
+    /// older hook binary doesn't, so its edits count as changes with no lines.
+    private static func recordFileChanges(_ payload: JSONValue, removedPaths: [String], in changes: inout FileChanges) {
+        for path in removedPaths { changes.record(.deleted, path: path) }
+
+        let tool = payload["tool_name"]?.stringValue ?? ""
+        guard HookPolicy.fileTools.contains(tool),
+              let path = payload["tool_input"]?["file_path"]?.stringValue
+                ?? payload["tool_input"]?["notebook_path"]?.stringValue else { return }
+        let change = payload["file_change"]
+        changes.record(
+            change?["created"]?.boolValue == true ? .added : .modified,
+            path: path,
+            linesAdded: Int(change?["lines_added"]?.doubleValue ?? 0),
+            linesRemoved: Int(change?["lines_removed"]?.doubleValue ?? 0)
+        )
     }
 }
 

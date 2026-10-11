@@ -17,6 +17,14 @@ enum DemoActivity {
             TaskItem(id: "4", title: "Update docs", activeTitle: nil, status: .pending),
         ]
 
+        for file in ["RetryPolicy.swift", "RetryPolicyTests.swift"] {
+            api.fileChanges.record(.added, path: "/Users/demo/checkout-api/\(file)", linesAdded: 96)
+        }
+        for file in ["PaymentClient.swift", "Config.swift", "README.md"] {
+            api.fileChanges.record(.modified, path: "/Users/demo/checkout-api/\(file)", linesAdded: 18, linesRemoved: 7)
+        }
+        api.fileChanges.record(.deleted, path: "/Users/demo/checkout-api/LegacyRetry.swift")
+
         var web = SessionActivity(id: "demo-web", cwd: "/Users/demo/dashboard", claudePID: 0, updatedAt: now.addingTimeInterval(-40))
         web.phase = .waiting(reason: "Needs permission · Running npm install")
         web.prompt = "Upgrade the chart library"
@@ -29,6 +37,9 @@ enum DemoActivity {
         docs.turnStartedAt = now.addingTimeInterval(-420)
         docs.turnEndedAt = now.addingTimeInterval(-300)
         docs.toolCount = 9
+        for page in 1...6 {
+            docs.fileChanges.record(.modified, path: "/Users/demo/handbook/guide-\(page).md", linesAdded: 4, linesRemoved: 3)
+        }
 
         return [api, web, docs]
     }

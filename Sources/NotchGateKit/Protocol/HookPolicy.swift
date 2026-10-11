@@ -10,6 +10,10 @@ public enum HookPolicy {
     /// Tools whose small `tool_response` is kept so task progress can be tracked.
     static let responseTools: Set<String> = ["TaskCreate"]
 
+    /// Tools that create or change files; their `tool_response` is boiled down
+    /// to a `file_change` summary (see `fileChange(tool:input:response:)`).
+    public static let fileTools: Set<String> = ["Write", "Edit", "MultiEdit", "NotebookEdit"]
+
     /// Longest string kept from activity payloads. Big file bodies (e.g. `Write`)
     /// are useless for a status line and would only slow the socket down.
     public static let maxStringLength = 4_000
@@ -27,6 +31,9 @@ public enum HookPolicy {
         var trimmed = payload
         let tool = payload["tool_name"]?.stringValue ?? ""
         if let response = payload["tool_response"] {
+            if fileTools.contains(tool), let change = fileChange(tool: tool, input: payload["tool_input"], response: response) {
+                trimmed = trimmed.setting("file_change", to: change)
+            }
             trimmed = responseTools.contains(tool)
                 ? trimmed.setting("tool_response", to: response.truncatingStrings(to: maxStringLength))
                 : trimmed.removing("tool_response")
@@ -35,6 +42,41 @@ public enum HookPolicy {
             trimmed = trimmed.setting("tool_input", to: input.truncatingStrings(to: maxStringLength))
         }
         return trimmed
+    }
+}
+
+// MARK: - File changes
+
+public extension HookPolicy {
+    /// What a successful file tool did, small enough for the socket:
+    /// `{"created": Bool, "lines_added": Int, "lines_removed": Int}`.
+    ///
+    /// Must run on the full payload: line counts come from the diff Claude Code
+    /// reports (`structuredPatch`) or, for a new file, from its whole content.
+    static func fileChange(tool: String, input: JSONValue?, response: JSONValue) -> JSONValue? {
+        guard response.objectValue != nil else { return nil }
+        let created = response["type"]?.stringValue == "create"
+        var added = 0, removed = 0
+        for hunk in response["structuredPatch"]?.arrayValue ?? [] {
+            for line in hunk["lines"]?.arrayValue ?? [] {
+                guard let text = line.stringValue else { continue }
+                if text.hasPrefix("+") { added += 1 } else if text.hasPrefix("-") { removed += 1 }
+            }
+        }
+        if created, added == 0, let content = input?["content"]?.stringValue ?? response["content"]?.stringValue {
+            added = lineCount(content)
+        }
+        return .object([
+            "created": .bool(created),
+            "lines_added": .number(Double(added)),
+            "lines_removed": .number(Double(removed)),
+        ])
+    }
+
+    private static func lineCount(_ text: String) -> Int {
+        guard !text.isEmpty else { return 0 }
+        let breaks = text.reduce(0) { $1 == "\n" ? $0 + 1 : $0 }
+        return text.hasSuffix("\n") ? breaks : breaks + 1
     }
 }
 
