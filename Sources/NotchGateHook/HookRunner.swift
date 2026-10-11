@@ -5,10 +5,6 @@ import NotchGateKit
 /// Reads the hook payload from stdin, forwards it to the app, and prints
 /// the decision in Claude Code's expected format.
 struct HookRunner {
-    /// `PreToolUse` is only used to answer interactive tools; everything else
-    /// passes straight through without touching the socket.
-    static let interactiveTools: Set<String> = ["AskUserQuestion", "ExitPlanMode"]
-
     private let client = BridgeClient(socketURL: BridgeLocation.socketURL)
 
     func run() -> Int32 {
@@ -19,11 +15,9 @@ struct HookRunner {
         else { return 0 }
 
         let event = HookEvent(rawValue: eventName)
-        guard shouldForward(event: event, payload: payload) else { return 0 }
-
         let request = BridgeRequest(
             event: event,
-            payload: event == .postToolUse ? payload.removing("tool_response") : payload,
+            payload: HookPolicy.sanitize(event: event, payload: payload),
             origin: ProcessOrigin(claudePID: getppid())
         )
 
@@ -36,12 +30,6 @@ struct HookRunner {
             debugLog("notchgate-hook: \(error)")
         }
         return 0
-    }
-
-    private func shouldForward(event: HookEvent, payload: JSONValue) -> Bool {
-        guard event == .preToolUse else { return true }
-        let tool = payload["tool_name"]?.stringValue ?? ""
-        return Self.interactiveTools.contains(tool)
     }
 
     private func emit(_ output: JSONValue) throws {

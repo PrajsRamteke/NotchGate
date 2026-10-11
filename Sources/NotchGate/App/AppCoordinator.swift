@@ -9,6 +9,7 @@ final class AppCoordinator {
     let settings = AppSettings()
     let store = RequestStore()
     let installer = HookInstaller()
+    let activity = ActivityTracker()
     let island: IslandViewModel
 
     private(set) var serverError: String?
@@ -18,7 +19,7 @@ final class AppCoordinator {
     @ObservationIgnored private var hotKeys: HotKeyCenter?
 
     init() {
-        island = IslandViewModel(store: store, settings: settings)
+        island = IslandViewModel(store: store, settings: settings, activity: activity)
     }
 
     func start() {
@@ -29,6 +30,7 @@ final class AppCoordinator {
         hotKeys = HotKeyCenter { [weak self] action in self?.island.perform(action) }
 
         startServer()
+        installer.upgradeIfNeeded()
 
         let window = NotchWindowController(viewModel: island)
         window.show()
@@ -66,6 +68,7 @@ final class AppCoordinator {
     }
 
     private func handle(_ message: BridgeRequest, responder: DecisionResponder) {
+        activity.ingest(message)
         let router = RequestRouter(options: settings.routerOptions)
         let route = router.route(message)
         if RequestRouter.clearsSessionFirst(message.event) {

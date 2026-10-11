@@ -18,6 +18,7 @@ enum IslandPresentation: Equatable {
 final class IslandViewModel {
     let store: RequestStore
     let settings: AppSettings
+    let activity: ActivityTracker
 
     var notch: NotchMetrics = .fallback
 
@@ -33,9 +34,21 @@ final class IslandViewModel {
     /// Asks the window to become key so text fields can take input.
     @ObservationIgnored var onNeedsKeyFocus: (() -> Void)?
 
-    init(store: RequestStore, settings: AppSettings) {
+    @ObservationIgnored private var hoverIntent: Task<Void, Never>?
+
+    /// Resting time before an idle notch opens the activity panel, so the
+    /// cursor sweeping across the top of the screen doesn't trigger it.
+    static let hoverIntentDelay: Duration = .milliseconds(180)
+
+    init(store: RequestStore, settings: AppSettings, activity: ActivityTracker) {
         self.store = store
         self.settings = settings
+        self.activity = activity
+    }
+
+    /// True when the expanded island is showing live activity rather than a request.
+    var isShowingActivity: Bool {
+        store.current == nil && store.notice == nil && presentation == .expanded
     }
 
     var presentation: IslandPresentation {
@@ -45,7 +58,7 @@ final class IslandViewModel {
         if store.notice != nil {
             return isHovering ? .expanded : .peek
         }
-        return .hidden
+        return isHovering && settings.showActivityOnHover ? .expanded : .hidden
     }
 
     // MARK: Queue events
@@ -95,9 +108,32 @@ final class IslandViewModel {
     }
 
     func setHovering(_ hovering: Bool) {
+        hoverIntent?.cancel()
         guard hovering != isHovering else { return }
+
+        // An idle notch waits for a deliberate hover; anything already
+        // visible (peek, notice) responds instantly.
+        guard hovering, presentation == .hidden else { return applyHover(hovering) }
+        hoverIntent = Task { [weak self] in
+            try? await Task.sleep(for: Self.hoverIntentDelay)
+            guard !Task.isCancelled else { return }
+            self?.applyHover(true)
+        }
+    }
+
+    /// Shows the activity panel immediately (snapshots, previews).
+    func showActivityNow() {
+        applyHover(true)
+    }
+
+    private func applyHover(_ hovering: Bool) {
+        if hovering, store.current == nil, store.notice == nil { activity.prune() }
         isHovering = hovering
         store.holdNotice(hovering)
+    }
+
+    func openTerminal(for session: SessionActivity) {
+        TerminalActivator.activate(claudePID: session.claudePID)
     }
 
     // MARK: Global shortcuts

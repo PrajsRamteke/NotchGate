@@ -42,6 +42,18 @@ final class HookInstaller {
         status = (binaryPresent && editor.isInstalled(in: settings)) ? .installed : .notInstalled
     }
 
+    /// Re-installs when an older NotchGate set up different hooks or shipped
+    /// a different hook binary. Never installs where the user hasn't opted in.
+    func upgradeIfNeeded() {
+        guard let settings = try? readSettings(), editor.hasAnyHook(in: settings) else { return }
+        let binaryCurrent = Self.bundledHookURL.map {
+            fileManager.contentsEqual(atPath: $0.path, andPath: installedHookURL.path)
+        } ?? true
+        guard !editor.isCurrent(in: settings) || !binaryCurrent else { return }
+        Log.hooks.info("Upgrading hooks to this version")
+        install()
+    }
+
     func install() {
         perform {
             try installBinary()

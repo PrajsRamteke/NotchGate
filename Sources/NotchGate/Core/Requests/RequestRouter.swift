@@ -52,7 +52,7 @@ struct RequestRouter {
         case .permissionRequest:
             // Interactive tools are answered through PreToolUse. If one reaches
             // PermissionRequest, the user chose the terminal: stay out of the way.
-            guard !Self.interactiveTools.contains(toolName) else { return .ignore }
+            guard !HookPolicy.interactiveTools.contains(toolName) else { return .ignore }
             let suggestions = payload["permission_suggestions"]?.arrayValue ?? []
             return present(.permission(ToolPermission(toolName: toolName, input: toolInput, suggestions: suggestions)))
 
@@ -88,8 +88,6 @@ struct RequestRouter {
             return .ignore
         }
     }
-
-    static let interactiveTools: Set<String> = ["AskUserQuestion", "ExitPlanMode"]
 
     /// When Claude stops, nothing it asked earlier in the turn can still be
     /// pending, so those cards are cleared before the Stop itself is handled.

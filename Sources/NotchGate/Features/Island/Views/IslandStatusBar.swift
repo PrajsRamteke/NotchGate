@@ -21,15 +21,20 @@ struct IslandStatusBar: View {
 
     private var leadingWing: some View {
         HStack(spacing: 7) {
-            ClaudeSpark(size: 14, isActive: model.store.hasPending, color: sparkColor)
-            if presentation == .expanded, let request = model.store.current {
-                Text(request.session.projectName)
+            ClaudeSpark(size: 14, isActive: model.store.hasPending || model.activity.workingCount > 0, color: sparkColor)
+            if presentation == .expanded, let title = leadingTitle {
+                Text(title)
                     .font(Theme.Typeface.caption)
                     .foregroundStyle(Theme.Palette.textSecondary)
                     .lineLimit(1)
                     .transition(.opacity)
             }
         }
+    }
+
+    private var leadingTitle: String? {
+        if let request = model.store.current { return request.session.projectName }
+        return model.isShowingActivity ? "Claude" : nil
     }
 
     @ViewBuilder

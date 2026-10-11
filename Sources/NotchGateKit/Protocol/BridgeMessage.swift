@@ -21,7 +21,7 @@ public struct BridgeRequest: Codable, Sendable, Equatable {
         self.version = Self.currentVersion
         self.id = id
         self.event = event
-        self.expectsReply = event.expectsReply
+        self.expectsReply = HookPolicy.expectsReply(event: event, payload: payload)
         self.payload = payload
         self.origin = origin
     }

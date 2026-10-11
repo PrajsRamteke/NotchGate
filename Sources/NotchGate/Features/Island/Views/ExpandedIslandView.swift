@@ -30,6 +30,9 @@ struct ExpandedIslandView: View {
                     },
                     onDismiss: model.dismissNotice
                 )
+            } else {
+                ActivityPanelView(tracker: model.activity, onOpen: model.openTerminal(for:))
+                    .transition(.opacity)
             }
         }
         .padding(.horizontal, Theme.Metrics.contentPadding)

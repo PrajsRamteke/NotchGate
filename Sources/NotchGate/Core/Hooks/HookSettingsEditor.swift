@@ -15,13 +15,16 @@ struct HookSettingsEditor {
 
     static let registrations: [Registration] = [
         Registration(event: .permissionRequest, matcher: "*", timeout: 3600),
-        Registration(event: .preToolUse, matcher: "AskUserQuestion|ExitPlanMode", timeout: 3600),
+        // Blocks only for AskUserQuestion / ExitPlanMode; other tools are activity.
+        Registration(event: .preToolUse, matcher: "*", timeout: 3600),
         Registration(event: .elicitation, matcher: nil, timeout: 3600),
         Registration(event: .stop, matcher: nil, timeout: 600),
         Registration(event: .postToolUse, matcher: "*", timeout: 5),
         Registration(event: .notification, matcher: nil, timeout: 5),
         Registration(event: .userPromptSubmit, matcher: nil, timeout: 5),
+        Registration(event: .sessionStart, matcher: nil, timeout: 5),
         Registration(event: .sessionEnd, matcher: nil, timeout: 5),
+        Registration(event: .preCompact, matcher: nil, timeout: 5),
     ]
 
     let hookPath: String
@@ -34,6 +37,18 @@ struct HookSettingsEditor {
         Self.registrations.allSatisfy { registration in
             groups(in: settings, for: registration.event).contains(where: Self.containsOurHook)
         }
+    }
+
+    /// True when any NotchGate entry exists (installed by any version).
+    func hasAnyHook(in settings: JSONValue) -> Bool {
+        (settings["hooks"]?.objectValue ?? [:]).values
+            .flatMap { $0.arrayValue ?? [] }
+            .contains(where: Self.containsOurHook)
+    }
+
+    /// True when our entries exactly match this version's registrations.
+    func isCurrent(in settings: JSONValue) -> Bool {
+        installing(into: settings) == settings
     }
 
     /// Other tools' `PermissionRequest` commands. They would race NotchGate

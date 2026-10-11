@@ -12,6 +12,7 @@ and keep working — no tab switching.
 | Plan approval (`ExitPlanMode`) | **Approve** or **Keep planning** with feedback |
 | MCP elicitation | Fill the server's form or open its link; decline / cancel |
 | Claude stopped *(opt-in)* | Read the summary, optionally **reply to continue** |
+| **Hover the notch** anytime | Live activity for every session: current step, to-do progress, elapsed time, last prompt. Click to jump to its terminal |
 
 By default the notch appears **only when Claude is actually waiting on you**.
 "Claude finished" notices and reply-to-continue are off by default and can be
@@ -91,12 +92,12 @@ Claude Code ──stdin JSON──▶ notchgate-hook ──Unix socket──▶ 
 | Hook event | Used for | Blocks? |
 | --- | --- | --- |
 | `PermissionRequest` | Tool permission cards | yes |
-| `PreToolUse` (`AskUserQuestion\|ExitPlanMode`) | Questions and plan approval | yes |
+| `PreToolUse` (all tools) | Questions and plan approval; live activity for every other tool | only for questions/plans |
 | `Elicitation` | MCP forms / links | yes |
 | `Stop` | Clears stale cards; optional notice / reply-to-continue | briefly |
 | `PostToolUse` | Clears a card once its tool ran (approved in terminal, auto mode…) | no |
 | `Notification` | "Claude is waiting" notices | no |
-| `UserPromptSubmit`, `SessionEnd` | Clear stale cards for that session | no |
+| `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `PreCompact` | Live activity; clear stale cards | no |
 
 ## Project structure
 
@@ -105,13 +106,14 @@ Organized by feature; every file stays well under 300 lines.
 ```
 Sources/
 ├── NotchGateKit/                 Shared by app + hook (no UI)
-│   ├── Protocol/                 JSONValue, HookEvent, BridgeMessage, HookOutput
+│   ├── Protocol/                 JSONValue, HookEvent, HookPolicy, BridgeMessage, HookOutput
 │   └── Transport/                UnixSocket, LineFramer, BridgeLocation
 ├── NotchGateHook/                The CLI Claude Code invokes
 │   ├── main.swift · HookRunner.swift · BridgeClient.swift
 └── NotchGate/                    The menu-bar app
     ├── App/                      Entry point, AppCoordinator (composition root)
     ├── Core/
+    │   ├── Activity/             Live session state: reducer, tracker, tool summaries
     │   ├── Bridge/               Socket server + per-hook connection
     │   ├── Requests/             Domain models, PayloadParsers, RequestRouter, RequestStore
     │   ├── Hooks/                settings.json editor (pure) + installer (I/O)
@@ -121,6 +123,7 @@ Sources/
     │   ├── Island/               Window (panel, metrics, click-through) + views + view model
     │   ├── Permission/           Card, ToolDescriptor, tool & diff previews
     │   ├── Question/             Card, form model, option rows
+    │   ├── Activity/             Hover panel: session rows, task progress bar
     │   ├── Plan/ · Elicitation/ · Completion/ · Notice/
     │   └── MenuBar/              Popover, sections, template icon
     ├── DesignSystem/             Theme, ClaudeSpark, buttons, fields, markdown, code blocks
@@ -133,7 +136,7 @@ Tests/
 ## Development
 
 ```bash
-make test                                     # 30 unit tests
+make test                                     # 44 unit tests
 make run                                      # run from source
 .build/debug/NotchGate --snapshot ./shots     # render every card to PNG offscreen
 log stream --predicate 'subsystem == "app.notchgate"'

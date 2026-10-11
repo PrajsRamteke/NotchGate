@@ -52,7 +52,7 @@ struct IslandRootView: View {
     }
 }
 
-/// Pure black body with a faint clay aura while Claude is waiting, plus a
+/// Pure black body with a faint clay aura (bottom-left) while Claude is waiting, plus a
 /// hairline rim light along the lower edge for depth.
 private struct IslandBackground: View {
     let shape: NotchShape
@@ -63,7 +63,9 @@ private struct IslandBackground: View {
             shape.fill(Theme.Palette.island)
             RadialGradient(
                 colors: [Theme.Palette.clay.opacity(isActive ? 0.16 : 0), .clear],
-                center: .init(x: 0.12, y: 0),
+                // Glow rises from the bottom-left so the top stays pure black
+                // and blends seamlessly into the hardware notch.
+                center: .init(x: 0.06, y: 1.0),
                 startRadius: 0,
                 endRadius: 260
             )

@@ -82,7 +82,10 @@ final class NotchWindowController {
     /// into screen space and toggles click-through accordingly.
     private func updateHitTesting() {
         let island = viewModel.islandFrame
-        guard viewModel.presentation != .hidden, !island.isEmpty else {
+        // While hidden the island is exactly the notch, so hovering the notch
+        // itself is what reveals the activity panel.
+        let canHover = viewModel.presentation != .hidden || viewModel.settings.showActivityOnHover
+        guard canHover, !island.isEmpty else {
             panel.ignoresMouseEvents = true
             viewModel.setHovering(false)
             return

@@ -24,13 +24,26 @@ struct HookSettingsEditorTests {
         #expect(installed["model"] == .string("opus"))
         // The user's own Stop hook survives alongside ours.
         #expect(installed["hooks"]?["Stop"]?.arrayValue?.count == 2)
-        #expect(installed["hooks"]?["PreToolUse"]?.arrayValue?.first?["matcher"] == .string("AskUserQuestion|ExitPlanMode"))
+        #expect(installed["hooks"]?["PreToolUse"]?.arrayValue?.first?["matcher"] == .string("*"))
     }
 
     @Test func installIsIdempotent() {
         let once = editor.installing(into: existing)
         let twice = editor.installing(into: once)
         #expect(once == twice)
+        #expect(editor.isCurrent(in: once))
+    }
+
+    @Test func detectsOutdatedInstallsForUpgrade() {
+        let legacy = existing.setting("hooks", to: .object([
+            "PreToolUse": .array([.object([
+                "matcher": .string("AskUserQuestion|ExitPlanMode"),
+                "hooks": .array([.object(["type": .string("command"), "command": .string("\"/x/notchgate-hook\"")])]),
+            ])]),
+        ]))
+        #expect(editor.hasAnyHook(in: legacy))
+        #expect(!editor.isCurrent(in: legacy))
+        #expect(!editor.hasAnyHook(in: existing))
     }
 
     @Test func uninstallRestoresOriginalHooks() {

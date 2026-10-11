@@ -28,8 +28,11 @@ public struct HookEvent: RawRepresentable, Codable, Hashable, Sendable, CustomSt
     public static let elicitation = HookEvent(rawValue: "Elicitation")
     public static let userPromptSubmit = HookEvent(rawValue: "UserPromptSubmit")
     public static let sessionEnd = HookEvent(rawValue: "SessionEnd")
+    public static let sessionStart = HookEvent(rawValue: "SessionStart")
+    public static let preCompact = HookEvent(rawValue: "PreCompact")
 
-    /// Events where the hook must wait for the app's decision before exiting.
+    /// Events that *can* block. `PreToolUse` only blocks for interactive tools;
+    /// see `HookPolicy.expectsReply(event:payload:)`.
     public var expectsReply: Bool {
         switch self {
         case .permissionRequest, .preToolUse, .stop, .elicitation: return true
@@ -40,6 +43,7 @@ public struct HookEvent: RawRepresentable, Codable, Hashable, Sendable, CustomSt
     /// Every event NotchGate registers for in Claude Code settings.
     public static let subscribed: [HookEvent] = [
         .permissionRequest, .preToolUse, .elicitation, .stop,
-        .postToolUse, .notification, .userPromptSubmit, .sessionEnd,
+        .postToolUse, .notification, .userPromptSubmit, .sessionStart,
+        .sessionEnd, .preCompact,
     ]
 }

@@ -56,6 +56,7 @@ struct PreferencesSection: View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Behavior")
             Toggle("Expand automatically on new requests", isOn: $settings.autoExpand)
+            Toggle("Show live activity when hovering the notch", isOn: $settings.showActivityOnHover)
             Toggle("Play a sound", isOn: $settings.playSound)
             Toggle("Show “Claude finished” notices", isOn: $settings.showNotices)
             Toggle("Reply from the notch when Claude stops", isOn: $settings.holdForReplyOnStop)
