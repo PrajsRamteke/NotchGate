@@ -44,6 +44,9 @@ enum SnapshotRenderer {
         }
         render(to: directory.appendingPathComponent("activity-usage.png")) { model in
             model.activity.load(DemoActivity.sessions())
+            // The usage card starts closed (its gauge button opens it); show both widgets.
+            model.settings.usageCardShown = true
+            model.settings.showQuickSettingsInNotch = false
             let now = Date()
             model.usage.showPreview(UsageSnapshot(
                 fiveHour: .init(usedPercentage: 23.5, resetsAt: now.addingTimeInterval(2 * 3600 + 14 * 60)),

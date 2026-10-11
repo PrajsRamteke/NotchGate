@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="assets/activity.png" alt="NotchGate showing live Claude Code activity from the MacBook notch" width="640">
+<img src="assets/activity-usage.png" alt="NotchGate showing plan usage, session costs and live Claude Code activity from the MacBook notch" width="640">
 
 # NotchGate
 
 **Answer Claude Code from your MacBook's notch.**
-Approve permissions, answer questions, follow progress and send the next prompt
-without switching back to the terminal.
+Approve permissions, answer questions, follow every session, watch your plan
+limits and send the next prompt without switching back to the terminal.
 
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black?logo=apple)
 ![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
@@ -82,6 +82,26 @@ on launch at login. Running it again simply updates NotchGate.
       <p align="center"><b>Know when Claude is done</b><br>Read the summary and send what's next.</p>
     </td>
   </tr>
+  <tr>
+    <td>
+      <img src="assets/activity-usage.png" alt="Usage and Sessions widgets">
+      <p align="center"><b>Usage and cost at a glance</b><br>5-hour and weekly limits, plus each session's model, context and cost.</p>
+    </td>
+    <td>
+      <img src="assets/activity-tools-resume.png" alt="Tools and Resume widgets">
+      <p align="center"><b>Tool activity and Resume</b><br>Which tools Claude called, and one click back into a recent session.</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="assets/activity-drop.png" alt="Dragging an image onto the notch">
+      <p align="center"><b>Drop images on a project</b><br>Every session lights up as a target; drop on the one you mean.</p>
+    </td>
+    <td>
+      <img src="assets/activity-images.png" alt="Images attached to a prompt">
+      <p align="center"><b>Send screenshots with your prompt</b><br>Paste (⌘V) or drag; Claude gets them as file paths.</p>
+    </td>
+  </tr>
 </table>
 
 <p align="center">
@@ -96,7 +116,12 @@ on launch at login. Running it again simply updates NotchGate.
 - **When Claude needs you**, a card grows out of the notch. Answer it there, or in
   the terminal as usual; whichever you use first wins, and the other clears itself.
 - **Hover the notch anytime** to see every Claude session: what it's doing, its
-  to-do progress, how long it has been working, and your last prompt.
+  to-do progress, how long it has been working, your last prompt, and the files it
+  added, changed and deleted (`+2 ~3 −1`; hover for line counts).
+- **Each session row** has its own buttons: the chip icon opens that session's
+  model, context and cost, 💬 opens a prompt box, ↗ brings its terminal to the
+  front, and ✕ removes it from the notch. ✕ only works once Claude has stopped,
+  so nothing it's doing goes unseen; the session comes back when you prompt it.
 - **Send a prompt** from the 💬 dropdown on any session. NotchGate types it into that
   session's terminal and presses Return, so Claude Code receives a genuine prompt.
 - **Attach images**: paste one (⌘V) into any notch prompt box, or drag images from
@@ -117,6 +142,23 @@ on launch at login. Running it again simply updates NotchGate.
 
 ---
 
+## Widgets
+
+Glanceable cards at the top of the hover panel. Each has a button in the panel's
+header to open or close it, and a switch under **✦ → Widgets**.
+
+| Widget | Shows |
+| --- | --- |
+| **Usage** (gauge) | Your plan's 5-hour and weekly limits, with when each resets. Needs a Pro or Max plan. |
+| **Session** (cpu) | Model, context window fill, cost and git branch. With several sessions running, a line for each plus their total cost. |
+| **Tool activity** (hammer) | Bash, Edit, Read, Search, Web, Agents and MCP calls as a split bar with counts, and a heat strip of the last hour. Chips switch between all sessions and one. |
+| **Resume** (clock) | Recent sessions that aren't running, each one click from `claude --resume` in a new Terminal window, plus **New session** in a recent project or any folder. |
+
+Usage and Session read Claude Code's status line through a small relay; your
+own status line keeps showing exactly as before.
+
+---
+
 ## Settings
 
 Open the ✦ menu. Every section folds open or closed.
@@ -126,19 +168,27 @@ Open the ✦ menu. Every section folds open or closed.
 | Permissions (commands, web, MCP tools) | **On** |
 | File edits · Questions · Plan approvals · Reply when done | Off (handled in the terminal) |
 
-Also available: **Auto-allow permissions** (risky commands like `rm -rf`, `sudo`
+Also available: **Widgets** (see above), **Auto-allow permissions** (risky commands like `rm -rf`, `sudo`
 and `git push --force` still ask), **Claude's questions** (Notch / Terminal /
 Don't ask), live activity on hover, sounds and launch at login.
 
 ### Extras
 
-Optional notch features unrelated to Claude, off by default.
+Optional notch features unrelated to Claude. Turn them on or off under **✦ → Extras**.
 
-- **Water reminder**: every 30 minutes (adjustable from 5 minutes to 4 hours) a little bot
+<p align="center">
+  <img src="assets/water-reminder-hover.png" alt="The water bot hanging from the notch with a bottle" width="420">
+</p>
+
+- **Water reminder** (on by default): every 15 minutes (adjustable from 5 minutes to 4 hours) a little bot
   drops out of the notch on a rope, holding a bottle. Hover it for **Drank it** or
   **Snooze**; poke it and it giggles. It gets more insistent the longer you
   ignore it, waits while you're away from the Mac, and counts glasses toward a
-  daily goal.
+  daily goal (8 glasses by default). Snooze for 5, 10, 15 or 30 minutes.
+
+<p align="center">
+  <img src="assets/water-bot-moods.png" alt="Every mood of the water bot: cheerful, excited, pleading, thirsty, delighted, sleepy, tickled" width="720">
+</p>
 
 ### Keyboard shortcuts (while a request is waiting)
 
@@ -166,7 +216,8 @@ offers an update once that build is published.
 curl -fsSL https://raw.githubusercontent.com/PrajsRamteke/NotchGate/main/install.sh | bash -s -- --uninstall
 ```
 
-This removes the app, its Claude Code hooks and the login item.
+This removes the app, its Claude Code hooks, the status line relay (your own
+status line is put back) and the login item.
 
 ## Privacy
 
