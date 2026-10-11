@@ -9,7 +9,7 @@ struct NotchGateApp: App {
         MenuBarExtra {
             MenuBarContentView(coordinator: appDelegate.coordinator)
         } label: {
-            Image(nsImage: MenuBarIcon.image)
+            Image(nsImage: appDelegate.coordinator.updates.isUpdateAvailable ? MenuBarIcon.badgedImage : MenuBarIcon.image)
         }
         .menuBarExtraStyle(.window)
     }

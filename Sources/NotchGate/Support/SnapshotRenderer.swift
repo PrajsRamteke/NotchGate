@@ -30,7 +30,12 @@ enum SnapshotRenderer {
             model.initialComposerSession = "demo-docs"
             model.showActivityNow()
         }
-        renderView(MenuBarContentView(coordinator: AppCoordinator()), size: CGSize(width: 320, height: 900),
+        let coordinator = AppCoordinator()
+        coordinator.updates.showPreview(UpdateInfo(latestSHA: "abc1234", commits: [
+            UpdateCommit(sha: "abc1234", title: "Type notch prompts into Claude Code as real user prompts"),
+            UpdateCommit(sha: "def5678", title: "Keep the island open after clicking buttons"),
+        ], aheadBy: 2))
+        renderView(MenuBarContentView(coordinator: coordinator), size: CGSize(width: 320, height: 900),
                    to: directory.appendingPathComponent("menu.png"))
         return true
     }

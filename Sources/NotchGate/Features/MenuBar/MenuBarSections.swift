@@ -7,7 +7,6 @@ struct IntegrationSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("Claude Code")
             HStack(spacing: 8) {
                 Circle()
                     .fill(statusColor)
@@ -94,6 +93,26 @@ private struct EditorHelperRow: View {
     }
 }
 
+extension IntegrationSection {
+    var summary: String {
+        installer.status == .installed ? "Hooks installed" : "Not connected"
+    }
+}
+
+extension PermissionsSection {
+    var summary: String {
+        "Auto-allow \(settings.autoAllowPermissions ? "on" : "off") · \(settings.questionMode.title)"
+    }
+}
+
+extension NotchFeaturesSection {
+    var summary: String {
+        let switches = [settings.notchPermissions, settings.notchFileEdits, settings.questionMode != .terminal,
+                        settings.notchPlans, settings.replyFromNotch]
+        return "\(switches.filter { $0 }.count) of \(switches.count) on"
+    }
+}
+
 /// Behavior toggles.
 struct PreferencesSection: View {
     @Bindable var settings: AppSettings
@@ -101,13 +120,13 @@ struct PreferencesSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("Behavior")
             SettingRow("Expand automatically", detail: "Open the full card as soon as Claude asks", isOn: $settings.autoExpand)
             SettingRow("Live activity on hover", detail: "Hover the notch to see every session", isOn: $settings.showActivityOnHover)
             SettingRow("Quick settings in the notch", isOn: $settings.showQuickSettingsInNotch, isIndented: true)
                 .disabled(!settings.showActivityOnHover)
             SettingRow("Play a sound", isOn: $settings.playSound)
             SettingRow("“Claude finished” notices", detail: "A brief note in the notch when a task ends", isOn: $settings.showNotices)
+            SettingRow("Check for updates", detail: "Looks for a newer NotchGate on GitHub", isOn: $settings.checkForUpdates)
             SettingRow("Launch at login", isOn: $launchAtLogin)
                 .disabled(!LaunchAtLogin.isAvailable)
                 .onChange(of: launchAtLogin) { _, enabled in LaunchAtLogin.setEnabled(enabled) }
@@ -122,7 +141,6 @@ struct PermissionsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("Permissions & questions")
             SettingRow(
                 "Auto-allow permissions",
                 detail: "Approve prompts instantly, with no card",
@@ -158,7 +176,6 @@ struct NotchFeaturesSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            SectionLabel("Show in notch")
             row("Permissions", detail: "Commands, web, MCP tools", sample: .permission, isOn: $settings.notchPermissions)
             row("File edits", detail: "Edit / Write approvals", sample: .edit, isOn: $settings.notchFileEdits)
             row("Questions", detail: "Claude asking you to choose", sample: .question, isOn: questionsBinding)
@@ -198,7 +215,7 @@ struct ShortcutsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            SectionLabel("Shortcuts (while a request is waiting)")
+            SettingNote("These work anywhere while a request is waiting.")
             ForEach(rows, id: \.0) { keys, action in
                 HStack {
                     Text(keys)

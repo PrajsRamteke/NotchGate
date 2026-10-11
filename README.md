@@ -94,6 +94,15 @@ curl -fsSL https://raw.githubusercontent.com/PrajsRamteke/NotchGate/main/install
 > `PermissionRequest` hook. Two apps answering the same prompt will race. The
 > installer flags any it finds.
 
+## Updating
+
+NotchGate checks GitHub shortly after launch and every 6 hours (turn this off
+under **Behavior → Check for updates**). When `main` has new commits, the menu-bar
+icon gets a dot and the menu shows **Update available** with what changed.
+Click **Update**: it rebuilds from source in the background, keeps running until
+the new build is ready, then swaps itself and relaunches. A log is kept at
+`~/Library/Logs/NotchGate/update.log`. You can also just re-run the installer.
+
 ## Keyboard
 
 | Shortcut | Action |
@@ -174,7 +183,7 @@ Tests/
 ## Development
 
 ```bash
-make test                                     # 75 unit tests
+make test                                     # 78 unit tests
 make run                                      # run from source
 .build/debug/NotchGate --snapshot ./shots     # render every card to PNG offscreen
 .build/debug/NotchGate --send-prompt PID "hi" # type a prompt into a Claude session

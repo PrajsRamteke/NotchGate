@@ -18,6 +18,7 @@ final class AppSettings {
         static let notchPermissions = "notchPermissions"
         static let notchFileEdits = "notchFileEdits"
         static let notchPlans = "notchPlans"
+        static let checkForUpdates = "checkForUpdates"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -49,6 +50,9 @@ final class AppSettings {
     /// Plan approval (ExitPlanMode).
     var notchPlans: Bool { didSet { defaults.set(notchPlans, forKey: Key.notchPlans) } }
 
+    /// Look for a newer NotchGate on GitHub every few hours.
+    var checkForUpdates: Bool { didSet { defaults.set(checkForUpdates, forKey: Key.checkForUpdates) } }
+
     /// Approve permission prompts automatically, without showing a card.
     var autoAllowPermissions: Bool { didSet { defaults.set(autoAllowPermissions, forKey: Key.autoAllow) } }
 
@@ -79,6 +83,7 @@ final class AppSettings {
             Key.notchPermissions: true,
             Key.notchFileEdits: false,
             Key.notchPlans: false,
+            Key.checkForUpdates: true,
             Key.quickSettingsInNotch: true,
         ])
         playSound = defaults.bool(forKey: Key.playSound)
@@ -93,6 +98,7 @@ final class AppSettings {
         notchPermissions = defaults.bool(forKey: Key.notchPermissions)
         notchFileEdits = defaults.bool(forKey: Key.notchFileEdits)
         notchPlans = defaults.bool(forKey: Key.notchPlans)
+        checkForUpdates = defaults.bool(forKey: Key.checkForUpdates)
     }
 
     var routerOptions: RequestRouter.Options {

@@ -10,6 +10,7 @@ final class AppCoordinator {
     let store = RequestStore()
     let installer = HookInstaller()
     let editorHelper = EditorHelperInstaller()
+    let updates: UpdateChecker
     let activity = ActivityTracker()
     let island: IslandViewModel
 
@@ -21,6 +22,7 @@ final class AppCoordinator {
 
     init() {
         island = IslandViewModel(store: store, settings: settings, activity: activity)
+        updates = UpdateChecker(settings: settings)
     }
 
     func start() {
@@ -32,6 +34,7 @@ final class AppCoordinator {
 
         startServer()
         installer.upgradeIfNeeded()
+        updates.start()
 
         let window = NotchWindowController(viewModel: island)
         window.show()

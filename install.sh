@@ -81,7 +81,6 @@ cd "$ROOT"
 
 # ── Build & install ──────────────────────────────────────────────────────────
 step "Building (first build takes a minute)"
-quit_running_app
 "$ROOT/Scripts/bundle.sh" --install | grep -E "✓" || fail "Build failed. Run Scripts/bundle.sh to see the full output."
 
 APP="$(installed_app)"

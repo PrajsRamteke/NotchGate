@@ -7,16 +7,17 @@ struct MenuBarContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
+            UpdateBanner(updates: coordinator.updates)
             Divider().padding(.vertical, 10)
-            IntegrationSection(installer: coordinator.installer, editorHelper: coordinator.editorHelper)
+            CollapsibleSection("Claude Code", id: "claudeCode", summary: integration.summary) { integration }
             Divider().padding(.vertical, 10)
-            NotchFeaturesSection(settings: coordinator.settings, onPreview: coordinator.preview)
+            CollapsibleSection("Show in notch", id: "showInNotch", expandedByDefault: true, summary: features.summary) { features }
             Divider().padding(.vertical, 10)
-            PermissionsSection(settings: coordinator.settings, onSetAutoAllow: coordinator.island.setAutoAllow)
+            CollapsibleSection("Permissions & questions", id: "permissions", summary: permissions.summary) { permissions }
             Divider().padding(.vertical, 10)
-            PreferencesSection(settings: coordinator.settings)
+            CollapsibleSection("Behavior", id: "behavior") { PreferencesSection(settings: coordinator.settings) }
             Divider().padding(.vertical, 10)
-            ShortcutsSection()
+            CollapsibleSection("Shortcuts", id: "shortcuts", summary: "⌃⌥⏎ · ⌃⌥⌫ · ⌃⌥Space") { ShortcutsSection() }
             Divider().padding(.vertical, 10)
             footer
         }
@@ -52,11 +53,21 @@ struct MenuBarContentView: View {
         }
     }
 
+    private var integration: IntegrationSection {
+        IntegrationSection(installer: coordinator.installer, editorHelper: coordinator.editorHelper)
+    }
+
+    private var features: NotchFeaturesSection {
+        NotchFeaturesSection(settings: coordinator.settings, onPreview: coordinator.preview)
+    }
+
+    private var permissions: PermissionsSection {
+        PermissionsSection(settings: coordinator.settings, onSetAutoAllow: coordinator.island.setAutoAllow)
+    }
+
     private var footer: some View {
         HStack {
-            Text("v\(Bundle.main.shortVersion)")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            UpdateStatusView(updates: coordinator.updates)
             Spacer()
             Button("Quit NotchGate") { NSApp.terminate(nil) }
                 .keyboardShortcut("q")
@@ -64,8 +75,3 @@ struct MenuBarContentView: View {
     }
 }
 
-private extension Bundle {
-    var shortVersion: String {
-        object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
-    }
-}

@@ -22,6 +22,9 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/NotchGate" "$APP/Contents/MacOS/NotchGate"
 cp "$BIN/notchgate-hook" "$APP/Contents/MacOS/notchgate-hook"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
+# Record the source commit so the app can tell when GitHub has something newer.
+COMMIT="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
+/usr/libexec/PlistBuddy -c "Add :NotchGateCommit string $COMMIT" "$APP/Contents/Info.plist"
 "$ROOT/Scripts/build-vsix.sh" "$APP/Contents/Resources/notchgate-bridge.vsix" >/dev/null
 
 echo "→ Signing (ad-hoc)"
@@ -36,6 +39,9 @@ if [[ "${1:-}" == "--install" ]]; then
         mkdir -p "$INSTALL_DIR"
     fi
     echo "→ Installing to $INSTALL_DIR"
+    # Quit only now, after the build succeeded, so updates keep the app usable until the swap.
+    pkill -f "NotchGate.app/Contents/MacOS/NotchGate" 2>/dev/null || true
+    sleep 0.5
     rm -rf "$INSTALL_DIR/NotchGate.app"
     cp -R "$APP" "$INSTALL_DIR/NotchGate.app"
     echo "✓ Installed $INSTALL_DIR/NotchGate.app"
