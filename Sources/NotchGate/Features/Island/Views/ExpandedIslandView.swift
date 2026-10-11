@@ -8,7 +8,7 @@ struct ExpandedIslandView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if let request = model.store.current {
+            if let request = model.store.current, !model.isRequestMinimized {
                 RequestHeaderView(
                     request: request,
                     pendingCount: model.store.pendingCount,

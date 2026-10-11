@@ -16,7 +16,7 @@ struct IslandStatusBar: View {
         .padding(.horizontal, 12)
         .opacity(presentation == .hidden ? 0 : 1)
         .contentShape(Rectangle())
-        .onTapGesture { if presentation == .peek { model.expand() } }
+        .onTapGesture { if presentation == .peek || model.isRequestMinimized { model.expand() } }
     }
 
     private var leadingWing: some View {
@@ -33,8 +33,8 @@ struct IslandStatusBar: View {
     }
 
     private var leadingTitle: String? {
-        if let request = model.store.current { return request.session.projectName }
-        return model.isShowingActivity ? "Claude" : nil
+        if model.isShowingActivity { return "Claude" }
+        return model.store.current?.session.projectName
     }
 
     @ViewBuilder

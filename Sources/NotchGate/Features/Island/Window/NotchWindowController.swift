@@ -15,6 +15,10 @@ final class NotchWindowController {
 
     /// Extra slop around the island so the cursor doesn't flicker at the edge.
     private let hitSlop: CGFloat = 6
+    /// Area the island covered when the user last clicked inside it. Clicking a
+    /// button can shrink the island out from under the cursor; it stays open
+    /// until the cursor leaves this area or the user clicks elsewhere.
+    private var heldRect: CGRect?
 
     init(viewModel: IslandViewModel) {
         self.viewModel = viewModel
@@ -78,40 +82,64 @@ final class NotchWindowController {
 
     private func startMouseTracking() {
         let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .leftMouseDown]
-        if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] _ in
-            MainActor.assumeIsolated { self?.updateHitTesting() }
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] event in
+            MainActor.assumeIsolated {
+                // A click in another app is a click outside the island.
+                if event.type == .leftMouseDown { self?.heldRect = nil }
+                self?.updateHitTesting()
+            }
         }) {
             monitors.append(global)
         }
         if let local = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] event in
-            MainActor.assumeIsolated { self?.updateHitTesting() }
+            MainActor.assumeIsolated {
+                if event.type == .leftMouseDown { self?.holdIslandOpenForClick() }
+                self?.updateHitTesting()
+            }
             return event
         }) {
             monitors.append(local)
         }
     }
 
-    /// Converts the island's SwiftUI frame (top-left origin, window space)
-    /// into screen space and toggles click-through accordingly.
-    private func updateHitTesting() {
+    /// The island's SwiftUI frame (top-left origin, window space) in screen space.
+    private var islandScreenRect: CGRect? {
         let island = viewModel.islandFrame
-        // While hidden the island is exactly the notch, so hovering the notch
-        // itself is what reveals the activity panel.
-        let canHover = viewModel.presentation != .hidden || viewModel.settings.showActivityOnHover
-        guard canHover, !island.isEmpty else {
-            panel.ignoresMouseEvents = true
-            viewModel.setHovering(false)
-            return
-        }
-        let screenRect = CGRect(
+        guard !island.isEmpty else { return nil }
+        return CGRect(
             x: panel.frame.minX + island.minX,
             y: panel.frame.maxY - island.maxY,
             width: island.width,
             height: island.height
         ).insetBy(dx: -hitSlop, dy: -hitSlop)
+    }
 
-        let inside = screenRect.contains(NSEvent.mouseLocation)
-        panel.ignoresMouseEvents = !inside
-        viewModel.setHovering(inside)
+    private func holdIslandOpenForClick() {
+        guard let rect = islandScreenRect, rect.contains(NSEvent.mouseLocation) else {
+            heldRect = nil
+            return
+        }
+        heldRect = rect
+    }
+
+    /// Toggles click-through and hover. Clicks only land on the visible island;
+    /// "hovering" also covers the area held open by the last click.
+    private func updateHitTesting() {
+        // While hidden the island is exactly the notch, so hovering the notch
+        // itself is what reveals the activity panel.
+        let canHover = viewModel.presentation != .hidden || viewModel.settings.showActivityOnHover
+        guard canHover, let rect = islandScreenRect else {
+            heldRect = nil
+            panel.ignoresMouseEvents = true
+            viewModel.setHovering(false)
+            return
+        }
+        let location = NSEvent.mouseLocation
+        let overIsland = rect.contains(location)
+        let overHeldArea = heldRect?.contains(location) ?? false
+        if !overIsland && !overHeldArea { heldRect = nil }
+
+        panel.ignoresMouseEvents = !overIsland
+        viewModel.setHovering(overIsland || overHeldArea)
     }
 }

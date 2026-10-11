@@ -54,17 +54,25 @@ final class IslandViewModel {
 
     /// True when the expanded island is showing live activity rather than a request.
     var isShowingActivity: Bool {
-        store.current == nil && store.notice == nil && presentation == .expanded
+        guard presentation == .expanded else { return false }
+        return isRequestMinimized || (store.current == nil && store.notice == nil)
     }
 
     var presentation: IslandPresentation {
+        let engaged = isHovering || isComposing
         if store.current != nil {
-            return (isCollapsedByUser && !isHovering) ? .peek : .expanded
+            return (isCollapsedByUser && !engaged) ? .peek : .expanded
         }
         if store.notice != nil {
-            return isHovering ? .expanded : .peek
+            return engaged ? .expanded : .peek
         }
-        return (isHovering || isComposing) && settings.showActivityOnHover ? .expanded : .hidden
+        return engaged && settings.showActivityOnHover ? .expanded : .hidden
+    }
+
+    /// The waiting request is minimized but the island is open (hovered), so it
+    /// shows live activity; the badge in the status bar brings the card back.
+    var isRequestMinimized: Bool {
+        store.current != nil && isCollapsedByUser && settings.showActivityOnHover
     }
 
     // MARK: Queue events
@@ -106,13 +114,14 @@ final class IslandViewModel {
         onNeedsKeyFocus?()
     }
 
+    /// Minimizes the current card. The island itself stays open while the
+    /// cursor is over it; only moving away or clicking outside closes it.
     func collapse() {
         if let current = store.current, case .completion = current.kind {
             store.park(current.id)
         } else {
             isCollapsedByUser = true
         }
-        isHovering = false
         isComposing = false
     }
 
@@ -149,7 +158,8 @@ final class IslandViewModel {
     }
 
     func toggle() {
-        presentation == .expanded ? collapse() : expand()
+        let showsCard = presentation == .expanded && store.current != nil && !isRequestMinimized
+        showsCard ? collapse() : expand()
     }
 
     func dismissNotice() {
