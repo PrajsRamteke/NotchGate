@@ -36,7 +36,13 @@ struct ActivityPanelView: View {
         VStack(alignment: .leading, spacing: 12) {
             header(count: tracker.sessions.count)
 
-            NotchWidgetsView(usage: model.usage, session: model.session, resume: model.resume, sessions: tracker.ordered)
+            NotchWidgetsView(
+                usage: model.usage,
+                session: model.session,
+                resume: model.resume,
+                sessions: tracker.ordered,
+                dismissedIDs: Set(tracker.dismissed.keys)
+            )
                 .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
 
             if model.isDraggingImages, !sessions.isEmpty {
@@ -101,7 +107,8 @@ struct ActivityPanelView: View {
             dropState: dropState(for: session),
             usage: usage(for: session),
             onToggleComposer: { toggleComposer(session.id) },
-            onOpen: { model.openTerminal(for: session) }
+            onOpen: { model.openTerminal(for: session) },
+            onDismiss: { dismiss(session.id) }
         ) {
             SessionComposerView(
                 controller: model.prompts,
@@ -169,6 +176,17 @@ struct ActivityPanelView: View {
             isOpen: openUsage.contains(id),
             toggle: { if openUsage.remove(id) == nil { openUsage.insert(id) } }
         )
+    }
+
+    private func dismiss(_ id: String) {
+        withAnimation(Theme.Motion.content) {
+            if openComposer == id {
+                openComposer = nil
+                model.endComposing()
+            }
+            openUsage.remove(id)
+            model.dismissSession(id)
+        }
     }
 
     private func toggleComposer(_ id: String) {

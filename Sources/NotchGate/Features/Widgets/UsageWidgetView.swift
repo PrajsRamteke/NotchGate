@@ -10,6 +10,8 @@ struct NotchWidgetsView: View {
     let resume: ResumeMonitor
     /// Sessions in the activity list, newest first; the Session and Tools cards follow them.
     let sessions: [SessionActivity]
+    /// Sessions removed from the panel but still running; not offered for resuming.
+    var dismissedIDs: Set<String> = []
 
     private var settings: AppSettings { usage.settings }
 
@@ -33,7 +35,7 @@ struct NotchWidgetsView: View {
         }
     }
 
-    private var runningIDs: Set<String> { Set(sessions.map(\.id)) }
+    private var runningIDs: Set<String> { Set(sessions.map(\.id)).union(dismissedIDs) }
 
     /// The sessions the activity list shows, each with its tool calls.
     private var toolEntries: [ToolActivityWidgetView.Entry] {

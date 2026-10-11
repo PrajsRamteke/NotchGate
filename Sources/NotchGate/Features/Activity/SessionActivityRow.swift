@@ -29,6 +29,8 @@ struct SessionActivityRow<Composer: View>: View {
     var usage: SessionRowUsage?
     let onToggleComposer: () -> Void
     let onOpen: () -> Void
+    /// Removes the row from the notch; Claude keeps running.
+    let onDismiss: () -> Void
     @ViewBuilder var composer: Composer
 
     @State private var isHovered = false
@@ -51,6 +53,12 @@ struct SessionActivityRow<Composer: View>: View {
                 }
                 ReplyChip(isOpen: isComposerOpen, isQueued: hasQueuedPrompt, action: onToggleComposer)
                 IconButton(systemName: "arrow.up.forward.app", help: "Open this session's terminal", action: onOpen)
+                IconButton(
+                    systemName: "xmark",
+                    help: "Remove from NotchGate. Claude keeps running; the session comes back when you prompt it.",
+                    action: onDismiss
+                )
+                .padding(.leading, -6)
             }
 
             if dropState == .targeted {

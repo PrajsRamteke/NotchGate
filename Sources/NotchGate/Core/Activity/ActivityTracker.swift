@@ -23,6 +23,10 @@ final class ActivityTracker {
 
     var workingCount: Int { sessions.values.filter(\.isWorking).count }
 
+    /// Sessions the user removed from the panel, with when each was last heard
+    /// from. Their events are ignored until the user prompts them again.
+    private(set) var dismissed: [String: Date] = [:]
+
     /// Paths a running `rm` is about to delete, by `tool_use_id`.
     @ObservationIgnored private var pendingRemovals: [String: [String]] = [:]
     @ObservationIgnored private let fileExists: (String) -> Bool
@@ -31,8 +35,32 @@ final class ActivityTracker {
         self.fileExists = fileExists
     }
 
-    func ingest(_ message: BridgeRequest) {
-        sessions = ActivityReducer.reduce(sessions, message, removedPaths: removedPaths(by: message))
+    func ingest(_ message: BridgeRequest, now: Date = .now) {
+        if let id = message.payload["session_id"]?.stringValue, dismissed[id] != nil {
+            let isCompaction = message.payload["source"]?.stringValue == "compact"
+            switch message.event {
+            case .userPromptSubmit:
+                // The user is back in this session: show it again, starting from here.
+                dismissed[id] = nil
+            case .sessionStart where !isCompaction:
+                // Started over (`/clear`, resumed): also the user's doing.
+                dismissed[id] = nil
+            case .sessionEnd:
+                dismissed[id] = nil
+                return
+            default:
+                dismissed[id] = now
+                return
+            }
+        }
+        sessions = ActivityReducer.reduce(sessions, message, removedPaths: removedPaths(by: message), now: now)
+    }
+
+    /// Removes a session from the panel; Claude keeps running. It comes back
+    /// when the user sends it a prompt or starts it over.
+    func dismiss(_ id: String, now: Date = .now) {
+        sessions[id] = nil
+        dismissed[id] = now
     }
 
     /// Hooks don't say what a shell command deleted, so look: note which of
@@ -60,6 +88,7 @@ final class ActivityTracker {
 
     /// Drops sessions whose Claude process is gone or that went stale.
     func prune(now: Date = .now) {
+        dismissed = dismissed.filter { now.timeIntervalSince($0.value) < Self.staleAfter }
         sessions = sessions.filter { _, session in
             guard now.timeIntervalSince(session.updatedAt) < Self.staleAfter else { return false }
             guard session.claudePID > 0 else { return true }

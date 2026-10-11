@@ -33,6 +33,13 @@ final class ImageDrafts {
         try? FileManager.default.removeItem(at: attachment.url)
     }
 
+    /// Discards a session's unsent images and their files.
+    func clear(_ sessionID: String) {
+        for attachment in images.removeValue(forKey: sessionID) ?? [] {
+            try? FileManager.default.removeItem(at: attachment.url)
+        }
+    }
+
     /// Forgets images once they've been sent (the files stay for Claude to read).
     /// Anything attached while the prompt was on its way stays put.
     func markSent(_ sent: [ImageAttachment], for sessionID: String) {
