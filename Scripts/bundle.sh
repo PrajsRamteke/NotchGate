@@ -22,6 +22,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/NotchGate" "$APP/Contents/MacOS/NotchGate"
 cp "$BIN/notchgate-hook" "$APP/Contents/MacOS/notchgate-hook"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
+cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 # Record the source commit so the app can tell when GitHub has something newer.
 COMMIT="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
 /usr/libexec/PlistBuddy -c "Add :NotchGateCommit string $COMMIT" "$APP/Contents/Info.plist"

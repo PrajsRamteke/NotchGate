@@ -8,6 +8,8 @@
     <string>NotchGate</string>
     <key>CFBundleExecutable</key>
     <string>NotchGate</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>app.notchgate.NotchGate</string>
     <key>CFBundleInfoDictionaryVersion</key>

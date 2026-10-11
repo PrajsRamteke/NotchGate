@@ -66,11 +66,13 @@ struct MenuBarContentView: View {
     }
 
     private var footer: some View {
-        HStack {
+        VStack(alignment: .leading, spacing: 12) {
             UpdateStatusView(updates: coordinator.updates)
-            Spacer()
-            Button("Quit NotchGate") { NSApp.terminate(nil) }
-                .keyboardShortcut("q")
+            HStack {
+                Spacer()
+                Button("Quit NotchGate") { NSApp.terminate(nil) }
+                    .keyboardShortcut("q")
+            }
         }
     }
 }

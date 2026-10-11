@@ -16,6 +16,8 @@ struct UpdateBanner: View {
                         SettingNote("Building the new version (1–2 min). It restarts by itself.")
                     }
                 }
+                UpdateLogView()
+                    .padding(.top, 8)
             }
         case .failed(let message):
             card {
@@ -24,6 +26,7 @@ struct UpdateBanner: View {
                         .font(.caption)
                         .foregroundStyle(Theme.Palette.danger)
                         .fixedSize(horizontal: false, vertical: true)
+                    UpdateLogView()
                     HStack {
                         Button("Try again") { Task { await retry() } }
                         Button("Show log", action: Updater.revealLog)
@@ -80,27 +83,46 @@ struct UpdateBanner: View {
     }
 }
 
-/// Footer control: installed version plus a manual check.
+/// Bottom-of-menu row: a visible "Check for updates" (or "Update") button with the installed version.
 struct UpdateStatusView: View {
     let updates: UpdateChecker
 
     var body: some View {
-        HStack(spacing: 6) {
-            Text(versionText).font(.caption).foregroundStyle(.tertiary)
-            switch updates.state {
-            case .checking:
-                ProgressView().controlSize(.mini)
-            case .upToDate:
-                Text("· Up to date").font(.caption).foregroundStyle(.tertiary)
-            case .unsupported:
-                EmptyView()
-            default:
-                if !updates.isUpdateAvailable {
-                    Button("Check for updates") { Task { await updates.check() } }
-                        .buttonStyle(.link)
-                        .font(.caption)
-                }
+        VStack(alignment: .leading, spacing: 6) {
+            actionButton
+            Text(statusText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    @ViewBuilder
+    private var actionButton: some View {
+        if updates.isUpdateAvailable {
+            Button { Task { await updates.update() } } label: {
+                Label("Update NotchGate", systemImage: "arrow.down.circle.fill")
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(Theme.Palette.clay)
+            .disabled(updates.state == .updating)
+        } else {
+            Button { Task { await updates.check() } } label: {
+                Label(updates.state == .checking ? "Checking for updates…" : "Check for updates",
+                      systemImage: "arrow.triangle.2.circlepath")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(updates.state == .checking || updates.state == .unsupported)
+        }
+    }
+
+    private var statusText: String {
+        switch updates.state {
+        case .unsupported: return "\(versionText) · updates are checked in the installed app"
+        case .upToDate: return "\(versionText) · up to date"
+        default: return updates.isUpdateAvailable ? "\(versionText) · a newer version is on GitHub" : versionText
         }
     }
 
@@ -108,5 +130,28 @@ struct UpdateStatusView: View {
         // Dev builds (`swift run`) have no Info.plist; fall back to the release version.
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
         return updates.shortInstalledCommit.map { "v\(version) (\($0))" } ?? "v\(version)"
+    }
+}
+
+/// The newest installer output (what `install.sh` prints), refreshed once a second while updating.
+struct UpdateLogView: View {
+    var lineCount = 6
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(Array(UpdateLog.recentLines(lineCount).enumerated()), id: \.offset) { _, line in
+                    Text(line)
+                        .font(.system(size: 10.5, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.black.opacity(0.25)))
+        }
     }
 }
