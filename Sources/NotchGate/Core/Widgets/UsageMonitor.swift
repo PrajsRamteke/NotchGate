@@ -59,7 +59,7 @@ final class UsageMonitor {
             stop()
             setupError = nil
             do {
-                try installer.uninstall()
+                try installer.removeIfUnused(settings)
             } catch {
                 Log.hooks.error("Status line restore failed: \(error.localizedDescription, privacy: .public)")
             }

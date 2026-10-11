@@ -50,10 +50,16 @@ enum SnapshotRenderer {
                 sevenDay: .init(usedPercentage: 81.2, resetsAt: now.addingTimeInterval(3 * 86_400)),
                 updatedAt: now.addingTimeInterval(-3 * 60)
             ))
+            model.session.showPreview(SessionSnapshot(
+                model: "Opus", contextPercent: 62.4, contextSize: 200_000,
+                costUSD: 3.27, branch: "feature/session-widget",
+                updatedAt: now.addingTimeInterval(-1 * 60)
+            ))
             model.showActivityNow()
         }
         render(to: directory.appendingPathComponent("activity-usage-waiting.png")) { model in
             model.usage.showPreview(nil)
+            model.session.showPreview(nil)
             model.showActivityNow()
         }
         render(to: directory.appendingPathComponent("water-reminder.png")) { model in

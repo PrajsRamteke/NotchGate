@@ -22,6 +22,11 @@ public enum BridgeLocation {
         supportDirectory.appendingPathComponent("usage.json")
     }
 
+    /// The latest session's model, context, cost and branch (see `SessionSnapshot`).
+    public static var sessionURL: URL {
+        supportDirectory.appendingPathComponent("session.json")
+    }
+
     /// The user's own `statusLine` setting, kept while NotchGate's relay sits
     /// in its place. The relay runs its command; removing the relay restores it.
     public static var originalStatusLineURL: URL {

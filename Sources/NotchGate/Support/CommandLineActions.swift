@@ -67,8 +67,10 @@ enum CommandLineActions {
     private static func tearDown() -> Bool {
         let installer = HookInstaller()
         installer.uninstall()
-        // The Usage widget's relay: put the user's own status line back.
-        UsageMonitor(settings: AppSettings()).setEnabled(false)
+        // The status line widgets' relay: put the user's own status line back.
+        let settings = AppSettings()
+        UsageMonitor(settings: settings).setEnabled(false)
+        SessionMonitor(settings: settings).setEnabled(false)
         LaunchAtLogin.setEnabled(false)
         report(installer.status == .notInstalled ? "✓ Hooks removed" : "✗ Removal failed: \(installer.status)")
         return installer.status == .notInstalled

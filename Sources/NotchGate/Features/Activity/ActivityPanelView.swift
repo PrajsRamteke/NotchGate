@@ -34,7 +34,7 @@ struct ActivityPanelView: View {
         VStack(alignment: .leading, spacing: 12) {
             header(count: tracker.sessions.count)
 
-            NotchWidgetsView(usage: model.usage)
+            NotchWidgetsView(usage: model.usage, session: model.session)
                 .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
 
             if model.isDraggingImages, !sessions.isEmpty {
@@ -73,6 +73,8 @@ struct ActivityPanelView: View {
         .animation(Theme.Motion.content, value: settings.showQuickSettingsInNotch)
         .animation(Theme.Motion.content, value: settings.usageWidget)
         .animation(Theme.Motion.content, value: settings.usageCardShown)
+        .animation(Theme.Motion.content, value: settings.sessionWidget)
+        .animation(Theme.Motion.content, value: settings.sessionCardShown)
         .animation(Theme.Motion.content, value: model.isDraggingImages)
         // With a single session, dropping anywhere on the panel is unambiguous.
         .onDrop(of: Self.dropTypes, isTargeted: $isPanelTargeted) { _ in
@@ -175,26 +177,36 @@ struct ActivityPanelView: View {
                     .foregroundStyle(Theme.Palette.textTertiary)
             }
             if settings.usageWidget {
-                usageToggle
+                cardToggle(
+                    systemImage: "gauge.with.dots.needle.50percent",
+                    name: "usage",
+                    isShown: settings.usageCardShown
+                ) { settings.usageCardShown.toggle() }
+            }
+            if settings.sessionWidget {
+                cardToggle(
+                    systemImage: "cpu",
+                    name: "session",
+                    isShown: settings.sessionCardShown
+                ) { settings.sessionCardShown.toggle() }
             }
         }
     }
 
-    /// Gauge button that opens or closes the usage card below the header.
-    private var usageToggle: some View {
-        let shown = settings.usageCardShown
-        return Button {
-            withAnimation(Theme.Motion.content) { settings.usageCardShown.toggle() }
+    /// Icon button that opens or closes one widget card below the header.
+    private func cardToggle(systemImage: String, name: String, isShown: Bool, toggle: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(Theme.Motion.content) { toggle() }
         } label: {
-            Image(systemName: "gauge.with.dots.needle.50percent")
+            Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(shown ? Theme.Palette.clay : Theme.Palette.textTertiary)
+                .foregroundStyle(isShown ? Theme.Palette.clay : Theme.Palette.textTertiary)
                 .frame(width: 22, height: 22)
-                .background(Circle().fill(shown ? Theme.Palette.clay.opacity(0.12) : Color.clear))
+                .background(Circle().fill(isShown ? Theme.Palette.clay.opacity(0.12) : Color.clear))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .help(shown ? "Hide usage" : "Show usage")
-        .accessibilityLabel(shown ? "Hide usage" : "Show usage")
+        .help(isShown ? "Hide \(name)" : "Show \(name)")
+        .accessibilityLabel(isShown ? "Hide \(name)" : "Show \(name)")
     }
 }

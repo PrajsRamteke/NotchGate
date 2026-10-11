@@ -25,6 +25,8 @@ final class IslandViewModel {
     let water: WaterReminder
     /// Plan limits for the Usage widget.
     let usage: UsageMonitor
+    /// Model, context, cost and branch for the Session widget.
+    let session: SessionMonitor
 
     var notch: NotchMetrics = .fallback
 
@@ -65,7 +67,8 @@ final class IslandViewModel {
         settings: AppSettings,
         activity: ActivityTracker,
         water: WaterReminder? = nil,
-        usage: UsageMonitor? = nil
+        usage: UsageMonitor? = nil,
+        session: SessionMonitor? = nil
     ) {
         self.store = store
         self.settings = settings
@@ -73,6 +76,7 @@ final class IslandViewModel {
         self.prompts = ComposerController(store: store, activity: activity)
         self.water = water ?? WaterReminder(settings: settings)
         self.usage = usage ?? UsageMonitor(settings: settings)
+        self.session = session ?? SessionMonitor(settings: settings)
     }
 
     /// True when the expanded island is showing live activity rather than a request.

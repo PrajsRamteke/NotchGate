@@ -25,6 +25,8 @@ final class AppSettings {
         static let waterDailyGoal = "waterDailyGoal"
         static let usageWidget = "widgetUsage"
         static let usageCardShown = "usageCardShown"
+        static let sessionWidget = "widgetSession"
+        static let sessionCardShown = "sessionCardShown"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -97,6 +99,12 @@ final class AppSettings {
     /// gauge button beside the Activity header, so it stays out of the way by default.
     var usageCardShown: Bool { didSet { defaults.set(usageCardShown, forKey: Key.usageCardShown) } }
 
+    /// Model, context fill, cost and git branch of the latest session (see `SessionMonitor`).
+    var sessionWidget: Bool { didSet { defaults.set(sessionWidget, forKey: Key.sessionWidget) } }
+
+    /// Whether the session card is open in the hover panel. Toggled from the chip button beside the usage gauge.
+    var sessionCardShown: Bool { didSet { defaults.set(sessionCardShown, forKey: Key.sessionCardShown) } }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         defaults.register(defaults: [
@@ -119,6 +127,8 @@ final class AppSettings {
             Key.waterDailyGoal: 8,
             Key.usageWidget: true,
             Key.usageCardShown: false,
+            Key.sessionWidget: true,
+            Key.sessionCardShown: true,
         ])
         playSound = defaults.bool(forKey: Key.playSound)
         autoExpand = defaults.bool(forKey: Key.autoExpand)
@@ -139,6 +149,8 @@ final class AppSettings {
         waterDailyGoal = defaults.integer(forKey: Key.waterDailyGoal)
         usageWidget = defaults.bool(forKey: Key.usageWidget)
         usageCardShown = defaults.bool(forKey: Key.usageCardShown)
+        sessionWidget = defaults.bool(forKey: Key.sessionWidget)
+        sessionCardShown = defaults.bool(forKey: Key.sessionCardShown)
     }
 
     var routerOptions: RequestRouter.Options {

@@ -6,10 +6,16 @@ import SwiftUI
 /// widgets get a line here.
 struct NotchWidgetsView: View {
     let usage: UsageMonitor
+    let session: SessionMonitor
 
+    // No wrapping stack: each card joins the panel's stack on its own, so a
+    // hidden card leaves no gap and each one animates in separately.
     var body: some View {
         if usage.isEnabled, usage.settings.usageCardShown {
             UsageWidgetView(snapshot: usage.snapshot)
+        }
+        if session.isEnabled, session.settings.sessionCardShown {
+            SessionWidgetView(snapshot: session.snapshot)
         }
     }
 }
@@ -23,15 +29,7 @@ struct UsageWidgetView: View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
             content(now: context.date)
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.white.opacity(0.035))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Theme.Palette.hairline, lineWidth: 0.5)
-        )
+        .widgetCard()
     }
 
     private func content(now: Date) -> some View {
@@ -101,7 +99,22 @@ private struct UsageGaugeView: View {
     }
 }
 
-private struct UsageBar: View {
+/// The card look shared by the notch's widgets.
+extension View {
+    func widgetCard() -> some View {
+        padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(0.035))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Theme.Palette.hairline, lineWidth: 0.5)
+            )
+    }
+}
+
+struct UsageBar: View {
     let fraction: Double
     let tint: Color
 

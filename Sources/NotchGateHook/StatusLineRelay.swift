@@ -2,10 +2,10 @@ import Dispatch
 import Foundation
 import NotchGateKit
 
-/// `notchgate-hook --statusline`: Claude Code's status line command while the
-/// Usage widget is on. It saves the plan limits from the status line input for
-/// the app, then hands the same input to the user's own status line command
-/// so their status line looks exactly as before.
+/// `notchgate-hook --statusline`: Claude Code's status line command while a
+/// status line widget is on. It saves the plan limits and the session's
+/// details from the status line input for the app, then hands the same input
+/// to the user's own status line command so their status line looks exactly as before.
 struct StatusLineRelay {
     func run() -> Int32 {
         let input = FileHandle.standardInput.readDataToEndOfFile()
@@ -13,6 +13,11 @@ struct StatusLineRelay {
 
         if let payload, let snapshot = UsageSnapshot(statusLine: payload) {
             try? snapshot.save()
+        }
+        if let payload {
+            let directory = payload["workspace"]?["current_dir"]?.stringValue ?? payload["cwd"]?.stringValue ?? ""
+            let session = SessionSnapshot(statusLine: payload, branch: GitBranch.current(in: directory))
+            try? session?.save()
         }
 
         if let command = Self.originalCommand() {
