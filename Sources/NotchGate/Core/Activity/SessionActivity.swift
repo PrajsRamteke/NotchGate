@@ -23,6 +23,8 @@ struct SessionActivity: Identifiable, Equatable, Sendable {
     var tasks: [TaskItem] = []
     /// Files added, changed and deleted this session.
     var fileChanges = FileChanges()
+    /// Tools called this session, by kind (the Tools widget).
+    var toolUsage = ToolUsage()
     var turnStartedAt: Date?
     var turnEndedAt: Date?
     var updatedAt: Date

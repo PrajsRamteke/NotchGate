@@ -64,6 +64,22 @@ enum SnapshotRenderer {
             ])
             model.showActivityNow()
         }
+        render(to: directory.appendingPathComponent("activity-tools-resume.png")) { model in
+            model.activity.load(DemoActivity.sessions())
+            model.settings.usageWidget = false
+            model.settings.sessionWidget = false
+            model.settings.toolsCardShown = true
+            model.settings.resumeCardShown = true
+            model.settings.showQuickSettingsInNotch = false
+            model.resume.showPreview(DemoActivity.pastSessions())
+            model.showActivityNow()
+        }
+        render(to: directory.appendingPathComponent("activity-resume-empty.png")) { model in
+            model.settings.toolsCardShown = true
+            model.settings.resumeCardShown = true
+            model.resume.showPreview([])
+            model.showActivityNow()
+        }
         render(to: directory.appendingPathComponent("activity-usage-waiting.png")) { model in
             model.usage.showPreview(nil)
             model.session.showPreview([])
@@ -154,9 +170,12 @@ enum SnapshotRenderer {
 
     /// One island state under a menu bar, cropped tight around the island.
     private static func render(to url: URL, configure: (IslandViewModel) -> Void) {
+        // Each render starts from the default settings; one that changes them doesn't leak into the next.
+        let defaults = UserDefaults(suiteName: "snapshot") ?? .standard
+        defaults.removePersistentDomain(forName: "snapshot")
         let model = IslandViewModel(
             store: RequestStore(),
-            settings: AppSettings(defaults: UserDefaults(suiteName: "snapshot") ?? .standard),
+            settings: AppSettings(defaults: defaults),
             activity: ActivityTracker()
         )
         model.notch = NotchMetrics(
@@ -164,6 +183,8 @@ enum SnapshotRenderer {
             notchSize: CGSize(width: 185, height: 32),
             hasNotch: true
         )
+        // The Resume card would list this Mac's real sessions; renders that want it show samples.
+        model.settings.resumeCardShown = false
         configure(model)
 
         SnapshotExport.write(

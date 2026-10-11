@@ -27,6 +27,10 @@ final class AppSettings {
         static let usageCardShown = "usageCardShown"
         static let sessionWidget = "widgetSession"
         static let sessionCardShown = "sessionCardShown"
+        static let toolsWidget = "widgetTools"
+        static let toolsCardShown = "toolsCardShown"
+        static let resumeWidget = "widgetResume"
+        static let resumeCardShown = "resumeCardShown"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -105,6 +109,18 @@ final class AppSettings {
     /// Whether the session card is open in the hover panel. Toggled from the chip button beside the usage gauge.
     var sessionCardShown: Bool { didSet { defaults.set(sessionCardShown, forKey: Key.sessionCardShown) } }
 
+    /// Which tools each session has called, and when (see `ToolUsage`).
+    var toolsWidget: Bool { didSet { defaults.set(toolsWidget, forKey: Key.toolsWidget) } }
+
+    /// Whether the tools card is open in the hover panel. Toggled from its header button.
+    var toolsCardShown: Bool { didSet { defaults.set(toolsCardShown, forKey: Key.toolsCardShown) } }
+
+    /// Resume a recent session or start a new one (see `ResumeMonitor`).
+    var resumeWidget: Bool { didSet { defaults.set(resumeWidget, forKey: Key.resumeWidget) } }
+
+    /// Whether the resume card is open in the hover panel. Toggled from its header button.
+    var resumeCardShown: Bool { didSet { defaults.set(resumeCardShown, forKey: Key.resumeCardShown) } }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         defaults.register(defaults: [
@@ -129,6 +145,10 @@ final class AppSettings {
             Key.usageCardShown: false,
             Key.sessionWidget: true,
             Key.sessionCardShown: true,
+            Key.toolsWidget: true,
+            Key.toolsCardShown: false,
+            Key.resumeWidget: true,
+            Key.resumeCardShown: true,
         ])
         playSound = defaults.bool(forKey: Key.playSound)
         autoExpand = defaults.bool(forKey: Key.autoExpand)
@@ -151,6 +171,10 @@ final class AppSettings {
         usageCardShown = defaults.bool(forKey: Key.usageCardShown)
         sessionWidget = defaults.bool(forKey: Key.sessionWidget)
         sessionCardShown = defaults.bool(forKey: Key.sessionCardShown)
+        toolsWidget = defaults.bool(forKey: Key.toolsWidget)
+        toolsCardShown = defaults.bool(forKey: Key.toolsCardShown)
+        resumeWidget = defaults.bool(forKey: Key.resumeWidget)
+        resumeCardShown = defaults.bool(forKey: Key.resumeCardShown)
     }
 
     var routerOptions: RequestRouter.Options {

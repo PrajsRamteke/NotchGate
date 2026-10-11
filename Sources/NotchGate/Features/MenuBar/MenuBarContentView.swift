@@ -82,7 +82,12 @@ struct MenuBarContentView: View {
     }
 
     private var widgets: WidgetsSection {
-        WidgetsSection(settings: coordinator.settings, usage: coordinator.island.usage, session: coordinator.island.session)
+        WidgetsSection(
+            settings: coordinator.settings,
+            usage: coordinator.island.usage,
+            session: coordinator.island.session,
+            resume: coordinator.island.resume
+        )
     }
 
     private var extras: ExtrasSection {

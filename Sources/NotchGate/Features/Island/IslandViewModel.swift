@@ -27,6 +27,8 @@ final class IslandViewModel {
     let usage: UsageMonitor
     /// Model, context, cost and branch for the Session widget.
     let session: SessionMonitor
+    /// Recent sessions to resume, and new-session launches, for the Resume widget.
+    let resume: ResumeMonitor
 
     var notch: NotchMetrics = .fallback
 
@@ -68,7 +70,8 @@ final class IslandViewModel {
         activity: ActivityTracker,
         water: WaterReminder? = nil,
         usage: UsageMonitor? = nil,
-        session: SessionMonitor? = nil
+        session: SessionMonitor? = nil,
+        resume: ResumeMonitor? = nil
     ) {
         self.store = store
         self.settings = settings
@@ -77,6 +80,7 @@ final class IslandViewModel {
         self.water = water ?? WaterReminder(settings: settings)
         self.usage = usage ?? UsageMonitor(settings: settings)
         self.session = session ?? SessionMonitor(settings: settings)
+        self.resume = resume ?? ResumeMonitor(settings: settings)
     }
 
     /// True when the expanded island is showing live activity rather than a request.

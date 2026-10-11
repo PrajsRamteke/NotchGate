@@ -44,6 +44,7 @@ enum ActivityReducer {
             if payload["source"]?.stringValue != "compact" {
                 session.tasks = []
                 session.fileChanges = FileChanges()
+                session.toolUsage = ToolUsage()
                 session.prompt = nil
                 session.lastMessage = nil
             }
@@ -63,6 +64,7 @@ enum ActivityReducer {
             case "ExitPlanMode": session.phase = .waiting(reason: "Waiting for plan approval")
             default:
                 session.toolCount += 1
+                session.toolUsage.record(toolName: tool, at: now)
                 session.phase = .running(ToolSummary.step(toolName: tool, input: input, at: now))
             }
             if tool == "TodoWrite" { session.tasks = TaskParser.todoList(from: input) }

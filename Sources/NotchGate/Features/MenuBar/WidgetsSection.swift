@@ -6,6 +6,7 @@ struct WidgetsSection: View {
     @Bindable var settings: AppSettings
     let usage: UsageMonitor
     let session: SessionMonitor
+    let resume: ResumeMonitor
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -33,15 +34,45 @@ struct WidgetsSection: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
+            SettingRow(
+                "Tool activity",
+                detail: "Bash, Edit, Read… calls per session, and a heat strip of the last hour",
+                isOn: $settings.toolsWidget
+            )
+
+            SettingRow(
+                "Resume",
+                detail: "Pick up a recent session or start a new one in Terminal",
+                isOn: Binding(get: { settings.resumeWidget }, set: { [resume] in resume.setEnabled($0) })
+            )
+
+            if settings.resumeWidget {
+                SettingNote(resumeStatus)
+                    .padding(.leading, 16)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
             if anyOn, !settings.showActivityOnHover {
                 SettingNote("Widgets show when you hover the notch. Turn on “Live activity on hover” under Behavior.")
             }
         }
         .animation(.snappy(duration: 0.25), value: settings.usageWidget)
         .animation(.snappy(duration: 0.25), value: settings.sessionWidget)
+        .animation(.snappy(duration: 0.25), value: settings.resumeWidget)
     }
 
-    private var anyOn: Bool { settings.usageWidget || settings.sessionWidget }
+    private var anyOn: Bool { switches.contains(true) }
+
+    private var switches: [Bool] {
+        [settings.usageWidget, settings.sessionWidget, settings.toolsWidget, settings.resumeWidget]
+    }
+
+    private var resumeStatus: String {
+        if let error = resume.loadError { return error }
+        let source = "Read from Claude Code's transcripts in ~/.claude/projects; opens in Terminal."
+        guard let latest = resume.recent.first else { return source }
+        return "Last: \(latest.title) (\(latest.projectName)). \(source)"
+    }
 
     private var sessionStatus: String {
         if let error = session.setupError { return "Couldn't connect to Claude Code: \(error)" }
@@ -74,7 +105,6 @@ struct WidgetsSection: View {
 
 extension WidgetsSection {
     var summary: String {
-        let switches = [settings.usageWidget, settings.sessionWidget]
-        return "\(switches.filter { $0 }.count) of \(switches.count) on"
+        "\(switches.filter { $0 }.count) of \(switches.count) on"
     }
 }

@@ -36,7 +36,7 @@ struct ActivityPanelView: View {
         VStack(alignment: .leading, spacing: 12) {
             header(count: tracker.sessions.count)
 
-            NotchWidgetsView(usage: model.usage, session: model.session, sessions: tracker.ordered)
+            NotchWidgetsView(usage: model.usage, session: model.session, resume: model.resume, sessions: tracker.ordered)
                 .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
 
             if model.isDraggingImages, !sessions.isEmpty {
@@ -47,11 +47,14 @@ struct ActivityPanelView: View {
             if sessions.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     CardTitle(title: "Nothing running", subtitle: "Start Claude Code in any terminal and its progress shows up here.")
-                    Button(action: model.startClaudeCode) {
-                        Label("Open Claude Code", systemImage: "terminal")
+                    // The Resume card has its own "New session" button.
+                    if !(model.resume.isEnabled && settings.resumeCardShown) {
+                        Button(action: model.startClaudeCode) {
+                            Label("Open Claude Code", systemImage: "terminal")
+                        }
+                        .buttonStyle(.island(.primary))
+                        .help("Opens Terminal and starts Claude Code")
                     }
-                    .buttonStyle(.island(.primary))
-                    .help("Opens Terminal and starts Claude Code")
                 }
                 .padding(.bottom, 4)
             } else {
@@ -77,6 +80,10 @@ struct ActivityPanelView: View {
         .animation(Theme.Motion.content, value: settings.usageCardShown)
         .animation(Theme.Motion.content, value: settings.sessionWidget)
         .animation(Theme.Motion.content, value: settings.sessionCardShown)
+        .animation(Theme.Motion.content, value: settings.toolsWidget)
+        .animation(Theme.Motion.content, value: settings.toolsCardShown)
+        .animation(Theme.Motion.content, value: settings.resumeWidget)
+        .animation(Theme.Motion.content, value: settings.resumeCardShown)
         .animation(Theme.Motion.content, value: model.isDraggingImages)
         // With a single session, dropping anywhere on the panel is unambiguous.
         .onDrop(of: Self.dropTypes, isTargeted: $isPanelTargeted) { _ in
@@ -203,6 +210,20 @@ struct ActivityPanelView: View {
                     name: "sessions",
                     isOn: settings.sessionCardShown
                 ) { settings.sessionCardShown.toggle() }
+            }
+            if settings.toolsWidget {
+                CardToggleButton(
+                    systemName: "hammer",
+                    name: "tool activity",
+                    isOn: settings.toolsCardShown
+                ) { settings.toolsCardShown.toggle() }
+            }
+            if settings.resumeWidget {
+                CardToggleButton(
+                    systemName: "clock.arrow.circlepath",
+                    name: "resume",
+                    isOn: settings.resumeCardShown
+                ) { settings.resumeCardShown.toggle() }
             }
         }
     }

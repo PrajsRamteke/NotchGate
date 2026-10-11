@@ -7,17 +7,38 @@ import SwiftUI
 struct NotchWidgetsView: View {
     let usage: UsageMonitor
     let session: SessionMonitor
-    /// Sessions in the activity list, newest first; the Session card follows them.
+    let resume: ResumeMonitor
+    /// Sessions in the activity list, newest first; the Session and Tools cards follow them.
     let sessions: [SessionActivity]
+
+    private var settings: AppSettings { usage.settings }
 
     // No wrapping stack: each card joins the panel's stack on its own, so a
     // hidden card leaves no gap and each one animates in separately.
     var body: some View {
-        if usage.isEnabled, usage.settings.usageCardShown {
+        if usage.isEnabled, settings.usageCardShown {
             UsageWidgetView(snapshot: usage.snapshot)
         }
-        if session.isEnabled, session.settings.sessionCardShown {
+        if session.isEnabled, settings.sessionCardShown {
             SessionWidgetView(entries: sessionEntries)
+        }
+        if settings.toolsWidget, settings.toolsCardShown {
+            ToolActivityWidgetView(entries: toolEntries)
+        }
+        if resume.isEnabled, settings.resumeCardShown {
+            ResumeWidgetView(monitor: resume, maxRows: sessions.isEmpty ? ResumeMonitor.limit : 1)
+                // Rescans (throttled) each time the panel opens, and when a session starts or ends.
+                .onAppear { resume.refresh(excluding: runningIDs) }
+                .onChange(of: runningIDs) { _, running in resume.refresh(excluding: running) }
+        }
+    }
+
+    private var runningIDs: Set<String> { Set(sessions.map(\.id)) }
+
+    /// The sessions the activity list shows, each with its tool calls.
+    private var toolEntries: [ToolActivityWidgetView.Entry] {
+        sessions.prefix(ActivityPanelView.maxVisibleSessions).map {
+            ToolActivityWidgetView.Entry(id: $0.id, name: $0.projectName, usage: $0.toolUsage)
         }
     }
 
