@@ -104,13 +104,21 @@ final class NotchWindowController {
 
     /// The island's SwiftUI frame (top-left origin, window space) in screen space.
     private var islandScreenRect: CGRect? {
-        let island = viewModel.islandFrame
-        guard !island.isEmpty else { return nil }
+        screenRect(for: viewModel.islandFrame)
+    }
+
+    /// The water bot's clickable area in screen space, while it's out.
+    private var waterBotScreenRect: CGRect? {
+        viewModel.showsWaterBot ? screenRect(for: viewModel.waterBotFrame) : nil
+    }
+
+    private func screenRect(for frame: CGRect) -> CGRect? {
+        guard !frame.isEmpty, !frame.isNull else { return nil }
         return CGRect(
-            x: panel.frame.minX + island.minX,
-            y: panel.frame.maxY - island.maxY,
-            width: island.width,
-            height: island.height
+            x: panel.frame.minX + frame.minX,
+            y: panel.frame.maxY - frame.maxY,
+            width: frame.width,
+            height: frame.height
         ).insetBy(dx: -hitSlop, dy: -hitSlop)
     }
 
@@ -125,21 +133,26 @@ final class NotchWindowController {
     /// Toggles click-through and hover. Clicks only land on the visible island;
     /// "hovering" also covers the area held open by the last click.
     private func updateHitTesting() {
+        let location = NSEvent.mouseLocation
+        // The water bot hangs below the island: it takes clicks, but hovering it
+        // must not open the island (which would send the bot back up).
+        let overWaterBot = waterBotScreenRect?.contains(location) ?? false
+        viewModel.setHoveringWaterBot(overWaterBot)
+
         // While hidden the island is exactly the notch, so hovering the notch
         // itself is what reveals the activity panel.
         let canHover = viewModel.presentation != .hidden || viewModel.settings.showActivityOnHover
         guard canHover, let rect = islandScreenRect else {
             heldRect = nil
-            panel.ignoresMouseEvents = true
+            panel.ignoresMouseEvents = !overWaterBot
             viewModel.setHovering(false)
             return
         }
-        let location = NSEvent.mouseLocation
-        let overIsland = rect.contains(location)
+        let overIsland = rect.contains(location) && !overWaterBot
         let overHeldArea = heldRect?.contains(location) ?? false
         if !overIsland && !overHeldArea { heldRect = nil }
 
-        panel.ignoresMouseEvents = !overIsland
+        panel.ignoresMouseEvents = !overIsland && !overWaterBot
         viewModel.setHovering(overIsland || overHeldArea)
     }
 }

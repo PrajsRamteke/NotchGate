@@ -126,6 +126,16 @@ Also available: **Auto-allow permissions** (risky commands like `rm -rf`, `sudo`
 and `git push --force` still ask), **Claude's questions** (Notch / Terminal /
 Don't ask), live activity on hover, sounds and launch at login.
 
+### Extras
+
+Optional notch features unrelated to Claude, off by default.
+
+- **Water reminder**: every 30 minutes (adjustable from 5 minutes to 4 hours) a little bot
+  drops out of the notch on a rope, holding a bottle. Hover it for **Drank it** or
+  **Snooze**; poke it and it giggles. It gets more insistent the longer you
+  ignore it, waits while you're away from the Mac, and counts glasses toward a
+  daily goal.
+
 ### Keyboard shortcuts (while a request is waiting)
 
 | Shortcut | Action |

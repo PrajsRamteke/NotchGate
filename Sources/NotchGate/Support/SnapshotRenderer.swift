@@ -30,6 +30,21 @@ enum SnapshotRenderer {
             model.initialComposerSession = "demo-docs"
             model.showActivityNow()
         }
+        render(to: directory.appendingPathComponent("water-reminder.png")) { model in
+            model.settings.playSound = false
+            model.water.remind()
+        }
+        render(to: directory.appendingPathComponent("water-reminder-hover.png")) { model in
+            model.settings.playSound = false
+            model.water.remind()
+            model.setHoveringWaterBot(true)
+        }
+        render(to: directory.appendingPathComponent("water-drinking.png")) { model in
+            model.settings.playSound = false
+            model.water.remind()
+            model.water.drink()
+        }
+        renderWaterBotMoods(to: directory.appendingPathComponent("water-bot-moods.png"))
         let coordinator = AppCoordinator()
         coordinator.updates.showPreview(UpdateInfo(latestSHA: "abc1234", commits: [
             UpdateCommit(sha: "abc1234", title: "Type notch prompts into Claude Code as real user prompts"),
@@ -64,6 +79,25 @@ enum SnapshotRenderer {
         )
     }
 
+    /// Every face the water bot can make, side by side.
+    private static func renderWaterBotMoods(to url: URL) {
+        let moods = WaterBotMood.allCases
+        let size = WaterBotFigure.size
+        let canvas = CGSize(width: CGFloat(moods.count) * (size.width + 12) + 48, height: size.height + 64)
+        SnapshotExport.write(
+            SnapshotBackdrop(showsMenuBar: false) {
+                HStack(spacing: 12) {
+                    ForEach(Array(moods.enumerated()), id: \.offset) { index, mood in
+                        WaterBotFigure(mood: mood, time: 0.9 + Double(index) * 0.37, sip: mood == .delighted ? 1 : 0,
+                                       waterLevel: mood == .delighted ? 0.4 : 0.8)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            },
+            canvas: canvas, to: url, settle: 0.6
+        )
+    }
+
     /// One island state under a menu bar, cropped tight around the island.
     private static func render(to url: URL, configure: (IslandViewModel) -> Void) {
         let model = IslandViewModel(
@@ -82,8 +116,9 @@ enum SnapshotRenderer {
             SnapshotBackdrop { IslandRootView(model: model) },
             canvas: Theme.Metrics.canvasSize, to: url
         ) {
-            let island = model.islandFrame
+            var island = model.islandFrame
             guard !island.isEmpty else { return nil }
+            if model.showsWaterBot, !model.waterBotFrame.isEmpty { island = island.union(model.waterBotFrame) }
             return CGRect(x: island.minX - 70, y: 0, width: island.width + 140, height: island.maxY + 64)
         }
     }

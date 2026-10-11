@@ -6,9 +6,13 @@ struct IslandRootView: View {
     @Bindable var model: IslandViewModel
 
     var body: some View {
-        VStack(spacing: 0) {
-            island
-            Spacer(minLength: 0)
+        ZStack(alignment: .top) {
+            // Behind the island, so the bot's rope comes out from under the notch.
+            WaterBotStage(model: model)
+            VStack(spacing: 0) {
+                island
+                Spacer(minLength: 0)
+            }
         }
         .frame(width: Theme.Metrics.canvasSize.width, height: Theme.Metrics.canvasSize.height, alignment: .top)
         .preferredColorScheme(.dark)

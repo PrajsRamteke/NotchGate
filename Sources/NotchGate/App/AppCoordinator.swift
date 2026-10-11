@@ -35,6 +35,7 @@ final class AppCoordinator {
         startServer()
         installer.upgradeIfNeeded()
         updates.start()
+        island.water.start()
 
         let window = NotchWindowController(viewModel: island)
         window.show()
@@ -46,6 +47,7 @@ final class AppCoordinator {
         store.releaseAll()
         server?.stop()
         hotKeys?.unregister()
+        island.water.stop()
         window?.tearDown()
     }
 

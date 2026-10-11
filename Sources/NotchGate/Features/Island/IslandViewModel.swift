@@ -21,6 +21,8 @@ final class IslandViewModel {
     let activity: ActivityTracker
     /// Sends prompts from the notch into sessions' terminals.
     let prompts: ComposerController
+    /// The water-reminder bot that hangs from the notch (an Extra).
+    let water: WaterReminder
 
     var notch: NotchMetrics = .fallback
 
@@ -28,10 +30,16 @@ final class IslandViewModel {
     private(set) var isHovering = false
     /// A text field in the island is in use: stay open even if the cursor drifts off.
     private(set) var isComposing = false
+    /// The cursor is on the water bot (not the island).
+    private(set) var isHoveringWaterBot = false
 
     /// Island frame in window coordinates (top-left origin), reported by SwiftUI.
     @ObservationIgnored var islandFrame: CGRect = .zero {
         didSet { if islandFrame != oldValue { onIslandFrameChange?() } }
+    }
+    /// The water bot's clickable area in window coordinates; empty while it's tucked away.
+    @ObservationIgnored var waterBotFrame: CGRect = .zero {
+        didSet { if waterBotFrame != oldValue { onIslandFrameChange?() } }
     }
     /// Lets the window refresh click-through when the island resizes under a still cursor.
     @ObservationIgnored var onIslandFrameChange: (() -> Void)?
@@ -48,11 +56,12 @@ final class IslandViewModel {
     /// cursor sweeping across the top of the screen doesn't trigger it.
     static let hoverIntentDelay: Duration = .milliseconds(180)
 
-    init(store: RequestStore, settings: AppSettings, activity: ActivityTracker) {
+    init(store: RequestStore, settings: AppSettings, activity: ActivityTracker, water: WaterReminder? = nil) {
         self.store = store
         self.settings = settings
         self.activity = activity
         self.prompts = ComposerController(store: store, activity: activity)
+        self.water = water ?? WaterReminder(settings: settings)
     }
 
     /// True when the expanded island is showing live activity rather than a request.
@@ -70,6 +79,12 @@ final class IslandViewModel {
             return engaged ? .expanded : .peek
         }
         return engaged && settings.showActivityOnHover ? .expanded : .hidden
+    }
+
+    /// The bot hangs below the notch only while the island is small, so it never
+    /// covers a card; while the island is open it waits inside the notch.
+    var showsWaterBot: Bool {
+        water.state != .away && presentation != .expanded
     }
 
     /// The waiting request is minimized but the island is open (hovered), so it
@@ -197,6 +212,10 @@ final class IslandViewModel {
     /// Shows the activity panel immediately (snapshots, previews).
     func showActivityNow() {
         applyHover(true)
+    }
+
+    func setHoveringWaterBot(_ hovering: Bool) {
+        if hovering != isHoveringWaterBot { isHoveringWaterBot = hovering }
     }
 
     private func applyHover(_ hovering: Bool) {

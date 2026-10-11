@@ -6,6 +6,12 @@ enum SoundPlayer {
     enum Cue: String {
         case arrive = "Tink"
         case resolve = "Pop"
+        /// The water bot drops in.
+        case water = "Bottle"
+        /// A glass logged.
+        case sip = "Glass"
+        /// The daily water goal reached.
+        case goal = "Hero"
     }
 
     static func play(_ cue: Cue, volume: Float = 0.35) {

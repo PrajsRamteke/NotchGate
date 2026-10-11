@@ -19,6 +19,10 @@ final class AppSettings {
         static let notchFileEdits = "notchFileEdits"
         static let notchPlans = "notchPlans"
         static let checkForUpdates = "checkForUpdates"
+        static let waterReminder = "waterReminder"
+        static let waterReminderMinutes = "waterReminderMinutes"
+        static let waterSnoozeMinutes = "waterSnoozeMinutes"
+        static let waterDailyGoal = "waterDailyGoal"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -68,6 +72,19 @@ final class AppSettings {
         didSet { defaults.set(showQuickSettingsInNotch, forKey: Key.quickSettingsInNotch) }
     }
 
+    // MARK: Extras (notch features unrelated to Claude)
+
+    /// A bot drops out of the notch with a bottle every few minutes (see `WaterReminder`).
+    var waterReminder: Bool { didSet { defaults.set(waterReminder, forKey: Key.waterReminder) } }
+
+    /// Minutes between water reminders.
+    var waterReminderMinutes: Int { didSet { defaults.set(waterReminderMinutes, forKey: Key.waterReminderMinutes) } }
+
+    /// How long "Snooze" puts the bot back to sleep.
+    var waterSnoozeMinutes: Int { didSet { defaults.set(waterSnoozeMinutes, forKey: Key.waterSnoozeMinutes) } }
+
+    /// Glasses to drink per day.
+    var waterDailyGoal: Int { didSet { defaults.set(waterDailyGoal, forKey: Key.waterDailyGoal) } }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -85,6 +102,10 @@ final class AppSettings {
             Key.notchPlans: false,
             Key.checkForUpdates: true,
             Key.quickSettingsInNotch: true,
+            Key.waterReminder: false,
+            Key.waterReminderMinutes: 30,
+            Key.waterSnoozeMinutes: 10,
+            Key.waterDailyGoal: 8,
         ])
         playSound = defaults.bool(forKey: Key.playSound)
         autoExpand = defaults.bool(forKey: Key.autoExpand)
@@ -99,6 +120,10 @@ final class AppSettings {
         notchFileEdits = defaults.bool(forKey: Key.notchFileEdits)
         notchPlans = defaults.bool(forKey: Key.notchPlans)
         checkForUpdates = defaults.bool(forKey: Key.checkForUpdates)
+        waterReminder = defaults.bool(forKey: Key.waterReminder)
+        waterReminderMinutes = defaults.integer(forKey: Key.waterReminderMinutes)
+        waterSnoozeMinutes = defaults.integer(forKey: Key.waterSnoozeMinutes)
+        waterDailyGoal = defaults.integer(forKey: Key.waterDailyGoal)
     }
 
     var routerOptions: RequestRouter.Options {
