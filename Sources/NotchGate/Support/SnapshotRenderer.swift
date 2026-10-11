@@ -1,4 +1,5 @@
 import AppKit
+import NotchGateKit
 import SwiftUI
 
 /// Development aid: `NotchGate --snapshot <dir>` renders every demo card and
@@ -39,6 +40,20 @@ enum SnapshotRenderer {
             model.activity.load(DemoActivity.sessions())
             model.prompts.drafts.add(sampleImages(), to: "demo-docs")
             model.initialComposerSession = "demo-docs"
+            model.showActivityNow()
+        }
+        render(to: directory.appendingPathComponent("activity-usage.png")) { model in
+            model.activity.load(DemoActivity.sessions())
+            let now = Date()
+            model.usage.showPreview(UsageSnapshot(
+                fiveHour: .init(usedPercentage: 23.5, resetsAt: now.addingTimeInterval(2 * 3600 + 14 * 60)),
+                sevenDay: .init(usedPercentage: 81.2, resetsAt: now.addingTimeInterval(3 * 86_400)),
+                updatedAt: now.addingTimeInterval(-3 * 60)
+            ))
+            model.showActivityNow()
+        }
+        render(to: directory.appendingPathComponent("activity-usage-waiting.png")) { model in
+            model.usage.showPreview(nil)
             model.showActivityNow()
         }
         render(to: directory.appendingPathComponent("water-reminder.png")) { model in

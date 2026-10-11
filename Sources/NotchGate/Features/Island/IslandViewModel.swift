@@ -23,6 +23,8 @@ final class IslandViewModel {
     let prompts: ComposerController
     /// The water-reminder bot that hangs from the notch (an Extra).
     let water: WaterReminder
+    /// Plan limits for the Usage widget.
+    let usage: UsageMonitor
 
     var notch: NotchMetrics = .fallback
 
@@ -58,12 +60,19 @@ final class IslandViewModel {
     /// cursor sweeping across the top of the screen doesn't trigger it.
     static let hoverIntentDelay: Duration = .milliseconds(180)
 
-    init(store: RequestStore, settings: AppSettings, activity: ActivityTracker, water: WaterReminder? = nil) {
+    init(
+        store: RequestStore,
+        settings: AppSettings,
+        activity: ActivityTracker,
+        water: WaterReminder? = nil,
+        usage: UsageMonitor? = nil
+    ) {
         self.store = store
         self.settings = settings
         self.activity = activity
         self.prompts = ComposerController(store: store, activity: activity)
         self.water = water ?? WaterReminder(settings: settings)
+        self.usage = usage ?? UsageMonitor(settings: settings)
     }
 
     /// True when the expanded island is showing live activity rather than a request.

@@ -34,6 +34,9 @@ struct ActivityPanelView: View {
         VStack(alignment: .leading, spacing: 12) {
             header(count: tracker.sessions.count)
 
+            NotchWidgetsView(usage: model.usage)
+                .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+
             if model.isDraggingImages, !sessions.isEmpty {
                 dropHint(sessions: sessions)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -68,6 +71,7 @@ struct ActivityPanelView: View {
             }
         }
         .animation(Theme.Motion.content, value: settings.showQuickSettingsInNotch)
+        .animation(Theme.Motion.content, value: settings.usageWidget)
         .animation(Theme.Motion.content, value: model.isDraggingImages)
         // With a single session, dropping anywhere on the panel is unambiguous.
         .onDrop(of: Self.dropTypes, isTargeted: $isPanelTargeted) { _ in

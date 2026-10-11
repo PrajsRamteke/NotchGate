@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Optional notch features that have nothing to do with Claude. Each extra is
-/// off by default; new ones get a row here and a switch in `AppSettings`.
+/// Optional notch features that have nothing to do with Claude. New extras
+/// get a row here and a switch in `AppSettings`.
 struct ExtrasSection: View {
     @Bindable var settings: AppSettings
     let water: WaterReminder

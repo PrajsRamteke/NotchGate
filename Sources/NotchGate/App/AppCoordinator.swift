@@ -36,6 +36,7 @@ final class AppCoordinator {
         installer.upgradeIfNeeded()
         updates.start()
         island.water.start()
+        island.usage.start()
         ImageIntake.purgeOld()
 
         let window = NotchWindowController(viewModel: island)
@@ -49,6 +50,7 @@ final class AppCoordinator {
         server?.stop()
         hotKeys?.unregister()
         island.water.stop()
+        island.usage.stop()
         window?.tearDown()
     }
 

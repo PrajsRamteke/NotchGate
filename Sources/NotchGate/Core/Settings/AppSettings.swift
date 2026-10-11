@@ -23,6 +23,7 @@ final class AppSettings {
         static let waterReminderMinutes = "waterReminderMinutes"
         static let waterSnoozeMinutes = "waterSnoozeMinutes"
         static let waterDailyGoal = "waterDailyGoal"
+        static let usageWidget = "widgetUsage"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -86,6 +87,11 @@ final class AppSettings {
     /// Glasses to drink per day.
     var waterDailyGoal: Int { didSet { defaults.set(waterDailyGoal, forKey: Key.waterDailyGoal) } }
 
+    // MARK: Widgets (glanceable info in the hover panel)
+
+    /// Plan limits (5-hour and weekly) in the notch (see `UsageMonitor`).
+    var usageWidget: Bool { didSet { defaults.set(usageWidget, forKey: Key.usageWidget) } }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         defaults.register(defaults: [
@@ -102,10 +108,11 @@ final class AppSettings {
             Key.notchPlans: false,
             Key.checkForUpdates: true,
             Key.quickSettingsInNotch: true,
-            Key.waterReminder: false,
-            Key.waterReminderMinutes: 30,
+            Key.waterReminder: true,
+            Key.waterReminderMinutes: 15,
             Key.waterSnoozeMinutes: 10,
             Key.waterDailyGoal: 8,
+            Key.usageWidget: true,
         ])
         playSound = defaults.bool(forKey: Key.playSound)
         autoExpand = defaults.bool(forKey: Key.autoExpand)
@@ -124,6 +131,7 @@ final class AppSettings {
         waterReminderMinutes = defaults.integer(forKey: Key.waterReminderMinutes)
         waterSnoozeMinutes = defaults.integer(forKey: Key.waterSnoozeMinutes)
         waterDailyGoal = defaults.integer(forKey: Key.waterDailyGoal)
+        usageWidget = defaults.bool(forKey: Key.usageWidget)
     }
 
     var routerOptions: RequestRouter.Options {

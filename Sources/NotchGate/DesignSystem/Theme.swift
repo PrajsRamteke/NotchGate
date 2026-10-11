@@ -22,6 +22,7 @@ enum Theme {
         static let hairline = Color.white.opacity(0.08)
 
         static let danger = Color(hex: 0xE5675B)
+        static let warning = Color(hex: 0xE3A857)
         static let success = Color(hex: 0x6CC49A)
         static let codeAdded = Color(hex: 0x6CC49A).opacity(0.16)
         static let codeRemoved = Color(hex: 0xE5675B).opacity(0.16)

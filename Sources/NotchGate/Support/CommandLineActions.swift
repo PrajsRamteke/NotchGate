@@ -4,7 +4,7 @@ import Foundation
 /// Headless entry points so setup can be scripted:
 ///
 ///     NotchGate --setup                   hooks + editor helper + launch at login
-///     NotchGate --uninstall               remove hooks + disable launch at login
+///     NotchGate --uninstall               remove hooks + status line relay + disable launch at login
 ///     NotchGate --send-prompt PID TEXT    type a prompt into a Claude session (diagnostics)
 ///     NotchGate --snapshot DIR            render every card to PNG
 @MainActor
@@ -67,6 +67,8 @@ enum CommandLineActions {
     private static func tearDown() -> Bool {
         let installer = HookInstaller()
         installer.uninstall()
+        // The Usage widget's relay: put the user's own status line back.
+        UsageMonitor(settings: AppSettings()).setEnabled(false)
         LaunchAtLogin.setEnabled(false)
         report(installer.status == .notInstalled ? "✓ Hooks removed" : "✗ Removal failed: \(installer.status)")
         return installer.status == .notInstalled

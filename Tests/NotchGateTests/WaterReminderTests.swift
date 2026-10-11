@@ -16,6 +16,7 @@ struct WaterReminderTests {
         let defaults = UserDefaults(suiteName: "water-\(UUID())") ?? .standard
         let settings = AppSettings(defaults: defaults)
         settings.playSound = false
+        settings.waterReminderMinutes = 30
         let world = World()
         let water = WaterReminder(settings: settings, defaults: defaults, now: { world.now }, idleSeconds: { world.idle })
         water.setEnabled(enabled)

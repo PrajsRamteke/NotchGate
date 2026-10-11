@@ -17,6 +17,17 @@ public enum BridgeLocation {
         return supportDirectory.appendingPathComponent("bridge.sock")
     }
 
+    /// Latest plan usage, written by the hook's status line relay (see `UsageSnapshot`).
+    public static var usageURL: URL {
+        supportDirectory.appendingPathComponent("usage.json")
+    }
+
+    /// The user's own `statusLine` setting, kept while NotchGate's relay sits
+    /// in its place. The relay runs its command; removing the relay restores it.
+    public static var originalStatusLineURL: URL {
+        supportDirectory.appendingPathComponent("statusline-original.json")
+    }
+
     /// Stable install location for the hook binary referenced from Claude settings.
     public static var installedHookURL: URL {
         FileManager.default.homeDirectoryForCurrentUser

@@ -18,6 +18,8 @@ struct MenuBarContentView: View {
                     Divider().padding(.vertical, 10)
                     CollapsibleSection("Permissions & questions", id: "permissions", summary: permissions.summary) { permissions }
                     Divider().padding(.vertical, 10)
+                    CollapsibleSection("Widgets", id: "widgets", summary: widgets.summary) { widgets }
+                    Divider().padding(.vertical, 10)
                     CollapsibleSection("Extras", id: "extras", summary: extras.summary) { extras }
                     Divider().padding(.vertical, 10)
                     CollapsibleSection("Behavior", id: "behavior") { PreferencesSection(settings: coordinator.settings) }
@@ -77,6 +79,10 @@ struct MenuBarContentView: View {
 
     private var permissions: PermissionsSection {
         PermissionsSection(settings: coordinator.settings, onSetAutoAllow: coordinator.island.setAutoAllow)
+    }
+
+    private var widgets: WidgetsSection {
+        WidgetsSection(settings: coordinator.settings, usage: coordinator.island.usage)
     }
 
     private var extras: ExtrasSection {
