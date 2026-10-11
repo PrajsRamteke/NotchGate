@@ -30,7 +30,25 @@ enum SnapshotRenderer {
             model.initialComposerSession = "demo-docs"
             model.showActivityNow()
         }
+        renderView(MenuBarContentView(coordinator: AppCoordinator()), size: CGSize(width: 320, height: 900),
+                   to: directory.appendingPathComponent("menu.png"))
         return true
+    }
+
+    private static func renderView<V: View>(_ view: V, size: CGSize, to url: URL) {
+        let hosting = NSHostingView(rootView: view.frame(width: size.width).fixedSize().background(Color(nsColor: .windowBackgroundColor)))
+        let fitted = hosting.fittingSize
+        hosting.frame = CGRect(origin: .zero, size: fitted)
+        let window = NSWindow(contentRect: CGRect(x: -20_000, y: -20_000, width: fitted.width, height: fitted.height),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.contentView = hosting
+        window.orderFrontRegardless()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+        guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { return }
+        hosting.cacheDisplay(in: hosting.bounds, to: rep)
+        try? rep.representation(using: NSBitmapImageRep.FileType.png, properties: [:])?.write(to: url)
+        window.orderOut(nil)
     }
 
     private static func render(to url: URL, configure: (IslandViewModel) -> Void) {

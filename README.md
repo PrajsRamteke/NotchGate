@@ -14,13 +14,19 @@ and keep working — no tab switching.
 | Claude finished | Read the summary and **send the next prompt** from the notch. Claude isn't paused while you decide |
 | **Hover the notch** anytime | Live activity for every session: current step, to-do progress, elapsed time, last prompt. Each project has a **Reply ▾** dropdown to prompt it directly; busy sessions queue the message until they finish |
 
+**Show in notch:** choose which request types NotchGate handles from the
+menu bar: Permissions, File edits, Questions, Plan approvals, Reply when done.
+Each has a switch and a ▶ preview. Out of the box **only Permissions is on**.
+Anything switched off is handled in the terminal exactly as if NotchGate weren't
+installed.
+
 **Auto-allow permissions:** flip it from any permission card, the hover panel, or
 the menu bar, and prompts are approved instantly with no card. Risky commands
 (`rm -rf`, `sudo`, `git push --force`, `git reset --hard`, `curl … | sh`, `DROP TABLE` …)
 still ask unless you turn that safeguard off. Your Claude Code deny rules always apply.
 
-**Claude's questions:** choose **Notch** (answer from the notch), **Terminal**
-(the notch stays out of it), or **Don't ask** (Claude picks the most reasonable
+**Claude's questions:** choose **Terminal** (default, the notch stays out of it),
+**Notch** (answer from the notch), or **Don't ask** (Claude picks the most reasonable
 option, states its assumption, and keeps going).
 
 By default the notch appears **only when Claude is actually waiting on you**.
@@ -147,7 +153,7 @@ Tests/
 ## Development
 
 ```bash
-make test                                     # 58 unit tests
+make test                                     # 60 unit tests
 make run                                      # run from source
 .build/debug/NotchGate --snapshot ./shots     # render every card to PNG offscreen
 log stream --predicate 'subsystem == "app.notchgate"'

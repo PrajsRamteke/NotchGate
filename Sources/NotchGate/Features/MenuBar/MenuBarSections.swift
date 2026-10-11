@@ -101,20 +101,54 @@ struct PermissionsSection: View {
     }
 }
 
-/// Fire sample requests to see the island without a live Claude session.
-struct PreviewSection: View {
+/// Which request types NotchGate shows. Off = Claude Code handles it in the
+/// terminal as if NotchGate weren't installed. Each row can preview its card.
+struct NotchFeaturesSection: View {
+    @Bindable var settings: AppSettings
     let onPreview: (DemoRequests.Sample) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("Preview")
-            HStack(spacing: 6) {
-                ForEach(DemoRequests.Sample.allCases) { sample in
-                    Button(sample.rawValue) { onPreview(sample) }
-                        .controlSize(.small)
-                }
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            SectionLabel("Show in notch")
+            row("Permissions", detail: "Commands, web, MCP tools", sample: .permission, isOn: $settings.notchPermissions)
+            row("File edits", detail: "Edit / Write approvals", sample: .edit, isOn: $settings.notchFileEdits)
+            row("Questions", detail: "Claude asking you to choose", sample: .question, isOn: questionsBinding)
+            row("Plan approvals", detail: "Approve before Claude codes", sample: .plan, isOn: $settings.notchPlans)
+            row("Reply when done", detail: "Pop-up box to send the next prompt", sample: .completion, isOn: $settings.replyFromNotch)
+            Text("Off means the terminal handles it, just like without NotchGate.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
         }
+    }
+
+    /// On = answer in the notch (or "Don't ask"); off = terminal only.
+    private var questionsBinding: Binding<Bool> {
+        Binding(
+            get: { settings.questionMode != .terminal },
+            set: { settings.questionMode = $0 ? .notch : .terminal }
+        )
+    }
+
+    private func row(_ title: String, detail: String, sample: DemoRequests.Sample, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title).font(.callout)
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Button { onPreview(sample) } label: {
+                Image(systemName: "play.circle")
+            }
+            .buttonStyle(.borderless)
+            .help("Preview this card")
+            Toggle(title, isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .tint(Theme.Palette.clay)
+        }
+        .contentShape(Rectangle())
     }
 }
 

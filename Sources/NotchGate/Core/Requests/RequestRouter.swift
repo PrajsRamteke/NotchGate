@@ -25,8 +25,13 @@ struct RequestRouter {
         var showNotices = false
         var autoAllowPermissions = false
         var askForRiskyCommands = true
-        var questionMode: QuestionMode = .notch
+        var questionMode: QuestionMode = .terminal
+        var showPermissions = true
+        var showFileEdits = false
+        var showPlans = false
     }
+
+    static let fileEditTools: Set<String> = ["Edit", "MultiEdit", "Write", "NotebookEdit"]
 
     var options: Options
 
@@ -54,6 +59,9 @@ struct RequestRouter {
             // Interactive tools are answered through PreToolUse. If one reaches
             // PermissionRequest, the user chose the terminal: stay out of the way.
             guard !HookPolicy.interactiveTools.contains(toolName) else { return .ignore }
+            // A type switched off in "Show in notch" is left entirely to the terminal.
+            let isFileEdit = Self.fileEditTools.contains(toolName)
+            guard isFileEdit ? options.showFileEdits : options.showPermissions else { return .ignore }
             let suggestions = payload["permission_suggestions"]?.arrayValue ?? []
             let permission = ToolPermission(toolName: toolName, input: toolInput, suggestions: suggestions)
             if shouldAutoAllow(permission) { return .autoRespond(.allow()) }
@@ -69,6 +77,7 @@ struct RequestRouter {
             return present(.question(prompt))
 
         case .preToolUse where toolName == "ExitPlanMode":
+            guard options.showPlans else { return .ignore }
             return present(.plan(PayloadParsers.plan(from: toolInput)))
 
         case .elicitation:

@@ -9,6 +9,8 @@ final class NotchWindowController {
     private let viewModel: IslandViewModel
     private var monitors: [Any] = []
     private var screenObserver: NSObjectProtocol?
+    /// Keeps the island still during Space swipes (nil if unsupported).
+    private var stickySpace: StickySpace?
     private var resignObserver: NSObjectProtocol?
 
     /// Extra slop around the island so the cursor doesn't flicker at the edge.
@@ -33,6 +35,8 @@ final class NotchWindowController {
     func show() {
         reposition()
         panel.orderFrontRegardless()
+        stickySpace = StickySpace()
+        stickySpace?.add(panel)
         startMouseTracking()
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
@@ -47,6 +51,8 @@ final class NotchWindowController {
         monitors.forEach(NSEvent.removeMonitor)
         monitors.removeAll()
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
+        stickySpace?.remove(panel)
+        stickySpace = nil
         panel.orderOut(nil)
     }
 

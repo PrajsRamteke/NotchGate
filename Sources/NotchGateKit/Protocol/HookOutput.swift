@@ -50,9 +50,11 @@ public enum HookOutput {
 
     /// For the `asyncRewake` Stop hook: the text to print on stderr before
     /// exiting with code 2, which wakes Claude with it as the user's message.
+    /// The prompt comes first so it reads naturally in the terminal, where
+    /// Claude Code shows it under a "Stop hook feedback" label.
     public static func rewakeMessage(for decision: BridgeDecision) -> String? {
         guard case .continueSession(let prompt) = decision else { return nil }
-        return "The user sent you a new message from the NotchGate notch. Treat it as their next prompt:\n\n\(prompt)"
+        return "\(prompt)\n\n(Sent by the user from the NotchGate notch. Treat this as their next prompt.)"
     }
 
     /// Exit code that makes an `asyncRewake` hook wake Claude.

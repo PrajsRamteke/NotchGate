@@ -15,6 +15,9 @@ final class AppSettings {
         static let askForRisky = "askForRiskyCommands"
         static let questionMode = "questionMode"
         static let quickSettingsInNotch = "showQuickSettingsInNotch"
+        static let notchPermissions = "notchPermissions"
+        static let notchFileEdits = "notchFileEdits"
+        static let notchPlans = "notchPlans"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -35,13 +38,24 @@ final class AppSettings {
     /// Hovering the idle notch reveals live progress for every session.
     var showActivityOnHover: Bool { didSet { defaults.set(showActivityOnHover, forKey: Key.activityOnHover) } }
 
+    // MARK: What the notch handles (off = leave it to the terminal)
+
+    /// Tool permission prompts (commands, web, MCP…), except file edits.
+    var notchPermissions: Bool { didSet { defaults.set(notchPermissions, forKey: Key.notchPermissions) } }
+
+    /// Permission prompts for Edit / Write / MultiEdit / NotebookEdit.
+    var notchFileEdits: Bool { didSet { defaults.set(notchFileEdits, forKey: Key.notchFileEdits) } }
+
+    /// Plan approval (ExitPlanMode).
+    var notchPlans: Bool { didSet { defaults.set(notchPlans, forKey: Key.notchPlans) } }
+
     /// Approve permission prompts automatically, without showing a card.
     var autoAllowPermissions: Bool { didSet { defaults.set(autoAllowPermissions, forKey: Key.autoAllow) } }
 
     /// With auto-allow on, still ask for destructive commands (see `RiskPolicy`).
     var askForRiskyCommands: Bool { didSet { defaults.set(askForRiskyCommands, forKey: Key.askForRisky) } }
 
-    /// Where Claude's questions go: the notch, the terminal, or nowhere.
+    /// Where Claude's questions go: the notch, the terminal (default), or nowhere.
     var questionMode: QuestionMode { didSet { defaults.set(questionMode.rawValue, forKey: Key.questionMode) } }
 
     /// Show the quick-settings box in the hover panel. Hidden with its ✕;
@@ -57,11 +71,14 @@ final class AppSettings {
             Key.playSound: true,
             Key.autoExpand: true,
             Key.showNotices: false,
-            Key.replyFromNotch: true,
+            Key.replyFromNotch: false,
             Key.activityOnHover: true,
             Key.autoAllow: false,
             Key.askForRisky: true,
-            Key.questionMode: QuestionMode.notch.rawValue,
+            Key.questionMode: QuestionMode.terminal.rawValue,
+            Key.notchPermissions: true,
+            Key.notchFileEdits: false,
+            Key.notchPlans: false,
             Key.quickSettingsInNotch: true,
         ])
         playSound = defaults.bool(forKey: Key.playSound)
@@ -72,7 +89,10 @@ final class AppSettings {
         autoAllowPermissions = defaults.bool(forKey: Key.autoAllow)
         askForRiskyCommands = defaults.bool(forKey: Key.askForRisky)
         showQuickSettingsInNotch = defaults.bool(forKey: Key.quickSettingsInNotch)
-        questionMode = QuestionMode(rawValue: defaults.string(forKey: Key.questionMode) ?? "") ?? .notch
+        questionMode = QuestionMode(rawValue: defaults.string(forKey: Key.questionMode) ?? "") ?? .terminal
+        notchPermissions = defaults.bool(forKey: Key.notchPermissions)
+        notchFileEdits = defaults.bool(forKey: Key.notchFileEdits)
+        notchPlans = defaults.bool(forKey: Key.notchPlans)
     }
 
     var routerOptions: RequestRouter.Options {
@@ -81,7 +101,10 @@ final class AppSettings {
             showNotices: showNotices,
             autoAllowPermissions: autoAllowPermissions,
             askForRiskyCommands: askForRiskyCommands,
-            questionMode: questionMode
+            questionMode: questionMode,
+            showPermissions: notchPermissions,
+            showFileEdits: notchFileEdits,
+            showPlans: notchPlans
         )
     }
 }

@@ -5,7 +5,10 @@ import Testing
 
 @Suite("RequestRouter")
 struct RequestRouterTests {
-    private let router = RequestRouter(options: .init(replyFromNotch: false, showNotices: true))
+    /// Every request type switched on, so each route can be exercised.
+    private let router = RequestRouter(options: .init(
+        replyFromNotch: false, showNotices: true, questionMode: .notch, showFileEdits: true, showPlans: true
+    ))
 
     private func message(_ event: HookEvent, _ fields: [String: JSONValue]) -> BridgeRequest {
         var payload = fields
@@ -104,6 +107,29 @@ struct RequestRouterTests {
     @Test func stopIsSilentWhenNoticesAreOff() {
         let quiet = RequestRouter(options: .init(replyFromNotch: false, showNotices: false))
         #expect(quiet.route(message(.stop, ["last_assistant_message": .string("Done")])) == .ignore)
+    }
+
+    @Test func defaultsShowOnlyPermissions() {
+        let defaults = RequestRouter(options: .init())
+        guard case .present = defaults.route(message(.permissionRequest, ["tool_name": .string("Bash")])) else {
+            Issue.record("Permissions should be on by default")
+            return
+        }
+        #expect(defaults.route(message(.permissionRequest, ["tool_name": .string("Edit")])) == .ignore)
+        #expect(defaults.route(message(.preToolUse, ["tool_name": .string("ExitPlanMode")])) == .ignore)
+        let question = message(.preToolUse, ["tool_name": .string("AskUserQuestion"), "tool_input": .object([
+            "questions": .array([.object(["question": .string("Q?"), "options": .array([.object(["label": .string("A")])])])]),
+        ])])
+        #expect(defaults.route(question) == .ignore)
+    }
+
+    @Test func permissionsSwitchedOffAreLeftToTheTerminal() {
+        let off = RequestRouter(options: .init(showPermissions: false, showFileEdits: true))
+        #expect(off.route(message(.permissionRequest, ["tool_name": .string("Bash")])) == .ignore)
+        guard case .present = off.route(message(.permissionRequest, ["tool_name": .string("Write")])) else {
+            Issue.record("File edits are switched on independently")
+            return
+        }
     }
 
     @Test func userReturningClearsSession() {

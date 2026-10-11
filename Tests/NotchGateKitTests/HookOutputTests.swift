@@ -59,7 +59,8 @@ struct HookOutputTests {
 
     @Test func rewakeCarriesThePromptOnly() {
         let message = HookOutput.rewakeMessage(for: .continueSession(prompt: "add tests"))
-        #expect(message?.hasSuffix("add tests") == true)
+        #expect(message?.hasPrefix("add tests\n") == true)
+        #expect(message?.contains("NotchGate") == true)
         #expect(HookOutput.rewakeMessage(for: .passthrough) == nil)
         #expect(HookOutput.rewakeExitCode == 2)
         #expect(BridgeRequest(event: .stopRewake, payload: .object([:]), origin: ProcessOrigin(claudePID: 1)).expectsReply)
