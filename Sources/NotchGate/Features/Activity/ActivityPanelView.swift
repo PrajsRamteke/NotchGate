@@ -64,7 +64,8 @@ struct ActivityPanelView: View {
                 }
                 .padding(.bottom, 4)
             } else {
-                CappedScroll(maxHeight: 400, scrollTarget: openComposer) {
+                // An open reply dropdown carries the conversation, so give it more room.
+                CappedScroll(maxHeight: openComposer == nil ? 400 : 480, scrollTarget: openComposer) {
                     VStack(spacing: 8) {
                         ForEach(sessions) { session in
                             row(for: session)
@@ -111,6 +112,7 @@ struct ActivityPanelView: View {
             onDismiss: { dismiss(session.id) }
         ) {
             SessionComposerView(
+                session: session,
                 controller: model.prompts,
                 target: PromptTarget(sessionID: session.id, claudePID: session.claudePID, projectName: session.projectName),
                 queuedPrompt: queued,

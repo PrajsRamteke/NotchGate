@@ -25,6 +25,7 @@ enum ActivityReducer {
             id: id, cwd: "", claudePID: message.origin.claudePID, updatedAt: now
         )
         if let cwd = payload["cwd"]?.stringValue, !cwd.isEmpty { session.cwd = cwd }
+        if let path = payload["transcript_path"]?.stringValue, !path.isEmpty { session.transcriptPath = path }
         session.claudePID = message.origin.claudePID
         session.updatedAt = now
         apply(message.event, payload, to: &session, now: now)

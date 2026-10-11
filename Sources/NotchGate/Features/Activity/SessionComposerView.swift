@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Dropdown body of a session row: send that project a prompt, or manage a
-/// message already queued for it.
+/// Dropdown body of a session row: the conversation so far, then a field to
+/// send that project a prompt, or the message already queued for it.
 struct SessionComposerView: View {
+    let session: SessionActivity
     let controller: ComposerController
     let target: PromptTarget
     let queuedPrompt: String?
@@ -12,17 +13,24 @@ struct SessionComposerView: View {
     let onOpenTerminal: () -> Void
 
     var body: some View {
-        if let queuedPrompt {
-            queuedView(queuedPrompt)
-        } else {
-            NotchComposer(
-                controller: controller,
-                target: target,
-                autofocus: true,
-                onFocus: onFocus,
-                onOpenTerminal: onOpenTerminal,
-                onDelivered: onDelivered
+        VStack(alignment: .leading, spacing: 8) {
+            ConversationHistoryView(
+                sessionID: session.id,
+                transcriptPath: session.transcriptPath,
+                revision: session.updatedAt
             )
+            if let queuedPrompt {
+                queuedView(queuedPrompt)
+            } else {
+                NotchComposer(
+                    controller: controller,
+                    target: target,
+                    autofocus: true,
+                    onFocus: onFocus,
+                    onOpenTerminal: onOpenTerminal,
+                    onDelivered: onDelivered
+                )
+            }
         }
     }
 

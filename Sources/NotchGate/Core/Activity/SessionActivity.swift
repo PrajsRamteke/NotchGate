@@ -14,6 +14,8 @@ struct SessionActivity: Identifiable, Equatable, Sendable {
     let id: String
     var cwd: String
     var claudePID: Int32
+    /// Claude Code's transcript of this session (`transcript_path`).
+    var transcriptPath: String?
     var phase: Phase = .idle
     /// The prompt that started the current turn.
     var prompt: String?
