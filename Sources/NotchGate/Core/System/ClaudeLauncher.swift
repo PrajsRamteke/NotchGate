@@ -4,8 +4,9 @@ import Foundation
 /// Opens a new Terminal window that starts Claude Code, for when nothing is running yet.
 ///
 /// Writes a `.command` script and hands it to Terminal, which needs no
-/// Automation permission. The script runs in a login shell so `claude` resolves
-/// the same way it does in a normal terminal.
+/// Automation permission. The script runs the user's shell as an interactive
+/// login shell (what a new Terminal tab does), so `claude` resolves from
+/// `.zshrc` too — a plain `zsh -l` skips it and can find another install or none.
 enum ClaudeLauncher {
     private static let terminalBundleID = "com.apple.Terminal"
     private static let scriptName = "notchgate-start-claude.command"
@@ -18,7 +19,7 @@ enum ClaudeLauncher {
         }
         let scriptURL = FileManager.default.temporaryDirectory.appendingPathComponent(scriptName)
         do {
-            try "#!/bin/zsh -l\nclaude\n".write(to: scriptURL, atomically: true, encoding: .utf8)
+            try "#!/bin/sh\nexec \"${SHELL:-/bin/zsh}\" -l -i -c claude\n".write(to: scriptURL, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
         } catch {
             return false

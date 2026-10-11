@@ -27,7 +27,8 @@ installed_app() {
 }
 
 quit_running_app() {
-    pkill -f "$APP_NAME/Contents/MacOS/NotchGate" 2>/dev/null || true
+    # -a: include ancestors (pkill skips them by default); anchored to the executable path.
+    pkill -a -f '^[^ ]*/NotchGate\.app/Contents/MacOS/NotchGate( |$)' 2>/dev/null || true
     sleep 0.5
 }
 

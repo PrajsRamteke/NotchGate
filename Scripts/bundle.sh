@@ -41,7 +41,9 @@ if [[ "${1:-}" == "--install" ]]; then
     fi
     echo "→ Installing to $INSTALL_DIR"
     # Quit only now, after the build succeeded, so updates keep the app usable until the swap.
-    pkill -f "NotchGate.app/Contents/MacOS/NotchGate" 2>/dev/null || true
+    # -a: during an in-app update NotchGate is our ancestor, which pkill skips by default.
+    # Anchored to the executable path so it can't match a shell whose arguments mention it.
+    pkill -a -f '^[^ ]*/NotchGate\.app/Contents/MacOS/NotchGate( |$)' 2>/dev/null || true
     sleep 0.5
     rm -rf "$INSTALL_DIR/NotchGate.app"
     cp -R "$APP" "$INSTALL_DIR/NotchGate.app"

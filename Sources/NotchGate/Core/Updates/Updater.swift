@@ -46,10 +46,30 @@ enum Updater {
         NSWorkspace.shared.activateFileViewerSelecting([logURL])
     }
 
+    /// Quits and reopens the app from its (now replaced) bundle. Used when the
+    /// installer succeeded but couldn't quit us, e.g. an older installer whose
+    /// `pkill` skipped this process because it is the installer's ancestor.
+    @MainActor
+    static func relaunch() {
+        let reopen = Process()
+        reopen.executableURL = URL(fileURLWithPath: "/bin/sh")
+        // Waits for this process to exit, so `open` launches the new build instead of re-activating us.
+        reopen.arguments = ["-c", "while kill -0 \(getpid()) 2>/dev/null; do sleep 0.2; done; open \"$0\"", Bundle.main.bundlePath]
+        do {
+            try reopen.run()
+            NSApp.terminate(nil)
+        } catch {
+            Log.app.error("Relaunch after update failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     private static func openLog() throws -> FileHandle {
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: logURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         fileManager.createFile(atPath: logURL.path, contents: Data("NotchGate update — \(Date())\n".utf8))
-        return try FileHandle(forWritingTo: logURL)
+        let handle = try FileHandle(forWritingTo: logURL)
+        // Append after the header; a fresh handle starts at offset 0 and the installer would overwrite it.
+        try handle.seekToEnd()
+        return handle
     }
 }

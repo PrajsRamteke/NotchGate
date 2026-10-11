@@ -84,10 +84,12 @@ final class UpdateChecker {
         state = .updating
         do {
             try Updater.start { [weak self] status in
-                // Still running means the installer stopped before replacing the app.
-                self?.state = .failed(status == 0
-                    ? "The update finished but NotchGate wasn't restarted. Quit and reopen it."
-                    : "The update failed (exit \(status)). See the log for details.")
+                // Still alive after a successful install means the installer couldn't quit us; restart ourselves.
+                if status == 0 {
+                    Updater.relaunch()
+                } else {
+                    self?.state = .failed("The update failed (exit \(status)). See the log for details.")
+                }
             }
         } catch {
             state = .failed("Couldn't start the update: \(error.localizedDescription)")
