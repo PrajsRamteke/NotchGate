@@ -18,6 +18,8 @@ struct ResumeWidgetView: View {
     }
 
     @State private var folder: Folder = .latest
+    /// The folder list is open under the "New session" row.
+    @State private var isPickingFolder = false
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
@@ -27,6 +29,7 @@ struct ResumeWidgetView: View {
         .animation(Theme.Motion.content, value: monitor.recent)
         .animation(Theme.Motion.content, value: monitor.launchError)
         .animation(Theme.Motion.content, value: monitor.loadError)
+        .animation(Theme.Motion.content, value: isPickingFolder)
     }
 
     private func content(now: Date) -> some View {
@@ -73,6 +76,11 @@ struct ResumeWidgetView: View {
                 .frame(height: 0.5)
 
             newSession
+
+            if isPickingFolder {
+                folderPanel
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
     }
 
@@ -80,7 +88,7 @@ struct ResumeWidgetView: View {
 
     private var newSession: some View {
         let launching = monitor.launching == ResumeMonitor.newSessionKey
-        return HStack(spacing: 8) {
+        return HStack(alignment: .center, spacing: 8) {
             Button { monitor.startNew(in: targetDirectory) } label: {
                 HStack(spacing: 6) {
                     if launching {
@@ -95,29 +103,18 @@ struct ResumeWidgetView: View {
             .disabled(monitor.launching != nil)
             .help("Opens Terminal and starts Claude Code in \(targetName)")
 
+            Spacer(minLength: 0)
+
             Text("in")
                 .font(Theme.Typeface.caption)
                 .foregroundStyle(Theme.Palette.textTertiary)
 
-            folderMenu
-            Spacer(minLength: 0)
+            folderButton
         }
     }
 
-    private var folderMenu: some View {
-        Menu {
-            let directories = monitor.recentDirectories
-            if !directories.isEmpty {
-                Section("Recent projects") {
-                    ForEach(directories, id: \.self) { path in
-                        Button(URL(fileURLWithPath: path).lastPathComponent) { folder = .path(path) }
-                    }
-                }
-            }
-            Button("Home folder") { folder = .home }
-            Divider()
-            Button("Choose Folder…") { monitor.chooseFolderAndStartNew() }
-        } label: {
+    private var folderButton: some View {
+        Button { isPickingFolder.toggle() } label: {
             HStack(spacing: 4) {
                 Image(systemName: "folder")
                     .font(.system(size: 10, weight: .semibold))
@@ -127,6 +124,7 @@ struct ResumeWidgetView: View {
                     .truncationMode(.middle)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 8, weight: .bold))
+                    .rotationEffect(.degrees(isPickingFolder ? 180 : 0))
             }
             .foregroundStyle(Theme.Palette.textSecondary)
             .padding(.horizontal, 8)
@@ -134,12 +132,49 @@ struct ResumeWidgetView: View {
             .background(Capsule().fill(Color.white.opacity(0.06)))
             .contentShape(Capsule())
         }
-        .menuStyle(.button)
         .buttonStyle(.plain)
-        .menuIndicator(.hidden)
         .fixedSize()
         .disabled(monitor.launching != nil)
         .help(targetDirectory.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "Your home folder")
+    }
+
+    /// The folder choices, listed inline beneath the row rather than in a pop-up menu.
+    private var folderPanel: some View {
+        let directories = monitor.recentDirectories
+        return VStack(alignment: .leading, spacing: 0) {
+            if !directories.isEmpty {
+                Text("Recent projects")
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(Theme.Palette.textTertiary)
+                    .padding(.horizontal, 10)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+            }
+            ForEach(directories, id: \.self) { path in
+                FolderRow(title: URL(fileURLWithPath: path).lastPathComponent) {
+                    folder = .path(path)
+                    isPickingFolder = false
+                }
+            }
+            FolderRow(title: "Home folder") {
+                folder = .home
+                isPickingFolder = false
+            }
+            Rectangle()
+                .fill(Theme.Palette.hairline)
+                .frame(height: 0.5)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+            FolderRow(title: "Choose Folder…") {
+                isPickingFolder = false
+                monitor.chooseFolderAndStartNew()
+            }
+        }
+        .padding(6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.Palette.surfaceRaised))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.Palette.hairline, lineWidth: 0.5))
+        .disabled(monitor.launching != nil)
     }
 
     /// The folder "New session" uses; `nil` is Terminal's default (home).
@@ -186,6 +221,35 @@ struct ResumeWidgetView: View {
         case ..<(7 * 24 * 60): return "\(minutes / (24 * 60))d ago"
         default: return date.formatted(.dateTime.month(.abbreviated).day())
         }
+    }
+}
+
+/// One line in the folder list: full width, lit on hover.
+private struct FolderRow: View {
+    let title: String
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13))
+                .foregroundStyle(Theme.Palette.textPrimary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(isHovered ? Color.white.opacity(0.06) : .clear)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .animation(.easeOut(duration: 0.12), value: isHovered)
     }
 }
 
