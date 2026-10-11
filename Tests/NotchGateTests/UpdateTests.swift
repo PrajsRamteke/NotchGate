@@ -25,6 +25,40 @@ struct UpdateTests {
         #expect(info.latestSHA == "abc")
     }
 
+    @Test @MainActor func relaunchOnTheSameCommitReportsTheUpdateDidNotApply() throws {
+        let defaults = try #require(UserDefaults(suiteName: "updates-\(UUID())"))
+        let settings = AppSettings(defaults: defaults)
+        defaults.set("1111111aaaa", forKey: UpdateChecker.updateStartedFromKey)
+
+        let checker = UpdateChecker(settings: settings, bundle: try appBundle(commit: "1111111aaaa"), defaults: defaults)
+        guard case .failed(let message) = checker.state else {
+            Issue.record("expected a failure, got \(checker.state)")
+            return
+        }
+        #expect(message.contains("1111111"))
+        #expect(defaults.string(forKey: UpdateChecker.updateStartedFromKey) == nil)
+    }
+
+    @Test @MainActor func relaunchOnANewCommitIsQuiet() throws {
+        let defaults = try #require(UserDefaults(suiteName: "updates-\(UUID())"))
+        defaults.set("1111111aaaa", forKey: UpdateChecker.updateStartedFromKey)
+
+        let checker = UpdateChecker(settings: AppSettings(defaults: defaults), bundle: try appBundle(commit: "2222222bbbb"), defaults: defaults)
+        #expect(checker.state == .idle)
+        #expect(defaults.string(forKey: UpdateChecker.updateStartedFromKey) == nil)
+    }
+
+    /// A throwaway `NotchGate.app` whose Info.plist records `commit`, like `Scripts/bundle.sh` writes.
+    private func appBundle(commit: String) throws -> Bundle {
+        let app = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID())/NotchGate.app")
+        let contents = app.appendingPathComponent("Contents")
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        let plist: [String: Any] = ["CFBundleIdentifier": "test.notchgate.\(UUID())", "NotchGateCommit": commit]
+        try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+            .write(to: contents.appendingPathComponent("Info.plist"))
+        return try #require(Bundle(url: app))
+    }
+
     @Test @MainActor func devBuildsDontCheckForUpdates() {
         let settings = AppSettings(defaults: UserDefaults(suiteName: "updates-\(UUID())") ?? .standard)
         let checker = UpdateChecker(settings: settings, bundle: .main) // swift test runs outside an .app

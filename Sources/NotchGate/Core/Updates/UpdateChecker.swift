@@ -27,14 +27,28 @@ final class UpdateChecker {
     let installedCommit: String?
 
     @ObservationIgnored private let settings: AppSettings
+    @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var schedule: Task<Void, Never>?
 
-    init(settings: AppSettings, bundle: Bundle = .main) {
+    /// Commit we were on when an update started; checked on the next launch.
+    static let updateStartedFromKey = "update.startedFromCommit"
+
+    init(settings: AppSettings, bundle: Bundle = .main, defaults: UserDefaults = .standard) {
         self.settings = settings
+        self.defaults = defaults
         let commit = bundle.object(forInfoDictionaryKey: "NotchGateCommit") as? String
         let isAppBundle = bundle.bundleURL.pathExtension == "app"
         installedCommit = (isAppBundle && commit != nil && commit != "unknown") ? commit : nil
         if installedCommit == nil { state = .unsupported }
+
+        // Relaunched after an update but still on the same commit: the installer put the
+        // old build back. Say so, instead of quietly offering the same update again.
+        if let startedFrom = defaults.string(forKey: Self.updateStartedFromKey) {
+            defaults.removeObject(forKey: Self.updateStartedFromKey)
+            if let installedCommit, startedFrom == installedCommit {
+                state = .failed("The update ran, but NotchGate is still on \(installedCommit.prefix(7)). See the log for details.")
+            }
+        }
     }
 
     var shortInstalledCommit: String? { installedCommit.map { String($0.prefix(7)) } }
@@ -55,6 +69,8 @@ final class UpdateChecker {
 
     func check(userInitiated: Bool = true) async {
         guard let installedCommit, state != .updating, state != .checking else { return }
+        // Keep a failure on screen until the user acts on it; background checks would replace it.
+        if !userInitiated, case .failed = state { return }
         state = .checking
         do {
             let info = try await UpdateSource.compare(installedSHA: installedCommit)
@@ -82,16 +98,19 @@ final class UpdateChecker {
             return
         }
         state = .updating
+        defaults.set(installedCommit, forKey: Self.updateStartedFromKey)
         do {
             try Updater.start { [weak self] status in
                 // Still alive after a successful install means the installer couldn't quit us; restart ourselves.
                 if status == 0 {
                     Updater.relaunch()
                 } else {
+                    self?.defaults.removeObject(forKey: Self.updateStartedFromKey)
                     self?.state = .failed("The update failed (exit \(status)). See the log for details.")
                 }
             }
         } catch {
+            defaults.removeObject(forKey: Self.updateStartedFromKey)
             state = .failed("Couldn't start the update: \(error.localizedDescription)")
         }
     }

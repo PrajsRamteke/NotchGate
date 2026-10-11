@@ -24,7 +24,9 @@ enum Updater {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
         process.arguments = ["-c", "set -o pipefail; curl -fsSL '\(UpdateSource.installerURL)' | bash"]
-        var environment = ProcessInfo.processInfo.environment
+        // Drop installer overrides (NOTCHGATE_RELEASE_URL, …) this app may have inherited from
+        // whatever launched it: an in-app update always installs the official release.
+        var environment = ProcessInfo.processInfo.environment.filter { !$0.key.hasPrefix("NOTCHGATE_") }
         environment["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         process.environment = environment
         process.standardOutput = log
