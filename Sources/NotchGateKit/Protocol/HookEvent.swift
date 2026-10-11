@@ -30,12 +30,15 @@ public struct HookEvent: RawRepresentable, Codable, Hashable, Sendable, CustomSt
     public static let sessionEnd = HookEvent(rawValue: "SessionEnd")
     public static let sessionStart = HookEvent(rawValue: "SessionStart")
     public static let preCompact = HookEvent(rawValue: "PreCompact")
+    /// NotchGate's own event: a background (`asyncRewake`) Stop hook that
+    /// stays open so the user can send Claude a follow-up from the notch.
+    public static let stopRewake = HookEvent(rawValue: "NotchGateStopRewake")
 
     /// Events that *can* block. `PreToolUse` only blocks for interactive tools;
     /// see `HookPolicy.expectsReply(event:payload:)`.
     public var expectsReply: Bool {
         switch self {
-        case .permissionRequest, .preToolUse, .stop, .elicitation: return true
+        case .permissionRequest, .preToolUse, .stop, .elicitation, .stopRewake: return true
         default: return false
         }
     }

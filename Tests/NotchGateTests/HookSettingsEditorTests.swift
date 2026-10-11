@@ -22,9 +22,17 @@ struct HookSettingsEditorTests {
         let installed = editor.installing(into: existing)
         #expect(editor.isInstalled(in: installed))
         #expect(installed["model"] == .string("opus"))
-        // The user's own Stop hook survives alongside ours.
-        #expect(installed["hooks"]?["Stop"]?.arrayValue?.count == 2)
+        // The user's own Stop hook survives alongside our two (sync + background).
+        #expect(installed["hooks"]?["Stop"]?.arrayValue?.count == 3)
         #expect(installed["hooks"]?["PreToolUse"]?.arrayValue?.first?["matcher"] == .string("*"))
+    }
+
+    @Test func registersABackgroundStopHookForTheComposer() throws {
+        let stopHooks = try #require(editor.installing(into: existing)["hooks"]?["Stop"]?.arrayValue)
+            .flatMap { $0["hooks"]?.arrayValue ?? [] }
+        let rewake = try #require(stopHooks.first { $0["asyncRewake"] == .bool(true) })
+        #expect(rewake["command"]?.stringValue?.hasSuffix("--rewake") == true)
+        #expect(stopHooks.count == 3) // the user's own + our sync + our background
     }
 
     @Test func installIsIdempotent() {
@@ -65,6 +73,6 @@ struct HookSettingsEditorTests {
     @Test func installIntoEmptySettings() {
         let installed = editor.installing(into: .object([:]))
         #expect(editor.isInstalled(in: installed))
-        #expect(installed["hooks"]?.objectValue?.count == HookSettingsEditor.registrations.count)
+        #expect(installed["hooks"]?.objectValue?.count == Set(HookSettingsEditor.registrations.map(\.event)).count)
     }
 }

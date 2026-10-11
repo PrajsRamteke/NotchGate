@@ -48,6 +48,16 @@ public enum HookOutput {
         }
     }
 
+    /// For the `asyncRewake` Stop hook: the text to print on stderr before
+    /// exiting with code 2, which wakes Claude with it as the user's message.
+    public static func rewakeMessage(for decision: BridgeDecision) -> String? {
+        guard case .continueSession(let prompt) = decision else { return nil }
+        return "The user sent you a new message from the NotchGate notch. Treat it as their next prompt:\n\n\(prompt)"
+    }
+
+    /// Exit code that makes an `asyncRewake` hook wake Claude.
+    public static let rewakeExitCode: Int32 = 2
+
     private static func specific(_ event: HookEvent, _ fields: [String: JSONValue]) -> JSONValue {
         var output = fields
         output["hookEventName"] = .string(event.rawValue)

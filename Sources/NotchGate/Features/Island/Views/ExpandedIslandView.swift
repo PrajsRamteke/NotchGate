@@ -31,12 +31,7 @@ struct ExpandedIslandView: View {
                     onDismiss: model.dismissNotice
                 )
             } else {
-                ActivityPanelView(
-                    tracker: model.activity,
-                    settings: model.settings,
-                    onOpen: model.openTerminal(for:),
-                    onSetAutoAllow: model.setAutoAllow
-                )
+                ActivityPanelView(model: model, openComposer: model.initialComposerSession)
                     .transition(.opacity)
             }
         }
@@ -67,10 +62,10 @@ struct ExpandedIslandView: View {
         case .completion(let prompt):
             CompletionCardView(
                 prompt: prompt,
-                receivedAt: request.receivedAt,
-                expiresAt: request.expiresAt,
-                onFocus: model.requestKeyFocus,
-                onDecision: respond
+                projectName: request.session.projectName,
+                onFocus: model.beginComposing,
+                onDecision: respond,
+                onLater: model.collapse
             )
         }
     }

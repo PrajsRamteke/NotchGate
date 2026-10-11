@@ -23,6 +23,13 @@ enum SnapshotRenderer {
             model.activity.load(DemoActivity.sessions())
             model.showActivityNow()
         }
+        render(to: directory.appendingPathComponent("activity-reply.png")) { model in
+            model.activity.load(DemoActivity.sessions())
+            let finished = DemoRequests.make(.completion, sessionID: "demo-docs")
+            model.store.enqueue(finished, responder: DemoResponder(), parked: true)
+            model.initialComposerSession = "demo-docs"
+            model.showActivityNow()
+        }
         return true
     }
 

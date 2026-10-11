@@ -57,6 +57,14 @@ struct HookOutputTests {
         #expect(decline["hookSpecificOutput"]?["content"] == nil)
     }
 
+    @Test func rewakeCarriesThePromptOnly() {
+        let message = HookOutput.rewakeMessage(for: .continueSession(prompt: "add tests"))
+        #expect(message?.hasSuffix("add tests") == true)
+        #expect(HookOutput.rewakeMessage(for: .passthrough) == nil)
+        #expect(HookOutput.rewakeExitCode == 2)
+        #expect(BridgeRequest(event: .stopRewake, payload: .object([:]), origin: ProcessOrigin(claudePID: 1)).expectsReply)
+    }
+
     @Test func passthroughAndMismatchesPrintNothing() {
         #expect(HookOutput.render(event: .permissionRequest, decision: .passthrough) == nil)
         #expect(HookOutput.render(event: .stop, decision: .allow()) == nil)

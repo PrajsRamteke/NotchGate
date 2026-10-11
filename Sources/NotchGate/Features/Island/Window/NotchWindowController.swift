@@ -9,6 +9,7 @@ final class NotchWindowController {
     private let viewModel: IslandViewModel
     private var monitors: [Any] = []
     private var screenObserver: NSObjectProtocol?
+    private var resignObserver: NSObjectProtocol?
 
     /// Extra slop around the island so the cursor doesn't flicker at the edge.
     private let hitSlop: CGFloat = 6
@@ -21,6 +22,12 @@ final class NotchWindowController {
 
         viewModel.onNeedsKeyFocus = { [weak self] in self?.panel.makeKey() }
         viewModel.onIslandFrameChange = { [weak self] in self?.updateHitTesting() }
+        // Clicking anywhere else ends typing, which lets the hover panel close.
+        resignObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: panel, queue: .main
+        ) { [weak viewModel] _ in
+            MainActor.assumeIsolated { viewModel?.endComposing() }
+        }
     }
 
     func show() {

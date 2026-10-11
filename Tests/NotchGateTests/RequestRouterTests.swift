@@ -5,7 +5,7 @@ import Testing
 
 @Suite("RequestRouter")
 struct RequestRouterTests {
-    private let router = RequestRouter(options: .init(holdForReplyOnStop: false, replyWindow: 30, showNotices: true))
+    private let router = RequestRouter(options: .init(replyFromNotch: false, showNotices: true))
 
     private func message(_ event: HookEvent, _ fields: [String: JSONValue]) -> BridgeRequest {
         var payload = fields
@@ -64,21 +64,24 @@ struct RequestRouterTests {
         #expect(plan.markdown == "## Plan")
     }
 
-    @Test func stopIsANoticeUnlessHolding() {
+    @Test func stopIsANoticeWhenTheComposerIsOff() {
         let stop = message(.stop, ["last_assistant_message": .string("All done")])
         guard case .notice(let notice) = router.route(stop) else {
             Issue.record("Expected a notice")
             return
         }
         #expect(notice.message == "All done")
+        // With the composer on, the background Stop hook owns the summary.
+        #expect(RequestRouter(options: .init(replyFromNotch: true, showNotices: true)).route(stop) == .ignore)
+    }
 
-        let holding = RequestRouter(options: .init(holdForReplyOnStop: true, replyWindow: 30, showNotices: true))
-        let now = Date()
-        guard case .present(let request) = holding.route(stop, now: now) else {
-            Issue.record("Expected a completion card")
+    @Test func backgroundStopBecomesAComposer() {
+        let route = router.route(message(.stopRewake, ["last_assistant_message": .string("Done")]))
+        guard case .present(let request) = route, case .completion(let prompt) = request.kind else {
+            Issue.record("Expected a composer")
             return
         }
-        #expect(request.expiresAt == now.addingTimeInterval(30))
+        #expect(prompt.summary == "Done")
     }
 
     @Test func notificationsAreFiltered() {
@@ -98,14 +101,8 @@ struct RequestRouterTests {
         #expect(!RequestRouter.clearsSessionFirst(.permissionRequest))
     }
 
-    @Test func replyCardIsNeverOfferedTwiceInARow() {
-        let holding = RequestRouter(options: .init(holdForReplyOnStop: true, replyWindow: 30, showNotices: false))
-        let continuation = message(.stop, ["stop_hook_active": .bool(true)])
-        #expect(holding.route(continuation) == .ignore)
-    }
-
     @Test func stopIsSilentWhenNoticesAreOff() {
-        let quiet = RequestRouter(options: .init(holdForReplyOnStop: false, replyWindow: 30, showNotices: false))
+        let quiet = RequestRouter(options: .init(replyFromNotch: false, showNotices: false))
         #expect(quiet.route(message(.stop, ["last_assistant_message": .string("Done")])) == .ignore)
     }
 

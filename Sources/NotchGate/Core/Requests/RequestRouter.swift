@@ -21,9 +21,8 @@ enum RequestRoute: Equatable {
 /// is fully unit-testable without any UI.
 struct RequestRouter {
     struct Options {
-        var holdForReplyOnStop: Bool
-        var replyWindow: TimeInterval
-        var showNotices: Bool
+        var replyFromNotch = true
+        var showNotices = false
         var autoAllowPermissions = false
         var askForRiskyCommands = true
         var questionMode: QuestionMode = .notch
@@ -39,11 +38,8 @@ struct RequestRouter {
             claudePID: message.origin.claudePID
         )
 
-        func present(_ kind: RequestKind, expiresAt: Date? = nil) -> RequestRoute {
-            .present(ClaudeRequest(
-                id: message.id, event: message.event, session: session,
-                kind: kind, receivedAt: now, expiresAt: expiresAt
-            ))
+        func present(_ kind: RequestKind) -> RequestRoute {
+            .present(ClaudeRequest(id: message.id, event: message.event, session: session, kind: kind, receivedAt: now))
         }
 
         func notice(_ title: String, _ body: String?, _ tone: Notice.Tone) -> RequestRoute {
@@ -79,13 +75,12 @@ struct RequestRouter {
             return present(.elicitation(PayloadParsers.elicitation(from: payload)))
 
         case .stop:
-            let summary = payload["last_assistant_message"]?.stringValue
-            // `stop_hook_active` means Claude is only running because of an earlier
-            // notch reply. Offering another card then would chain replies forever.
-            let isContinuation = payload["stop_hook_active"]?.boolValue == true
-            guard options.holdForReplyOnStop, !isContinuation else { return notice("Claude finished", summary, .done) }
-            return present(.completion(CompletionPrompt(summary: summary)),
-                           expiresAt: now.addingTimeInterval(options.replyWindow))
+            // With the composer on, the background Stop hook shows the summary.
+            guard !options.replyFromNotch else { return .ignore }
+            return notice("Claude finished", payload["last_assistant_message"]?.stringValue, .done)
+
+        case .stopRewake:
+            return present(.completion(CompletionPrompt(summary: payload["last_assistant_message"]?.stringValue)))
 
         case .notification:
             return routeNotification(payload, notice: notice)

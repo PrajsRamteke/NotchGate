@@ -62,21 +62,11 @@ struct PreferencesSection: View {
                 .padding(.leading, 20)
             Toggle("Play a sound", isOn: $settings.playSound)
             Toggle("Show “Claude finished” notices", isOn: $settings.showNotices)
-            Toggle("Reply from the notch when Claude stops", isOn: $settings.holdForReplyOnStop)
-            if settings.holdForReplyOnStop {
-                Text("Not a permission — Claude waits up to the time below for your reply, then continues in the terminal.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.leading, 20)
-            }
-            if settings.holdForReplyOnStop {
-                Stepper(value: $settings.replyWindowSeconds, in: 15...300, step: 15) {
-                    Text("Wait \(settings.replyWindowSeconds)s for a reply")
-                        .foregroundStyle(.secondary)
-                }
+            Toggle("Pop up a reply box when Claude finishes", isOn: $settings.replyFromNotch)
+            Text("Claude isn't paused. You can also reply anytime from the hover panel.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
                 .padding(.leading, 20)
-            }
             Toggle("Launch at login", isOn: $launchAtLogin)
                 .disabled(!LaunchAtLogin.isAvailable)
                 .onChange(of: launchAtLogin) { _, enabled in LaunchAtLogin.setEnabled(enabled) }

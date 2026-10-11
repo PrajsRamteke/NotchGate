@@ -66,19 +66,30 @@ struct LinkButton: View {
 struct CappedScroll<Content: View>: View {
     var axes: Axis.Set = .vertical
     var maxHeight: CGFloat = Theme.Metrics.expandedMaxContentHeight
+    /// When set, the child with this `.id` is scrolled fully into view.
+    var scrollTarget: String?
     @ViewBuilder var content: Content
 
     @State private var contentHeight: CGFloat = 0
     @State private var viewportWidth: CGFloat = 0
 
     var body: some View {
-        ScrollView(axes, showsIndicators: false) {
-            content
-                // Horizontal scroll views center narrow content; keep it leading.
-                .frame(minWidth: axes.contains(.horizontal) ? viewportWidth : nil, alignment: .leading)
-                .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: { contentHeight = $0 })
+        ScrollViewReader { proxy in
+            ScrollView(axes, showsIndicators: false) {
+                content
+                    // Horizontal scroll views center narrow content; keep it leading.
+                    .frame(minWidth: axes.contains(.horizontal) ? viewportWidth : nil, alignment: .leading)
+                    .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: { contentHeight = $0 })
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .onChange(of: scrollTarget) { _, target in
+                guard let target else { return }
+                // Wait for the dropdown to open before scrolling to its end.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    withAnimation(Theme.Motion.content) { proxy.scrollTo(target, anchor: .bottom) }
+                }
+            }
         }
-        .scrollBounceBehavior(.basedOnSize)
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { viewportWidth = $0 })
         .frame(height: min(contentHeight, maxHeight))
     }

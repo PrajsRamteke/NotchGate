@@ -7,7 +7,7 @@ import Testing
 struct PermissionPolicyTests {
     private func router(autoAllow: Bool = false, askRisky: Bool = true, questions: QuestionMode = .notch) -> RequestRouter {
         RequestRouter(options: .init(
-            holdForReplyOnStop: false, replyWindow: 30, showNotices: false,
+            replyFromNotch: false, showNotices: false,
             autoAllowPermissions: autoAllow, askForRiskyCommands: askRisky, questionMode: questions
         ))
     }

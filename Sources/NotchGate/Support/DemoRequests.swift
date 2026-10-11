@@ -15,13 +15,12 @@ enum DemoRequests {
 
     private static let session = SessionInfo(id: "demo", cwd: "/Users/demo/NotchGate", claudePID: 0)
 
-    static func make(_ sample: Sample) -> ClaudeRequest {
+    static func make(_ sample: Sample, sessionID: String? = nil) -> ClaudeRequest {
         ClaudeRequest(
             id: UUID(),
             event: .permissionRequest,
-            session: session,
-            kind: kind(for: sample),
-            expiresAt: sample == .completion ? .now.addingTimeInterval(45) : nil
+            session: sessionID.map { SessionInfo(id: $0, cwd: session.cwd, claudePID: 0) } ?? session,
+            kind: kind(for: sample)
         )
     }
 

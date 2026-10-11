@@ -1,28 +1,20 @@
 import NotchGateKit
 import SwiftUI
 
-/// Shown when Claude stops and "Reply from the notch" is enabled: read the
-/// summary, then either let Claude rest or send a follow-up to keep going.
+/// Pops up when Claude finishes: read the summary and send the next prompt
+/// right from the notch. Claude is not blocked while this is open.
 struct CompletionCardView: View {
     let prompt: CompletionPrompt
-    let receivedAt: Date
-    let expiresAt: Date?
+    let projectName: String
     let onFocus: () -> Void
     let onDecision: (BridgeDecision) -> Void
+    let onLater: () -> Void
 
-    @State private var reply = ""
-
-    private var trimmedReply: String { reply.trimmingCharacters(in: .whitespacesAndNewlines) }
+    @State private var message = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
-                CardTitle(title: "Claude is done", subtitle: "Reply to keep going, or let it rest.")
-                if let expiresAt {
-                    CountdownRing(start: receivedAt, deadline: expiresAt)
-                        .padding(.top, 3)
-                }
-            }
+            CardTitle(title: "Claude is done", subtitle: "What should it do next in \(projectName)?")
 
             if let summary = prompt.summary, !summary.isEmpty {
                 CappedScroll(maxHeight: 170) {
@@ -34,26 +26,21 @@ struct CompletionCardView: View {
                 )
             }
 
-            ReplyField(
-                placeholder: "Reply to Claude…",
-                text: $reply,
-                onSubmit: send,
-                onFocus: onFocus
+            PromptComposer(
+                placeholder: "Message Claude…",
+                text: $message,
+                onFocus: onFocus,
+                onSend: { onDecision(.continueSession(prompt: $0)) }
             )
 
-            ActionRow {
-                Button("Done") { onDecision(.passthrough) }
-                    .buttonStyle(.island(.secondary))
+            HStack {
+                Text("Or reply later from the notch. Hover it anytime.")
+                    .font(Theme.Typeface.caption)
+                    .foregroundStyle(Theme.Palette.textTertiary)
+                Spacer()
+                LinkButton(title: "Later", action: onLater)
                     .keyboardShortcut(.cancelAction)
-                Button("Continue", action: send)
-                    .buttonStyle(.island(.primary, shortcut: "⏎"))
-                    .disabled(trimmedReply.isEmpty)
             }
         }
-    }
-
-    private func send() {
-        guard !trimmedReply.isEmpty else { return }
-        onDecision(.continueSession(prompt: trimmedReply))
     }
 }

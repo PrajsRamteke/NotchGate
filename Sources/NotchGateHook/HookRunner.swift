@@ -15,6 +15,9 @@ struct HookRunner {
         else { return 0 }
 
         let event = HookEvent(rawValue: eventName)
+        if CommandLine.arguments.contains("--rewake") {
+            return event == .stop ? awaitFollowUp(payload) : 0
+        }
         let request = BridgeRequest(
             event: event,
             payload: HookPolicy.sanitize(event: event, payload: payload),
@@ -30,6 +33,20 @@ struct HookRunner {
             debugLog("notchgate-hook: \(error)")
         }
         return 0
+    }
+
+    /// Runs in the background after Claude stops. If the user sends a prompt
+    /// from the notch, print it and exit 2 so Claude wakes up and acts on it.
+    private func awaitFollowUp(_ payload: JSONValue) -> Int32 {
+        let request = BridgeRequest(
+            event: .stopRewake,
+            payload: HookPolicy.sanitize(event: .stop, payload: payload),
+            origin: ProcessOrigin(claudePID: getppid())
+        )
+        guard let reply = try? client.exchange(request),
+              let message = HookOutput.rewakeMessage(for: reply.decision) else { return 0 }
+        FileHandle.standardError.write(Data(message.utf8))
+        return HookOutput.rewakeExitCode
     }
 
     private func emit(_ output: JSONValue) throws {

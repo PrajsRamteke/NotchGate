@@ -24,6 +24,8 @@ final class IslandViewModel {
 
     private(set) var isCollapsedByUser = false
     private(set) var isHovering = false
+    /// A text field in the island is in use: stay open even if the cursor drifts off.
+    private(set) var isComposing = false
 
     /// Island frame in window coordinates (top-left origin), reported by SwiftUI.
     @ObservationIgnored var islandFrame: CGRect = .zero {
@@ -35,6 +37,10 @@ final class IslandViewModel {
     @ObservationIgnored var onNeedsKeyFocus: (() -> Void)?
 
     @ObservationIgnored private var hoverIntent: Task<Void, Never>?
+    @ObservationIgnored private var parkTimers: [UUID: Task<Void, Never>] = [:]
+
+    /// How long an untouched "Claude is done" card stays before tucking into its row.
+    static let composerLinger: Duration = .seconds(12)
 
     /// Resting time before an idle notch opens the activity panel, so the
     /// cursor sweeping across the top of the screen doesn't trigger it.
@@ -58,15 +64,21 @@ final class IslandViewModel {
         if store.notice != nil {
             return isHovering ? .expanded : .peek
         }
-        return isHovering && settings.showActivityOnHover ? .expanded : .hidden
+        return (isHovering || isComposing) && settings.showActivityOnHover ? .expanded : .hidden
     }
 
     // MARK: Queue events
 
     func handle(_ change: RequestStore.QueueChange) {
         switch change {
-        case .added:
+        case .added(let request):
+            guard !store.isParked(request.id) else { return }
             if store.pendingCount == 1 { isCollapsedByUser = !settings.autoExpand }
+            if case .completion = request.kind {
+                scheduleParking(request.id)
+                if settings.playSound { SoundPlayer.play(.resolve, volume: 0.2) }
+                return
+            }
             if settings.playSound { SoundPlayer.play(.arrive) }
         case .removed(_, let answered):
             if answered, settings.playSound { SoundPlayer.play(.resolve, volume: 0.2) }
@@ -95,8 +107,45 @@ final class IslandViewModel {
     }
 
     func collapse() {
-        isCollapsedByUser = true
+        if let current = store.current, case .completion = current.kind {
+            store.park(current.id)
+        } else {
+            isCollapsedByUser = true
+        }
         isHovering = false
+        isComposing = false
+    }
+
+    // MARK: Composing
+
+    func beginComposing() {
+        isComposing = true
+        onNeedsKeyFocus?()
+    }
+
+    func endComposing() {
+        isComposing = false
+    }
+
+    /// Sends (or queues) a prompt for a session from the hover panel.
+    @discardableResult
+    func sendPrompt(_ prompt: String, to sessionID: String) -> RequestStore.PromptDelivery {
+        let delivery = store.sendPrompt(prompt, to: sessionID)
+        isComposing = false
+        return delivery
+    }
+
+    /// Tucks an unanswered "Claude is done" card into its session row after a
+    /// while, unless the user is reading or typing in it.
+    private func scheduleParking(_ id: UUID) {
+        parkTimers[id]?.cancel()
+        parkTimers[id] = Task { [weak self] in
+            try? await Task.sleep(for: Self.composerLinger)
+            guard let self, !Task.isCancelled else { return }
+            parkTimers[id] = nil
+            if isHovering || isComposing { return scheduleParking(id) }
+            store.park(id)
+        }
     }
 
     func toggle() {
@@ -128,6 +177,9 @@ final class IslandViewModel {
             self?.applyHover(true)
         }
     }
+
+    /// Session whose prompt dropdown starts open (snapshots, previews).
+    @ObservationIgnored var initialComposerSession: String?
 
     /// Shows the activity panel immediately (snapshots, previews).
     func showActivityNow() {

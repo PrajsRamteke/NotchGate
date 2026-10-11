@@ -20,23 +20,19 @@ struct ClaudeRequest: Identifiable, Equatable, Sendable {
     let session: SessionInfo
     let kind: RequestKind
     let receivedAt: Date
-    /// When set, the request auto-resolves with `.passthrough` at this time.
-    let expiresAt: Date?
 
     init(
         id: UUID,
         event: HookEvent,
         session: SessionInfo,
         kind: RequestKind,
-        receivedAt: Date = .now,
-        expiresAt: Date? = nil
+        receivedAt: Date = .now
     ) {
         self.id = id
         self.event = event
         self.session = session
         self.kind = kind
         self.receivedAt = receivedAt
-        self.expiresAt = expiresAt
     }
 }
 

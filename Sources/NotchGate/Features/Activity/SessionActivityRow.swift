@@ -1,71 +1,79 @@
 import SwiftUI
 
-/// One Claude session in the hover panel: what it's doing, how far along,
-/// and for how long. Clicking jumps to its terminal.
-struct SessionActivityRow: View {
+/// One Claude session in the hover panel: what it's doing, how far along and
+/// for how long, plus a "Reply" dropdown to send that project a prompt.
+struct SessionActivityRow<Composer: View>: View {
     let session: SessionActivity
+    let isComposerOpen: Bool
+    let hasQueuedPrompt: Bool
+    let onToggleComposer: () -> Void
     let onOpen: () -> Void
+    @ViewBuilder var composer: Composer
 
     @State private var isHovered = false
 
     var body: some View {
-        Button(action: onOpen) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    PhaseIndicator(phase: session.phase)
-                    Text(session.projectName)
-                        .font(Theme.Typeface.headline)
-                        .foregroundStyle(Theme.Palette.textPrimary)
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    ElapsedLabel(session: session)
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                PhaseIndicator(phase: session.phase)
+                Text(session.projectName)
+                    .font(Theme.Typeface.headline)
+                    .foregroundStyle(Theme.Palette.textPrimary)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                ElapsedLabel(session: session)
+                ReplyChip(isOpen: isComposerOpen, isQueued: hasQueuedPrompt, action: onToggleComposer)
+                IconButton(systemName: "arrow.up.forward.app", help: "Open this session's terminal", action: onOpen)
+            }
 
-                HStack(spacing: 6) {
-                    if case .running(let step) = session.phase {
-                        Image(systemName: step.symbol)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Theme.Palette.clay)
-                    }
-                    Text(statusLine)
-                        .font(Theme.Typeface.body)
-                        .foregroundStyle(statusColor)
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                    if session.toolCount > 0 {
-                        Text("\(session.toolCount) steps")
-                            .font(Theme.Typeface.caption)
-                            .foregroundStyle(Theme.Palette.textTertiary)
-                            .monospacedDigit()
-                    }
+            HStack(spacing: 6) {
+                if case .running(let step) = session.phase {
+                    Image(systemName: step.symbol)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Theme.Palette.clay)
                 }
-
-                if let progress = session.progress {
-                    TaskProgressBar(progress: progress)
-                }
-
-                if let prompt = session.prompt, !prompt.isEmpty {
-                    Text("“\(prompt.replacingOccurrences(of: "\n", with: " "))”")
+                Text(statusLine)
+                    .font(Theme.Typeface.body)
+                    .foregroundStyle(statusColor)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if session.toolCount > 0 {
+                    Text("\(session.toolCount) steps")
                         .font(Theme.Typeface.caption)
                         .foregroundStyle(Theme.Palette.textTertiary)
-                        .lineLimit(1)
+                        .monospacedDigit()
                 }
             }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(isHovered ? Theme.Palette.surfaceRaised : Theme.Palette.surface)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(Theme.Palette.hairline, lineWidth: 0.5)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            if let progress = session.progress {
+                TaskProgressBar(progress: progress)
+            }
+
+            if let prompt = session.prompt, !prompt.isEmpty {
+                Text("“\(prompt.replacingOccurrences(of: "\n", with: " "))”")
+                    .font(Theme.Typeface.caption)
+                    .foregroundStyle(Theme.Palette.textTertiary)
+                    .lineLimit(1)
+            }
+
+            if isComposerOpen {
+                composer
+                    .padding(.top, 2)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
-        .buttonStyle(.plain)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(isHovered || isComposerOpen ? Theme.Palette.surfaceRaised : Theme.Palette.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(isComposerOpen ? Theme.Palette.clay.opacity(0.35) : Theme.Palette.hairline, lineWidth: 0.5)
+        )
         .onHover { isHovered = $0 }
         .animation(.easeOut(duration: 0.15), value: isHovered)
-        .help("Open this session's terminal")
+        .animation(Theme.Motion.content, value: isComposerOpen)
     }
 
     private var statusLine: String {
@@ -134,5 +142,36 @@ private struct ElapsedLabel: View {
         if seconds < 60 { return "\(seconds)s" }
         if seconds < 3600 { return String(format: "%dm %02ds", seconds / 60, seconds % 60) }
         return String(format: "%dh %02dm", seconds / 3600, (seconds % 3600) / 60)
+    }
+}
+
+/// "Reply ▾" toggle that opens the row's prompt field.
+private struct ReplyChip: View {
+    let isOpen: Bool
+    let isQueued: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: isQueued ? "clock" : "text.bubble")
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+                    .rotationEffect(.degrees(isOpen ? 180 : 0))
+            }
+            .font(.system(size: 10.5, weight: .semibold))
+            .foregroundStyle(isOpen || isHovered ? Theme.Palette.ivory : Theme.Palette.textSecondary)
+            .padding(.horizontal, 8)
+            .frame(height: 22)
+            .background(Capsule().fill(isOpen ? Theme.Palette.clay : (isHovered ? Theme.Palette.surfaceRaised : Theme.Palette.surface)))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(isQueued ? "Message queued for this project" : "Send this project a prompt")
+        .accessibilityLabel("Reply to this session")
+        .onHover { isHovered = $0 }
+        .animation(.easeOut(duration: 0.15), value: isOpen)
     }
 }

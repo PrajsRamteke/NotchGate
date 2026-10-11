@@ -39,7 +39,7 @@ enum Theme {
 
     enum Metrics {
         /// Transparent canvas the panel reserves at the top of the screen.
-        static let canvasSize = CGSize(width: 680, height: 560)
+        static let canvasSize = CGSize(width: 680, height: 740)
         static let expandedWidth: CGFloat = 500
         static let expandedMaxContentHeight: CGFloat = 400
         static let peekWingWidth: CGFloat = 92

@@ -11,8 +11,8 @@ and keep working — no tab switching.
 | `AskUserQuestion` | Pick options (single / multi-select), write your own, or answer in terminal |
 | Plan approval (`ExitPlanMode`) | **Approve** or **Keep planning** with feedback |
 | MCP elicitation | Fill the server's form or open its link; decline / cancel |
-| Claude stopped *(opt-in)* | Read the summary, optionally **reply to continue** |
-| **Hover the notch** anytime | Live activity for every session: current step, to-do progress, elapsed time, last prompt. Click to jump to its terminal |
+| Claude finished | Read the summary and **send the next prompt** from the notch. Claude isn't paused while you decide |
+| **Hover the notch** anytime | Live activity for every session: current step, to-do progress, elapsed time, last prompt. Each project has a **Reply ▾** dropdown to prompt it directly; busy sessions queue the message until they finish |
 
 **Auto-allow permissions:** flip it from any permission card, the hover panel, or
 the menu bar, and prompts are approved instantly with no card. Risky commands
@@ -24,8 +24,9 @@ still ask unless you turn that safeguard off. Your Claude Code deny rules always
 option, states its assumption, and keeps going).
 
 By default the notch appears **only when Claude is actually waiting on you**.
-"Claude finished" notices and reply-to-continue are off by default and can be
-turned on from the menu-bar popover.
+"Claude finished" notices are off by default. The reply box that pops up when
+Claude finishes can be turned off in the menu bar; replying from the hover panel
+always works.
 
 ## Requirements
 
@@ -103,7 +104,8 @@ Claude Code ──stdin JSON──▶ notchgate-hook ──Unix socket──▶ 
 | `PermissionRequest` | Tool permission cards | yes |
 | `PreToolUse` (all tools) | Questions and plan approval; live activity for every other tool | only for questions/plans |
 | `Elicitation` | MCP forms / links | yes |
-| `Stop` | Clears stale cards; optional notice / reply-to-continue | briefly |
+| `Stop` | Clears stale cards; optional notice | no |
+| `Stop` (`asyncRewake`, background) | Holds the "send next prompt" composer open; exit 2 wakes Claude with your message | never |
 | `PostToolUse` | Clears a card once its tool ran (approved in terminal, auto mode…) | no |
 | `Notification` | "Claude is waiting" notices | no |
 | `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `PreCompact` | Live activity; clear stale cards | no |
@@ -145,7 +147,7 @@ Tests/
 ## Development
 
 ```bash
-make test                                     # 44 unit tests
+make test                                     # 58 unit tests
 make run                                      # run from source
 .build/debug/NotchGate --snapshot ./shots     # render every card to PNG offscreen
 log stream --predicate 'subsystem == "app.notchgate"'

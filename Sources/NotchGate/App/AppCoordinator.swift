@@ -72,10 +72,16 @@ final class AppCoordinator {
         let router = RequestRouter(options: settings.routerOptions)
         let route = router.route(message)
         if RequestRouter.clearsSessionFirst(message.event) {
-            store.clearSession(message.payload["session_id"]?.stringValue ?? "")
+            store.clearSession(message.payload["session_id"]?.stringValue ?? "", keepingComposer: true)
         }
         switch route {
         case .present(let request):
+            if case .completion = request.kind {
+                if let prompt = store.takeQueuedPrompt(for: request.session.id) {
+                    return responder.send(.continueSession(prompt: prompt))
+                }
+                return store.enqueue(request, responder: responder, parked: !settings.replyFromNotch)
+            }
             store.enqueue(request, responder: responder)
         case .notice(let notice):
             store.post(notice)

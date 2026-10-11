@@ -8,6 +8,9 @@ protocol DecisionResponder: AnyObject, Sendable {
 }
 
 /// FIFO queue of requests awaiting the user, plus the current transient notice.
+///
+/// "Composers" (`.completion`) are special: they never block Claude, so once
+/// parked they leave the island free and live on in the hover panel's rows.
 @MainActor
 @Observable
 final class RequestStore {
@@ -17,14 +20,18 @@ final class RequestStore {
     }
 
     private var queue: [Pending] = []
-    private var expiryTasks: [UUID: Task<Void, Never>] = [:]
     private var noticeTask: Task<Void, Never>?
+    private var parked: Set<UUID> = []
 
     private(set) var notice: Notice?
+    /// Prompts typed for a busy session, delivered the moment it finishes.
+    private(set) var queuedPrompts: [String: String] = [:]
 
-    var current: ClaudeRequest? { queue.first?.request }
-    var pendingCount: Int { queue.count }
-    var hasPending: Bool { !queue.isEmpty }
+    private var visible: [Pending] { queue.filter { !parked.contains($0.request.id) } }
+
+    var current: ClaudeRequest? { visible.first?.request }
+    var pendingCount: Int { visible.count }
+    var hasPending: Bool { !visible.isEmpty }
 
     enum QueueChange {
         case added(ClaudeRequest)
@@ -38,9 +45,15 @@ final class RequestStore {
 
     // MARK: Requests
 
-    func enqueue(_ request: ClaudeRequest, responder: DecisionResponder) {
+    func enqueue(_ request: ClaudeRequest, responder: DecisionResponder, parked isParked: Bool = false) {
+        // One composer per session: a newer "Claude is done" replaces the old one.
+        if case .completion = request.kind {
+            for pending in queue where pending.request.session.id == request.session.id {
+                if case .completion = pending.request.kind { resolve(pending.request.id, with: .passthrough) }
+            }
+        }
         queue.append(Pending(request: request, responder: responder))
-        scheduleExpiry(for: request)
+        if isParked { parked.insert(request.id) }
         onQueueChange?(.added(request))
     }
 
@@ -59,8 +72,10 @@ final class RequestStore {
     }
 
     /// The user returned to the terminal for `sessionID`; release its cards.
-    func clearSession(_ sessionID: String) {
+    /// `keepingComposer` spares the "Claude is done" card (used on Stop).
+    func clearSession(_ sessionID: String, keepingComposer: Bool = false) {
         for pending in queue where pending.request.session.id == sessionID {
+            if keepingComposer, case .completion = pending.request.kind { continue }
             resolve(pending.request.id, with: .passthrough)
         }
         if notice?.session.id == sessionID { dismissNotice() }
@@ -91,18 +106,49 @@ final class RequestStore {
 
     private func remove(_ id: UUID) -> Pending? {
         guard let index = queue.firstIndex(where: { $0.request.id == id }) else { return nil }
-        expiryTasks.removeValue(forKey: id)?.cancel()
+        parked.remove(id)
         return queue.remove(at: index)
     }
 
-    private func scheduleExpiry(for request: ClaudeRequest) {
-        guard let expiresAt = request.expiresAt else { return }
-        let delay = max(0, expiresAt.timeIntervalSinceNow)
-        expiryTasks[request.id] = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(delay))
-            guard !Task.isCancelled else { return }
-            self?.resolve(request.id, with: .passthrough)
+    // MARK: Composers (send Claude a prompt from the notch)
+
+    func isParked(_ id: UUID) -> Bool { parked.contains(id) }
+
+    /// Tucks a composer away: the island frees up, its session row keeps it.
+    func park(_ id: UUID) {
+        guard queue.contains(where: { $0.request.id == id }) else { return }
+        parked.insert(id)
+    }
+
+    /// The live composer for a session, if its background Stop hook is waiting.
+    func composer(for sessionID: String) -> ClaudeRequest? {
+        queue.first { pending in
+            guard pending.request.session.id == sessionID, case .completion = pending.request.kind else { return false }
+            return true
+        }?.request
+    }
+
+    enum PromptDelivery: Equatable { case sent, queued }
+
+    /// Sends now if the session is waiting for a prompt, otherwise queues it
+    /// for the session's next stop.
+    @discardableResult
+    func sendPrompt(_ prompt: String, to sessionID: String) -> PromptDelivery {
+        if let composer = composer(for: sessionID) {
+            resolve(composer.id, with: .continueSession(prompt: prompt))
+            return .sent
         }
+        queuedPrompts[sessionID] = prompt
+        return .queued
+    }
+
+    func cancelQueuedPrompt(for sessionID: String) {
+        queuedPrompts[sessionID] = nil
+    }
+
+    /// Hands over (and forgets) the prompt queued for a session.
+    func takeQueuedPrompt(for sessionID: String) -> String? {
+        queuedPrompts.removeValue(forKey: sessionID)
     }
 
     // MARK: Notices

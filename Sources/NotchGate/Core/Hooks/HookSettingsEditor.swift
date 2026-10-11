@@ -11,6 +11,8 @@ struct HookSettingsEditor {
         let event: HookEvent
         let matcher: String?
         let timeout: Int
+        /// Background hook that can wake Claude later (exit code 2).
+        var asyncRewake = false
     }
 
     static let registrations: [Registration] = [
@@ -19,6 +21,9 @@ struct HookSettingsEditor {
         Registration(event: .preToolUse, matcher: "*", timeout: 3600),
         Registration(event: .elicitation, matcher: nil, timeout: 3600),
         Registration(event: .stop, matcher: nil, timeout: 600),
+        // Background twin of Stop: holds the "reply from the notch" composer
+        // open for up to an hour without blocking Claude.
+        Registration(event: .stop, matcher: nil, timeout: 3600, asyncRewake: true),
         Registration(event: .postToolUse, matcher: "*", timeout: 5),
         Registration(event: .notification, matcher: nil, timeout: 5),
         Registration(event: .userPromptSubmit, matcher: nil, timeout: 5),
@@ -90,13 +95,13 @@ struct HookSettingsEditor {
     // MARK: Helpers
 
     private func group(for registration: Registration) -> JSONValue {
-        var group: [String: JSONValue] = [
-            "hooks": .array([.object([
-                "type": .string("command"),
-                "command": .string(command),
-                "timeout": .number(Double(registration.timeout)),
-            ])]),
+        var hook: [String: JSONValue] = [
+            "type": .string("command"),
+            "command": .string(registration.asyncRewake ? command + " --rewake" : command),
+            "timeout": .number(Double(registration.timeout)),
         ]
+        if registration.asyncRewake { hook["asyncRewake"] = .bool(true) }
+        var group: [String: JSONValue] = ["hooks": .array([.object(hook)])]
         if let matcher = registration.matcher { group["matcher"] = .string(matcher) }
         return .object(group)
     }
