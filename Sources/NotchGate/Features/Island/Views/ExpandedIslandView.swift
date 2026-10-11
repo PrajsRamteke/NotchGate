@@ -62,9 +62,14 @@ struct ExpandedIslandView: View {
         case .completion(let prompt):
             CompletionCardView(
                 prompt: prompt,
-                projectName: request.session.projectName,
+                controller: model.prompts,
+                target: PromptTarget(
+                    sessionID: request.session.id,
+                    claudePID: request.session.claudePID,
+                    projectName: request.session.projectName
+                ),
                 onFocus: model.beginComposing,
-                onDecision: respond,
+                onOpenTerminal: { model.openTerminal(for: request.session) },
                 onLater: model.collapse
             )
         }

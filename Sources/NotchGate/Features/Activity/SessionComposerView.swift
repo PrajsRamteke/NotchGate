@@ -1,45 +1,28 @@
 import SwiftUI
 
-/// Whether a session can take a prompt from the notch right now.
-enum ComposerAvailability: Equatable {
-    /// Claude finished and its background hook is waiting: sends instantly.
-    case live
-    /// Claude is busy: the prompt is delivered the moment it finishes.
-    case queue
-    /// No hook can reach this session yet (it hasn't finished a turn).
-    case unavailable
-}
-
-/// Dropdown body of a session row: type a prompt for that project and send it.
+/// Dropdown body of a session row: send that project a prompt, or manage a
+/// message already queued for it.
 struct SessionComposerView: View {
-    let projectName: String
-    let availability: ComposerAvailability
+    let controller: ComposerController
+    let target: PromptTarget
     let queuedPrompt: String?
     let onFocus: () -> Void
-    let onSend: (String) -> Void
+    let onDelivered: () -> Void
     let onCancelQueued: () -> Void
     let onOpenTerminal: () -> Void
-
-    @State private var text = ""
 
     var body: some View {
         if let queuedPrompt {
             queuedView(queuedPrompt)
-        } else if availability == .unavailable {
-            unavailableView
         } else {
-            VStack(alignment: .leading, spacing: 6) {
-                PromptComposer(
-                    placeholder: availability == .live ? "Message Claude in \(projectName)…" : "Queue a message for when Claude finishes…",
-                    text: $text,
-                    autofocus: true,
-                    onFocus: onFocus,
-                    onSend: onSend
-                )
-                if availability == .queue {
-                    hint("Claude is busy. Your message is sent as soon as it finishes.")
-                }
-            }
+            NotchComposer(
+                controller: controller,
+                target: target,
+                autofocus: true,
+                onFocus: onFocus,
+                onOpenTerminal: onOpenTerminal,
+                onDelivered: onDelivered
+            )
         }
     }
 
@@ -63,20 +46,5 @@ struct SessionComposerView: View {
         }
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.Palette.clay.opacity(0.08)))
-    }
-
-    private var unavailableView: some View {
-        HStack(spacing: 8) {
-            hint("Send this session's first message in its terminal. After that you can prompt it from here.")
-            Spacer(minLength: 4)
-            LinkButton(title: "Open terminal", action: onOpenTerminal)
-        }
-    }
-
-    private func hint(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 10.5))
-            .foregroundStyle(Theme.Palette.textTertiary)
-            .fixedSize(horizontal: false, vertical: true)
     }
 }

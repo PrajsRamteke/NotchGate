@@ -8,7 +8,7 @@ struct MenuBarContentView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider().padding(.vertical, 10)
-            IntegrationSection(installer: coordinator.installer)
+            IntegrationSection(installer: coordinator.installer, editorHelper: coordinator.editorHelper)
             Divider().padding(.vertical, 10)
             NotchFeaturesSection(settings: coordinator.settings, onPreview: coordinator.preview)
             Divider().padding(.vertical, 10)
@@ -22,7 +22,10 @@ struct MenuBarContentView: View {
         }
         .padding(16)
         .frame(width: 320)
-        .onAppear { coordinator.installer.refresh() }
+        .onAppear {
+            coordinator.installer.refresh()
+            coordinator.editorHelper.refresh()
+        }
     }
 
     private var header: some View {

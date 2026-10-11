@@ -3,6 +3,7 @@ import SwiftUI
 /// Install / remove the Claude Code hooks.
 struct IntegrationSection: View {
     let installer: HookInstaller
+    let editorHelper: EditorHelperInstaller
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -27,6 +28,10 @@ struct IntegrationSection: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            if !editorHelper.editors.isEmpty {
+                EditorHelperRow(helper: editorHelper)
+                    .padding(.top, 4)
+            }
         }
     }
 
@@ -44,6 +49,48 @@ struct IntegrationSection: View {
         case .notInstalled: return .secondary
         case .failed: return Theme.Palette.danger
         }
+    }
+}
+
+/// Status of the Cursor / VS Code companion that lets the notch type prompts.
+private struct EditorHelperRow: View {
+    let helper: EditorHelperInstaller
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(helper.installed.isEmpty ? Color.secondary : Theme.Palette.success)
+                    .frame(width: 7, height: 7)
+                Text(title).font(.callout).lineLimit(1)
+                Spacer()
+                if helper.isInstalling {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button(helper.installed.isEmpty ? "Install" : "Reinstall") {
+                        Task { await helper.install() }
+                    }
+                }
+            }
+            SettingNote(detail)
+        }
+    }
+
+    private var title: String {
+        helper.installed.isEmpty
+            ? "Editor helper not installed"
+            : "Editor helper in \(helper.installed.sorted().joined(separator: ", "))"
+    }
+
+    private var detail: String {
+        if let error = helper.lastError { return error }
+        let windows = helper.connectedWindows
+        if helper.installed.isEmpty {
+            return "Lets the notch type prompts into Cursor / VS Code terminals."
+        }
+        return windows == 0
+            ? "No editor window connected yet. Reload open windows once."
+            : "\(windows) editor window\(windows == 1 ? "" : "s") connected. Prompts type straight into their terminals."
     }
 }
 

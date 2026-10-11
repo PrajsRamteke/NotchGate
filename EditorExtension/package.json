@@ -1,0 +1,20 @@
+{
+  "name": "notchgate-bridge",
+  "displayName": "NotchGate Bridge",
+  "description": "Lets the NotchGate notch app type prompts into the Claude Code session running in this window's terminal.",
+  "version": "1.0.0",
+  "publisher": "notchgate",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PrajsRamteke/NotchGate"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": ["Other"],
+  "extensionKind": ["ui", "workspace"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./extension.js",
+  "contributes": {}
+}

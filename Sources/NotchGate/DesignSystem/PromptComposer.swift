@@ -1,10 +1,12 @@
 import SwiftUI
 
 /// Message field with a round send button: ⏎ sends, ⇧⏎ adds a line.
+/// The caller owns the text and clears it once delivery succeeds.
 struct PromptComposer: View {
     let placeholder: String
     @Binding var text: String
     var autofocus = false
+    var isSending = false
     let onFocus: () -> Void
     let onSend: (String) -> Void
 
@@ -20,46 +22,53 @@ struct PromptComposer: View {
                 onSubmit: send,
                 onFocus: onFocus
             )
-            SendButton(isEnabled: !trimmed.isEmpty, action: send)
+            .disabled(isSending)
+            SendButton(isEnabled: !trimmed.isEmpty && !isSending, isSending: isSending, action: send)
                 .padding(.bottom, 3)
         }
     }
 
     private func send() {
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty, !isSending else { return }
         onSend(trimmed)
-        text = ""
     }
 }
 
 /// Circular clay "arrow up" button, the universal send affordance.
 struct SendButton: View {
     let isEnabled: Bool
+    var isSending = false
     let action: () -> Void
 
     @State private var isHovered = false
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "arrow.up")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(isEnabled ? Theme.Palette.ivory : Theme.Palette.textTertiary)
-                .frame(width: 30, height: 30)
-                .background(
-                    Circle().fill(isEnabled
-                        ? AnyShapeStyle(LinearGradient(
-                            colors: [isHovered ? Theme.Palette.clayGlow : Theme.Palette.clay, Theme.Palette.clayDeep],
-                            startPoint: .top, endPoint: .bottom))
-                        : AnyShapeStyle(Theme.Palette.surface))
-                )
-                .shadow(color: isEnabled ? Theme.Palette.clay.opacity(0.35) : .clear, radius: 6, y: 2)
-                .contentShape(Circle())
+            ZStack {
+                if isSending {
+                    ProgressView().controlSize(.mini).tint(Theme.Palette.ivory)
+                } else {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(isEnabled ? Theme.Palette.ivory : Theme.Palette.textTertiary)
+                }
+            }
+            .frame(width: 30, height: 30)
+            .background(
+                Circle().fill(isEnabled || isSending
+                    ? AnyShapeStyle(LinearGradient(
+                        colors: [isHovered ? Theme.Palette.clayGlow : Theme.Palette.clay, Theme.Palette.clayDeep],
+                        startPoint: .top, endPoint: .bottom))
+                    : AnyShapeStyle(Theme.Palette.surface))
+            )
+            .shadow(color: isEnabled ? Theme.Palette.clay.opacity(0.35) : .clear, radius: 6, y: 2)
+            .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
         .onHover { isHovered = $0 }
         .help("Send (⏎)")
-        .accessibilityLabel("Send")
+        .accessibilityLabel(isSending ? "Sending" : "Send")
         .animation(.easeOut(duration: 0.15), value: isEnabled)
     }
 }

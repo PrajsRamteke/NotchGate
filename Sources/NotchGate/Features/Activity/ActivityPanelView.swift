@@ -27,7 +27,7 @@ struct ActivityPanelView: View {
                 CardTitle(title: "Nothing running", subtitle: "Start Claude Code in any terminal and its progress shows up here.")
                     .padding(.bottom, 4)
             } else {
-                CappedScroll(maxHeight: 360, scrollTarget: openComposer) {
+                CappedScroll(maxHeight: 400, scrollTarget: openComposer) {
                     VStack(spacing: 8) {
                         ForEach(sessions) { session in
                             row(for: session)
@@ -57,25 +57,14 @@ struct ActivityPanelView: View {
             onOpen: { model.openTerminal(for: session) }
         ) {
             SessionComposerView(
-                projectName: session.projectName,
-                availability: availability(for: session),
+                controller: model.prompts,
+                target: PromptTarget(sessionID: session.id, claudePID: session.claudePID, projectName: session.projectName),
                 queuedPrompt: queued,
                 onFocus: model.beginComposing,
-                onSend: { prompt in
-                    let delivery = model.sendPrompt(prompt, to: session.id)
-                    if delivery == .sent { openComposer = nil }
-                },
+                onDelivered: { model.endComposing() },
                 onCancelQueued: { model.store.cancelQueuedPrompt(for: session.id) },
                 onOpenTerminal: { model.openTerminal(for: session) }
             )
-        }
-    }
-
-    private func availability(for session: SessionActivity) -> ComposerAvailability {
-        if model.store.composer(for: session.id) != nil { return .live }
-        switch session.phase {
-        case .thinking, .running, .compacting, .waiting: return .queue
-        case .idle, .finished: return .unavailable
         }
     }
 

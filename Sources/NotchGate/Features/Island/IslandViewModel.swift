@@ -19,6 +19,8 @@ final class IslandViewModel {
     let store: RequestStore
     let settings: AppSettings
     let activity: ActivityTracker
+    /// Sends prompts from the notch into sessions' terminals.
+    let prompts: ComposerController
 
     var notch: NotchMetrics = .fallback
 
@@ -50,6 +52,7 @@ final class IslandViewModel {
         self.store = store
         self.settings = settings
         self.activity = activity
+        self.prompts = ComposerController(store: store, activity: activity)
     }
 
     /// True when the expanded island is showing live activity rather than a request.

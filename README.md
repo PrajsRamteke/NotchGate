@@ -14,6 +14,24 @@ and keep working — no tab switching.
 | Claude finished | Read the summary and **send the next prompt** from the notch. Claude isn't paused while you decide |
 | **Hover the notch** anytime | Live activity for every session: current step, to-do progress, elapsed time, last prompt. Each project has a **Reply ▾** dropdown to prompt it directly; busy sessions queue the message until they finish |
 
+**Send prompts from the notch:** hover the notch, open a project's 💬▾, type, and
+press ⏎. NotchGate types the prompt into that session's terminal and presses
+Return, so Claude Code receives a **real user prompt**, exactly like typing it
+yourself (it's recorded in the transcript, works while Claude is busy, and
+multi-line prompts are pasted intact).
+
+| Where Claude runs | How the prompt gets there |
+| --- | --- |
+| tmux (inside any terminal) | `tmux send-keys` / `paste-buffer` into the exact pane |
+| iTerm2, Terminal.app | AppleScript into the exact session/tab (macOS asks once for Automation permission) |
+| Cursor, VS Code, Insiders, Windsurf, VSCodium | The tiny **NotchGate Bridge** extension, installed by `install.sh` |
+| WezTerm | `wezterm cli send-text` |
+| Anything else | Clear error, with an optional fallback through Claude's hook |
+
+Safety: control characters are stripped, nothing is typed while Claude is
+showing a question or permission dialog (you can override), and the editor
+bridge only listens on a user-only local socket.
+
 **Show in notch:** choose which request types NotchGate handles from the
 menu bar: Permissions, File edits, Questions, Plan approvals, Reply when done.
 Each has a switch and a ▶ preview. Out of the box **only Permissions is on**.
@@ -111,7 +129,7 @@ Claude Code ──stdin JSON──▶ notchgate-hook ──Unix socket──▶ 
 | `PreToolUse` (all tools) | Questions and plan approval; live activity for every other tool | only for questions/plans |
 | `Elicitation` | MCP forms / links | yes |
 | `Stop` | Clears stale cards; optional notice | no |
-| `Stop` (`asyncRewake`, background) | Holds the "send next prompt" composer open; exit 2 wakes Claude with your message | never |
+| `Stop` (`asyncRewake`, background) | Signals "Claude is done" for the reply box; fallback delivery for terminals NotchGate can't type into | never |
 | `PostToolUse` | Clears a card once its tool ran (approved in terminal, auto mode…) | no |
 | `Notification` | "Claude is waiting" notices | no |
 | `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `PreCompact` | Live activity; clear stale cards | no |
@@ -125,12 +143,14 @@ Sources/
 ├── NotchGateKit/                 Shared by app + hook (no UI)
 │   ├── Protocol/                 JSONValue, HookEvent, HookPolicy, BridgeMessage, HookOutput
 │   └── Transport/                UnixSocket, LineFramer, BridgeLocation
+├── EditorExtension/              NotchGate Bridge for Cursor / VS Code (packaged by Scripts/build-vsix.sh)
 ├── NotchGateHook/                The CLI Claude Code invokes
 │   ├── main.swift · HookRunner.swift · BridgeClient.swift
 └── NotchGate/                    The menu-bar app
     ├── App/                      Entry point, AppCoordinator (composition root)
     ├── Core/
     │   ├── Activity/             Live session state: reducer, tracker, tool summaries
+    │   ├── Prompting/            Terminal detection + typing (tmux, iTerm, Terminal, editors, WezTerm)
     │   ├── Bridge/               Socket server + per-hook connection
     │   ├── Requests/             Domain models, PayloadParsers, RequestRouter, RequestStore
     │   ├── Hooks/                settings.json editor (pure) + installer (I/O)
@@ -141,6 +161,7 @@ Sources/
     │   ├── Permission/           Card, ToolDescriptor, tool & diff previews
     │   ├── Question/             Card, form model, option rows
     │   ├── Activity/             Hover panel: session rows, task progress bar
+    │   ├── Composer/             Prompt box shared by the reply card and session rows
     │   ├── Plan/ · Elicitation/ · Completion/ · Notice/
     │   └── MenuBar/              Popover, sections, template icon
     ├── DesignSystem/             Theme, ClaudeSpark, buttons, fields, markdown, code blocks
@@ -153,9 +174,10 @@ Tests/
 ## Development
 
 ```bash
-make test                                     # 60 unit tests
+make test                                     # 75 unit tests
 make run                                      # run from source
 .build/debug/NotchGate --snapshot ./shots     # render every card to PNG offscreen
+.build/debug/NotchGate --send-prompt PID "hi" # type a prompt into a Claude session
 log stream --predicate 'subsystem == "app.notchgate"'
 NOTCHGATE_DEBUG=1 NOTCHGATE_SOCKET=/tmp/ng.sock   # hook debugging overrides
 ```

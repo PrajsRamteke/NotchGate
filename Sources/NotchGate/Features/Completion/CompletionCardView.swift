@@ -1,20 +1,18 @@
-import NotchGateKit
 import SwiftUI
 
 /// Pops up when Claude finishes: read the summary and send the next prompt
 /// right from the notch. Claude is not blocked while this is open.
 struct CompletionCardView: View {
     let prompt: CompletionPrompt
-    let projectName: String
+    let controller: ComposerController
+    let target: PromptTarget
     let onFocus: () -> Void
-    let onDecision: (BridgeDecision) -> Void
+    let onOpenTerminal: () -> Void
     let onLater: () -> Void
-
-    @State private var message = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            CardTitle(title: "Claude is done", subtitle: "What should it do next in \(projectName)?")
+            CardTitle(title: "Claude is done", subtitle: "What should it do next in \(target.projectName)?")
 
             if let summary = prompt.summary, !summary.isEmpty {
                 CappedScroll(maxHeight: 170) {
@@ -26,11 +24,12 @@ struct CompletionCardView: View {
                 )
             }
 
-            PromptComposer(
+            NotchComposer(
+                controller: controller,
+                target: target,
                 placeholder: "Message Claude…",
-                text: $message,
                 onFocus: onFocus,
-                onSend: { onDecision(.continueSession(prompt: $0)) }
+                onOpenTerminal: onOpenTerminal
             )
 
             HStack {

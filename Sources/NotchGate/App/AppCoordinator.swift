@@ -9,6 +9,7 @@ final class AppCoordinator {
     let settings = AppSettings()
     let store = RequestStore()
     let installer = HookInstaller()
+    let editorHelper = EditorHelperInstaller()
     let activity = ActivityTracker()
     let island: IslandViewModel
 

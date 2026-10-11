@@ -114,6 +114,15 @@ final class RequestStore {
 
     func isParked(_ id: UUID) -> Bool { parked.contains(id) }
 
+    /// A request (other than a composer) that blocks this session on the user.
+    func pendingRequest(for sessionID: String) -> ClaudeRequest? {
+        queue.first { pending in
+            guard pending.request.session.id == sessionID else { return false }
+            if case .completion = pending.request.kind { return false }
+            return true
+        }?.request
+    }
+
     /// Tucks a composer away: the island frees up, its session row keeps it.
     func park(_ id: UUID) {
         guard queue.contains(where: { $0.request.id == id }) else { return }

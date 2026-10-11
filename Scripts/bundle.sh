@@ -22,6 +22,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/NotchGate" "$APP/Contents/MacOS/NotchGate"
 cp "$BIN/notchgate-hook" "$APP/Contents/MacOS/notchgate-hook"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
+"$ROOT/Scripts/build-vsix.sh" "$APP/Contents/Resources/notchgate-bridge.vsix" >/dev/null
 
 echo "→ Signing (ad-hoc)"
 codesign --force --sign - "$APP/Contents/MacOS/notchgate-hook" 2>/dev/null
