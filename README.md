@@ -26,13 +26,13 @@ turned on from the menu-bar popover.
 ## Install (one command)
 
 ```bash
-git clone https://github.com/<owner>/NotchGate.git && cd NotchGate && ./install.sh
+git clone https://github.com/PrajsRamteke/NotchGate.git && cd NotchGate && ./install.sh
 ```
 
 Or without cloning first:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<owner>/NotchGate/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/PrajsRamteke/NotchGate/main/install.sh | bash
 ```
 
 The installer:
@@ -47,10 +47,12 @@ The installer:
 Then **restart any running Claude Code sessions**. Click the spark in the menu
 bar → **Preview** to try every card without Claude.
 
-Re-running `./install.sh` is safe; it updates in place. To remove everything:
+Re-running the installer is safe; it updates in place. To remove everything:
 
 ```bash
 ./install.sh --uninstall
+# or, without a clone:
+curl -fsSL https://raw.githubusercontent.com/PrajsRamteke/NotchGate/main/install.sh | bash -s -- --uninstall
 ```
 
 > **Already using another notch app for Claude (e.g. Claude Island)?** Remove its

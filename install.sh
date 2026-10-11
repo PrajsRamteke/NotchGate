@@ -5,10 +5,12 @@
 #   ./install.sh --uninstall   remove hooks, login item, app and hook binary
 #
 # Works from a cloned repo, or piped from curl (it clones into a temp dir):
-#   curl -fsSL https://raw.githubusercontent.com/<owner>/NotchGate/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/PrajsRamteke/NotchGate/main/install.sh | bash
+#   curl -fsSL …/install.sh | bash -s -- --uninstall
 set -euo pipefail
 
-REPO_URL="${NOTCHGATE_REPO:-https://github.com/<owner>/NotchGate.git}"
+REPO_URL="${NOTCHGATE_REPO:-https://github.com/PrajsRamteke/NotchGate.git}"
+RAW_INSTALLER="https://raw.githubusercontent.com/PrajsRamteke/NotchGate/main/install.sh"
 APP_NAME="NotchGate.app"
 
 bold() { printf "\033[1m%s\033[0m\n" "$1"; }
@@ -67,7 +69,9 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo "")"
 if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/Package.swift" ]]; then
     ROOT="$SCRIPT_DIR"
+    UNINSTALL_HINT="./install.sh --uninstall"
 else
+    UNINSTALL_HINT="curl -fsSL $RAW_INSTALLER | bash -s -- --uninstall"
     command -v git >/dev/null 2>&1 || fail "git is required to download NotchGate."
     ROOT="$(mktemp -d)/NotchGate"
     step "Downloading NotchGate"
@@ -96,5 +100,5 @@ cat <<EOF
   • Restart any running Claude Code sessions to load the hooks.
   • Look for the spark in your menu bar → Preview shows every card.
   • Shortcuts while a request waits: ⌃⌥⏎ allow · ⌃⌥⌫ deny · ⌃⌥Space show/hide
-  • Remove everything later with: ./install.sh --uninstall
+  • Remove everything later with: $UNINSTALL_HINT
 EOF
