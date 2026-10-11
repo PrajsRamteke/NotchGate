@@ -101,7 +101,7 @@ extension IntegrationSection {
 
 extension PermissionsSection {
     var summary: String {
-        "Auto-allow \(settings.autoAllowPermissions ? "on" : "off") · \(settings.questionMode.title)"
+        "Auto-allow \(settings.autoAllowPermissions ? "on" : "off")"
     }
 }
 

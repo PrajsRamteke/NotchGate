@@ -35,27 +35,27 @@ enum SnapshotRenderer {
             UpdateCommit(sha: "abc1234", title: "Type notch prompts into Claude Code as real user prompts"),
             UpdateCommit(sha: "def5678", title: "Keep the island open after clicking buttons"),
         ], aheadBy: 2))
-        renderView(MenuBarContentView(coordinator: coordinator), size: CGSize(width: 320, height: 900),
-                   to: directory.appendingPathComponent("menu.png"))
+        renderMenu(MenuBarContentView(coordinator: coordinator), to: directory.appendingPathComponent("menu.png"))
         return true
     }
 
-    private static func renderView<V: View>(_ view: V, size: CGSize, to url: URL) {
-        let hosting = NSHostingView(rootView: view.frame(width: size.width).fixedSize().background(Color(nsColor: .windowBackgroundColor)))
-        let fitted = hosting.fittingSize
-        hosting.frame = CGRect(origin: .zero, size: fitted)
-        let window = NSWindow(contentRect: CGRect(x: -20_000, y: -20_000, width: fitted.width, height: fitted.height),
-                              styleMask: [.borderless], backing: .buffered, defer: false)
-        window.appearance = NSAppearance(named: .darkAqua)
-        window.contentView = hosting
-        window.orderFrontRegardless()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
-        guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { return }
-        hosting.cacheDisplay(in: hosting.bounds, to: rep)
-        try? rep.representation(using: NSBitmapImageRep.FileType.png, properties: [:])?.write(to: url)
-        window.orderOut(nil)
+    /// The menu-bar popover floating on the wallpaper, like it appears on screen.
+    private static func renderMenu<V: View>(_ menu: V, to url: URL) {
+        let panel = menu
+            .frame(width: 320)
+            .fixedSize()
+            .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.45), radius: 24, y: 12)
+        let fitted = NSHostingView(rootView: panel).fittingSize
+        let canvas = CGSize(width: fitted.width + 80, height: fitted.height + 80)
+        SnapshotExport.write(
+            SnapshotBackdrop(showsMenuBar: false) { panel.frame(maxWidth: .infinity, maxHeight: .infinity) },
+            canvas: canvas, to: url, settle: 0.8
+        )
     }
 
+    /// One island state under a menu bar, cropped tight around the island.
     private static func render(to url: URL, configure: (IslandViewModel) -> Void) {
         let model = IslandViewModel(
             store: RequestStore(),
@@ -69,23 +69,13 @@ enum SnapshotRenderer {
         )
         configure(model)
 
-        let size = Theme.Metrics.canvasSize
-        let window = NSWindow(
-            contentRect: CGRect(x: -20_000, y: -20_000, width: size.width, height: size.height),
-            styleMask: [.borderless], backing: .buffered, defer: false
-        )
-        let hosting = NSHostingView(rootView: IslandRootView(model: model))
-        hosting.frame = CGRect(origin: .zero, size: size)
-        window.contentView = hosting
-        window.orderFrontRegardless()
-
-        // Let layout, measurement passes and the expand spring settle.
-        RunLoop.main.run(until: Date().addingTimeInterval(1.2))
-
-        guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { return }
-        hosting.cacheDisplay(in: hosting.bounds, to: rep)
-        try? rep.representation(using: NSBitmapImageRep.FileType.png, properties: [:])?.write(to: url)
-        window.orderOut(nil)
-        print("snapshot: \(url.path)")
+        SnapshotExport.write(
+            SnapshotBackdrop { IslandRootView(model: model) },
+            canvas: Theme.Metrics.canvasSize, to: url
+        ) {
+            let island = model.islandFrame
+            guard !island.isEmpty else { return nil }
+            return CGRect(x: island.minX - 70, y: 0, width: island.width + 140, height: island.maxY + 64)
+        }
     }
 }

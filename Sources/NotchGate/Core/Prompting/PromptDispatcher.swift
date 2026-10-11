@@ -5,6 +5,9 @@ struct PromptTarget: Equatable, Sendable {
     let sessionID: String
     let claudePID: Int32
     let projectName: String
+
+    /// Sample sessions from the menu's Preview buttons and README screenshots.
+    var isPreview: Bool { sessionID.hasPrefix("demo") }
 }
 
 /// Finds each session's terminal (cached per Claude process) and types

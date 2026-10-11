@@ -36,6 +36,7 @@ final class ComposerController {
     }
 
     func availability(for target: PromptTarget) -> ComposerAvailability {
+        if target.isPreview { return .types(into: "your terminal") }
         guard ProcessInspector.isAlive(target.claudePID) else {
             return .unavailable(PromptDeliveryError.sessionEnded.localizedDescription)
         }
@@ -49,6 +50,8 @@ final class ComposerController {
     /// Types the prompt into the session's terminal and presses Return.
     /// - Parameter force: send even though Claude seems to be waiting on an answer.
     func send(_ text: String, to target: PromptTarget, force: Bool = false) async -> PromptOutcome {
+        // Previews never type into a real terminal.
+        if target.isPreview { return .typed(into: "the preview") }
         if !force, let reason = awaitingReason(for: target.sessionID) {
             return .failed(.awaitingAnswer(reason), fallback: nil)
         }

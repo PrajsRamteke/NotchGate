@@ -23,8 +23,7 @@ enum DemoActivity {
         web.toolCount = 3
         web.turnStartedAt = now.addingTimeInterval(-52)
 
-        // A live PID so previews show the real "types into your terminal" state.
-        var docs = SessionActivity(id: "demo-docs", cwd: "/Users/demo/handbook", claudePID: getpid(), updatedAt: now.addingTimeInterval(-300))
+        var docs = SessionActivity(id: "demo-docs", cwd: "/Users/demo/handbook", claudePID: 0, updatedAt: now.addingTimeInterval(-300))
         docs.phase = .finished
         docs.lastMessage = "Rewrote the onboarding guide and fixed 6 broken links."
         docs.turnStartedAt = now.addingTimeInterval(-420)

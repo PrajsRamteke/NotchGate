@@ -1,200 +1,195 @@
+<div align="center">
+
+<img src="assets/activity.png" alt="NotchGate showing live Claude Code activity from the MacBook notch" width="640">
+
 # NotchGate
 
-A native macOS companion that answers **Claude Code** from your MacBook's notch.
-When Claude needs permission, asks a question, wants a plan approved, or finishes
-a task, a Dynamic Island–style card grows out of the notch. Respond in place
-and keep working — no tab switching.
+**Answer Claude Code from your MacBook's notch.**
+Approve permissions, answer questions, follow progress and send the next prompt
+without switching back to the terminal.
 
-| Request | What you can do |
-| --- | --- |
-| Tool permission (`Bash`, `Edit`, `Write`, `WebFetch`, MCP tools…) | **Allow**, **Deny**, **Always allow**, or deny with a note |
-| `AskUserQuestion` | Pick options (single / multi-select), write your own, or answer in terminal |
-| Plan approval (`ExitPlanMode`) | **Approve** or **Keep planning** with feedback |
-| MCP elicitation | Fill the server's form or open its link; decline / cancel |
-| Claude finished | Read the summary and **send the next prompt** from the notch. Claude isn't paused while you decide |
-| **Hover the notch** anytime | Live activity for every session: current step, to-do progress, elapsed time, last prompt. Each project has a **Reply ▾** dropdown to prompt it directly; busy sessions queue the message until they finish |
+![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black?logo=apple)
+![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
+![Claude Code](https://img.shields.io/badge/Claude%20Code-hooks-D97757)
 
-**Send prompts from the notch:** hover the notch, open a project's 💬▾, type, and
-press ⏎. NotchGate types the prompt into that session's terminal and presses
-Return, so Claude Code receives a **real user prompt**, exactly like typing it
-yourself (it's recorded in the transcript, works while Claude is busy, and
-multi-line prompts are pasted intact).
+</div>
 
-| Where Claude runs | How the prompt gets there |
-| --- | --- |
-| tmux (inside any terminal) | `tmux send-keys` / `paste-buffer` into the exact pane |
-| iTerm2, Terminal.app | AppleScript into the exact session/tab (macOS asks once for Automation permission) |
-| Cursor, VS Code, Insiders, Windsurf, VSCodium | The tiny **NotchGate Bridge** extension, installed by `install.sh` |
-| WezTerm | `wezterm cli send-text` |
-| Anything else | Clear error, with an optional fallback through Claude's hook |
+---
 
-Safety: control characters are stripped, nothing is typed while Claude is
-showing a question or permission dialog (you can override), and the editor
-bridge only listens on a user-only local socket.
-
-**Show in notch:** choose which request types NotchGate handles from the
-menu bar: Permissions, File edits, Questions, Plan approvals, Reply when done.
-Each has a switch and a ▶ preview. Out of the box **only Permissions is on**.
-Anything switched off is handled in the terminal exactly as if NotchGate weren't
-installed.
-
-**Auto-allow permissions:** flip it from any permission card, the hover panel, or
-the menu bar, and prompts are approved instantly with no card. Risky commands
-(`rm -rf`, `sudo`, `git push --force`, `git reset --hard`, `curl … | sh`, `DROP TABLE` …)
-still ask unless you turn that safeguard off. Your Claude Code deny rules always apply.
-
-**Claude's questions:** choose **Terminal** (default, the notch stays out of it),
-**Notch** (answer from the notch), or **Don't ask** (Claude picks the most reasonable
-option, states its assumption, and keeps going).
-
-By default the notch appears **only when Claude is actually waiting on you**.
-"Claude finished" notices are off by default. The reply box that pops up when
-Claude finishes can be turned off in the menu bar; replying from the hover panel
-always works.
-
-## Requirements
-
-- macOS 14+ (Apple silicon or Intel; works on displays without a notch too)
-- Xcode 16+ / Swift 6 toolchain
-- Claude Code with hooks support
-
-## Install (one command)
-
-```bash
-git clone https://github.com/PrajsRamteke/NotchGate.git && cd NotchGate && ./install.sh
-```
-
-Or without cloning first:
+## Install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/PrajsRamteke/NotchGate/main/install.sh | bash
 ```
 
-The installer:
+Then **restart any running Claude Code sessions**. That's it: look for the ✦ in
+your menu bar.
 
-1. Checks for macOS 14+ and the Swift toolchain. If the toolchain is missing, it opens the Command Line Tools installer.
-2. Builds `NotchGate.app` and installs it to `/Applications` (or `~/Applications` if that isn't writable).
-3. Copies `notchgate-hook` to `~/.notchgate/bin/` and registers it in
-   `~/.claude/settings.json`, saving a timestamped `.bak` first.
-4. Warns about any other `PermissionRequest` hook that would race NotchGate.
-5. Turns on launch at login and starts the app.
+**Requirements:** macOS 14 or later · Claude Code · Apple's Command Line Tools
+(`xcode-select --install`, the installer offers to open it if missing).
 
-Then **restart any running Claude Code sessions**. Click the spark in the menu
-bar → **Preview** to try every card without Claude.
-
-Re-running the installer is safe; it updates in place. To remove everything:
+<details>
+<summary>Install from a clone instead</summary>
 
 ```bash
-./install.sh --uninstall
-# or, without a clone:
-curl -fsSL https://raw.githubusercontent.com/PrajsRamteke/NotchGate/main/install.sh | bash -s -- --uninstall
+git clone https://github.com/PrajsRamteke/NotchGate.git
+cd NotchGate && ./install.sh
 ```
 
-> **Already using another notch app for Claude (e.g. Claude Island)?** Remove its
-> `PermissionRequest` hook. Two apps answering the same prompt will race. The
-> installer flags any it finds.
+</details>
 
-## Updating
+The installer builds the app, puts it in `/Applications`, connects it to Claude
+Code (backing up `~/.claude/settings.json` first), installs a small helper in
+Cursor / VS Code if you have them, and turns on launch at login. Running it
+again simply updates NotchGate.
 
-NotchGate checks GitHub shortly after launch and every 6 hours (turn this off
-under **Behavior → Check for updates**). When `main` has new commits, the menu-bar
-icon gets a dot and the menu shows **Update available** with what changed.
-Click **Update**: it rebuilds from source in the background, keeps running until
-the new build is ready, then swaps itself and relaunches. A log is kept at
-`~/Library/Logs/NotchGate/update.log`. You can also just re-run the installer.
+---
 
-## Keyboard
+## Features
 
-| Shortcut | Action |
-| --- | --- |
-| `⏎` / `⎋` | Primary / cancel action when the card has focus |
-| `⌃⌥⏎` | Allow / approve (global, only while a request waits) |
-| `⌃⌥⌫` | Deny / reject (global) |
-| `⌃⌥Space` | Expand or minimize the island (global) |
+<table>
+  <tr>
+    <td width="50%">
+      <img src="assets/permission.png" alt="Permission request">
+      <p align="center"><b>Approve permissions</b><br>Allow, deny, always allow, or deny with a note.</p>
+    </td>
+    <td width="50%">
+      <img src="assets/file-edit.png" alt="File edit with diff">
+      <p align="center"><b>Review file edits</b><br>See the exact diff before Claude writes it.</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="assets/question.png" alt="Claude asking a question">
+      <p align="center"><b>Answer questions</b><br>Pick options or write your own answer.</p>
+    </td>
+    <td>
+      <img src="assets/plan.png" alt="Plan approval">
+      <p align="center"><b>Approve plans</b><br>Approve, or send it back with feedback.</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="assets/activity-reply.png" alt="Send a prompt to a project from the notch">
+      <p align="center"><b>Prompt any project</b><br>Hover the notch, pick a session, type, ⏎. It arrives as a real prompt.</p>
+    </td>
+    <td>
+      <img src="assets/reply.png" alt="Claude is done">
+      <p align="center"><b>Know when Claude is done</b><br>Read the summary and send what's next.</p>
+    </td>
+  </tr>
+</table>
 
-Clicking buttons never steals focus from the app you're in. The panel is
-non-activating, and hotkeys use Carbon, so no Accessibility permission is needed.
+<p align="center">
+  <img src="assets/menu.png" alt="NotchGate settings in the menu bar" width="360"><br>
+  <b>Simple settings</b>: choose what appears in the notch; everything else stays in the terminal.
+</p>
+
+---
 
 ## How it works
 
-```
-Claude Code ──stdin JSON──▶ notchgate-hook ──Unix socket──▶ NotchGate.app
-            ◀─stdout JSON──                ◀──decision────   (notch island)
-```
+- **When Claude needs you**, a card grows out of the notch. Answer it there, or in
+  the terminal as usual; whichever you use first wins, and the other clears itself.
+- **Hover the notch anytime** to see every Claude session: what it's doing, its
+  to-do progress, how long it has been working, and your last prompt.
+- **Send a prompt** from the 💬 dropdown on any session. NotchGate types it into that
+  session's terminal and presses Return, so Claude Code receives a genuine prompt.
+- **Clicks never steal focus** from the app you're working in.
 
-1. Claude Code runs `notchgate-hook` for each subscribed hook event.
-2. The hook forwards the payload over `~/Library/Application Support/NotchGate/bridge.sock`
-   (`0600`, user-only) as one line of JSON, then waits for a reply when the event needs one.
-3. The app routes the payload into a typed request, shows the matching card,
-   and sends the decision back. `HookOutput` converts it into the exact JSON
-   Claude Code expects.
-4. **It fails open:** if the app isn't running, or anything goes wrong, the hook
-   exits silently and Claude shows its normal terminal prompt. If you answer
-   in the terminal instead, the hook process ends and the card dismisses itself.
+### Where you can send prompts from the notch
 
-| Hook event | Used for | Blocks? |
-| --- | --- | --- |
-| `PermissionRequest` | Tool permission cards | yes |
-| `PreToolUse` (all tools) | Questions and plan approval; live activity for every other tool | only for questions/plans |
-| `Elicitation` | MCP forms / links | yes |
-| `Stop` | Clears stale cards; optional notice | no |
-| `Stop` (`asyncRewake`, background) | Signals "Claude is done" for the reply box; fallback delivery for terminals NotchGate can't type into | never |
-| `PostToolUse` | Clears a card once its tool ran (approved in terminal, auto mode…) | no |
-| `Notification` | "Claude is waiting" notices | no |
-| `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `PreCompact` | Live activity; clear stale cards | no |
+| Claude Code running in | Supported |
+| --- | --- |
+| Terminal.app, iTerm2 | ✅ (macOS asks once to allow Automation) |
+| tmux (inside any terminal) | ✅ |
+| Cursor, VS Code, Windsurf, VSCodium | ✅ via the bundled helper extension |
+| WezTerm | ✅ |
+| Others (Ghostty, Warp…) | Answering works; sending prompts falls back to Claude's hook |
 
-## Project structure
+---
 
-Organized by feature; every file stays well under 300 lines.
+## Settings
 
-```
-Sources/
-├── NotchGateKit/                 Shared by app + hook (no UI)
-│   ├── Protocol/                 JSONValue, HookEvent, HookPolicy, BridgeMessage, HookOutput
-│   └── Transport/                UnixSocket, LineFramer, BridgeLocation
-├── EditorExtension/              NotchGate Bridge for Cursor / VS Code (packaged by Scripts/build-vsix.sh)
-├── NotchGateHook/                The CLI Claude Code invokes
-│   ├── main.swift · HookRunner.swift · BridgeClient.swift
-└── NotchGate/                    The menu-bar app
-    ├── App/                      Entry point, AppCoordinator (composition root)
-    ├── Core/
-    │   ├── Activity/             Live session state: reducer, tracker, tool summaries
-    │   ├── Prompting/            Terminal detection + typing (tmux, iTerm, Terminal, editors, WezTerm)
-    │   ├── Bridge/               Socket server + per-hook connection
-    │   ├── Requests/             Domain models, PayloadParsers, RequestRouter, RequestStore
-    │   ├── Hooks/                settings.json editor (pure) + installer (I/O)
-    │   ├── Settings/             AppSettings (UserDefaults)
-    │   └── System/               Hotkeys, sound, launch-at-login, terminal activation
-    ├── Features/
-    │   ├── Island/               Window (panel, metrics, click-through) + views + view model
-    │   ├── Permission/           Card, ToolDescriptor, tool & diff previews
-    │   ├── Question/             Card, form model, option rows
-    │   ├── Activity/             Hover panel: session rows, task progress bar
-    │   ├── Composer/             Prompt box shared by the reply card and session rows
-    │   ├── Plan/ · Elicitation/ · Completion/ · Notice/
-    │   └── MenuBar/              Popover, sections, template icon
-    ├── DesignSystem/             Theme, ClaudeSpark, buttons, fields, markdown, code blocks
-    └── Support/                  Logging, demo requests, snapshot renderer
-Tests/
-├── NotchGateKitTests/            Hook output contract, framing, sockets
-└── NotchGateTests/               Router, settings editor, form models, parsers
-```
+Open the ✦ menu. Every section folds open or closed.
 
-## Development
+| Show in notch | Default |
+| --- | --- |
+| Permissions (commands, web, MCP tools) | **On** |
+| File edits · Questions · Plan approvals · Reply when done | Off (handled in the terminal) |
+
+Also available: **Auto-allow permissions** (risky commands like `rm -rf`, `sudo`
+and `git push --force` still ask), **Claude's questions** (Notch / Terminal /
+Don't ask), live activity on hover, sounds and launch at login.
+
+### Keyboard shortcuts (while a request is waiting)
+
+| Shortcut | Action |
+| --- | --- |
+| `⌃⌥⏎` | Allow / approve |
+| `⌃⌥⌫` | Deny / reject |
+| `⌃⌥Space` | Show or hide the card |
+
+---
+
+## Updating
+
+NotchGate checks GitHub for updates. When one is available, the ✦ icon gets a
+dot and the menu shows **Update available**. Click **Update**: it rebuilds in the
+background and relaunches itself. You can also re-run the install command.
+
+## Uninstall
 
 ```bash
-make test                                     # 78 unit tests
-make run                                      # run from source
-.build/debug/NotchGate --snapshot ./shots     # render every card to PNG offscreen
-.build/debug/NotchGate --send-prompt PID "hi" # type a prompt into a Claude session
-log stream --predicate 'subsystem == "app.notchgate"'
-NOTCHGATE_DEBUG=1 NOTCHGATE_SOCKET=/tmp/ng.sock   # hook debugging overrides
+curl -fsSL https://raw.githubusercontent.com/PrajsRamteke/NotchGate/main/install.sh | bash -s -- --uninstall
 ```
 
-## Known limits
+This removes the app, its Claude Code hooks and the login item.
 
-- Answering `AskUserQuestion` and `ExitPlanMode` through `PreToolUse` +
-  `updatedInput` is documented by Claude Code. Approving a plan this way has
-  not been confirmed against every Claude Code version; if it doesn't work,
-  **Keep planning** and **Answer in terminal** still do.
-- Claude Code only loads hooks in trusted folders, and only when a session starts.
+## Privacy
+
+Everything stays on your Mac. NotchGate talks to Claude Code through a private
+local socket that only your user can access, and contacts the network only to
+check GitHub for updates.
+
+## Troubleshooting
+
+<details>
+<summary>Nothing appears in the notch</summary>
+
+Restart your Claude Code sessions after installing (hooks load when a session
+starts), and make sure the folder is trusted in Claude Code. Check that
+**Show in notch → Permissions** is on.
+</details>
+
+<details>
+<summary>"The NotchGate helper isn't active in Cursor / VS Code"</summary>
+
+Open the ✦ menu → **Claude Code** → **Install** next to the editor helper, then
+reload the editor window once (Command Palette → *Reload Window*).
+</details>
+
+<details>
+<summary>"macOS blocked NotchGate from controlling Terminal / iTerm"</summary>
+
+Allow it in **System Settings → Privacy & Security → Automation → NotchGate**.
+</details>
+
+<details>
+<summary>An update failed</summary>
+
+Use **Show log** in the menu (`~/Library/Logs/NotchGate/update.log`), or run the
+install command again.
+</details>
+
+---
+
+## Build from source
+
+```bash
+make test   # run the test suite
+make run    # run from source
+make app    # build dist/NotchGate.app
+```
+
+<sub>NotchGate is an independent project and is not affiliated with Anthropic.</sub>
