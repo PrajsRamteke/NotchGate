@@ -8,7 +8,9 @@ struct ExpandedIslandView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if let request = model.store.current, !model.isRequestMinimized {
+            // A drag over the notch always shows the sessions, so images can be
+            // dropped on any project; the waiting card comes back afterwards.
+            if let request = model.store.current, !model.isRequestMinimized, !model.isAcceptingDrop {
                 RequestHeaderView(
                     request: request,
                     pendingCount: model.store.pendingCount,
@@ -21,7 +23,7 @@ struct ExpandedIslandView: View {
                         insertion: .move(edge: .trailing).combined(with: .opacity),
                         removal: .move(edge: .leading).combined(with: .opacity)
                     ))
-            } else if let notice = model.store.notice {
+            } else if let notice = model.store.notice, !model.isAcceptingDrop {
                 NoticeCardView(
                     notice: notice,
                     onOpenTerminal: {

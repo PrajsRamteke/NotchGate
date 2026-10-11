@@ -32,6 +32,8 @@ final class IslandViewModel {
     private(set) var isComposing = false
     /// The cursor is on the water bot (not the island).
     private(set) var isHoveringWaterBot = false
+    /// Images are being dragged somewhere on screen; the notch opens to take them.
+    private(set) var isDraggingImages = false
 
     /// Island frame in window coordinates (top-left origin), reported by SwiftUI.
     @ObservationIgnored var islandFrame: CGRect = .zero {
@@ -67,10 +69,17 @@ final class IslandViewModel {
     /// True when the expanded island is showing live activity rather than a request.
     var isShowingActivity: Bool {
         guard presentation == .expanded else { return false }
-        return isRequestMinimized || (store.current == nil && store.notice == nil)
+        return isAcceptingDrop || isRequestMinimized || (store.current == nil && store.notice == nil)
+    }
+
+    /// Dragged images are over the notch: show every session as a drop target,
+    /// even over a waiting card, and even if hover activity is turned off.
+    var isAcceptingDrop: Bool {
+        isDraggingImages && isHovering
     }
 
     var presentation: IslandPresentation {
+        if isAcceptingDrop { return .expanded }
         let engaged = isHovering || isComposing
         if store.current != nil {
             return (isCollapsedByUser && !engaged) ? .peek : .expanded
@@ -141,6 +150,19 @@ final class IslandViewModel {
             isCollapsedByUser = true
         }
         isComposing = false
+    }
+
+    // MARK: Dropping images
+
+    func setDraggingImages(_ dragging: Bool) {
+        if dragging != isDraggingImages { isDraggingImages = dragging }
+    }
+
+    /// Attaches dropped images to a session's next prompt and keeps the island
+    /// open (and typeable) so the user can add a message.
+    func attachImages(_ images: [ImageAttachment], to sessionID: String) {
+        prompts.drafts.add(images, to: sessionID)
+        beginComposing()
     }
 
     // MARK: Composing

@@ -1,11 +1,21 @@
 import SwiftUI
 
+/// How a session row looks while images are dragged over the notch.
+enum SessionDropState: Equatable {
+    case none
+    /// Images are being dragged: this row can take them.
+    case available
+    /// The images are over this row; letting go attaches them here.
+    case targeted
+}
+
 /// One Claude session in the hover panel: what it's doing, how far along and
 /// for how long, plus a "Reply" dropdown to send that project a prompt.
 struct SessionActivityRow<Composer: View>: View {
     let session: SessionActivity
     let isComposerOpen: Bool
     let hasQueuedPrompt: Bool
+    var dropState: SessionDropState = .none
     let onToggleComposer: () -> Void
     let onOpen: () -> Void
     @ViewBuilder var composer: Composer
@@ -26,23 +36,13 @@ struct SessionActivityRow<Composer: View>: View {
                 IconButton(systemName: "arrow.up.forward.app", help: "Open this session's terminal", action: onOpen)
             }
 
-            HStack(spacing: 6) {
-                if case .running(let step) = session.phase {
-                    Image(systemName: step.symbol)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Theme.Palette.clay)
-                }
-                Text(statusLine)
+            if dropState == .targeted {
+                Label("Drop to attach to this session's next prompt", systemImage: "photo.badge.plus")
                     .font(Theme.Typeface.body)
-                    .foregroundStyle(statusColor)
+                    .foregroundStyle(Theme.Palette.clayGlow)
                     .lineLimit(1)
-                Spacer(minLength: 0)
-                if session.toolCount > 0 {
-                    Text("\(session.toolCount) steps")
-                        .font(Theme.Typeface.caption)
-                        .foregroundStyle(Theme.Palette.textTertiary)
-                        .monospacedDigit()
-                }
+            } else {
+                statusRow
             }
 
             if let progress = session.progress {
@@ -65,15 +65,57 @@ struct SessionActivityRow<Composer: View>: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(isHovered || isComposerOpen ? Theme.Palette.surfaceRaised : Theme.Palette.surface)
+                .fill(background)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(isComposerOpen ? Theme.Palette.clay.opacity(0.35) : Theme.Palette.hairline, lineWidth: 0.5)
-        )
+        .overlay(border)
+        .scaleEffect(dropState == .targeted ? 1.015 : 1)
         .onHover { isHovered = $0 }
         .animation(.easeOut(duration: 0.15), value: isHovered)
         .animation(Theme.Motion.content, value: isComposerOpen)
+        .animation(Theme.Motion.press, value: dropState)
+    }
+
+    private var statusRow: some View {
+        HStack(spacing: 6) {
+            if case .running(let step) = session.phase {
+                Image(systemName: step.symbol)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.Palette.clay)
+            }
+            Text(statusLine)
+                .font(Theme.Typeface.body)
+                .foregroundStyle(statusColor)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            if session.toolCount > 0 {
+                Text("\(session.toolCount) steps")
+                    .font(Theme.Typeface.caption)
+                    .foregroundStyle(Theme.Palette.textTertiary)
+                    .monospacedDigit()
+            }
+        }
+    }
+
+    private var background: Color {
+        switch dropState {
+        case .targeted: return Theme.Palette.clay.opacity(0.14)
+        case .available, .none:
+            return isHovered || isComposerOpen ? Theme.Palette.surfaceRaised : Theme.Palette.surface
+        }
+    }
+
+    /// Dashed clay outline marks every row as a drop target; solid on the one under the cursor.
+    @ViewBuilder
+    private var border: some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        switch dropState {
+        case .targeted:
+            shape.strokeBorder(Theme.Palette.clay, lineWidth: 1.5)
+        case .available:
+            shape.strokeBorder(Theme.Palette.clay.opacity(0.45), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+        case .none:
+            shape.strokeBorder(isComposerOpen ? Theme.Palette.clay.opacity(0.35) : Theme.Palette.hairline, lineWidth: 0.5)
+        }
     }
 
     private var statusLine: String {

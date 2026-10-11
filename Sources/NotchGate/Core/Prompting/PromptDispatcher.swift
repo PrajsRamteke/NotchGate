@@ -24,10 +24,10 @@ final class PromptDispatcher {
         return host
     }
 
-    /// Validates, then types the prompt and presses Return.
+    /// Validates, then types the prompt (and any image paths) and presses Return.
     /// - Returns: the terminal it was typed into.
-    func type(_ text: String, into target: PromptTarget) async throws(PromptDeliveryError) -> TerminalHost {
-        let payload = try PromptPayload(text)
+    func type(_ text: String, images: [URL] = [], into target: PromptTarget) async throws(PromptDeliveryError) -> TerminalHost {
+        let payload = try PromptPayload(text, images: images)
         guard ProcessInspector.isAlive(target.claudePID) else {
             hosts[target.claudePID] = nil
             throw .sessionEnded

@@ -99,6 +99,10 @@ on launch at login. Running it again simply updates NotchGate.
   to-do progress, how long it has been working, and your last prompt.
 - **Send a prompt** from the 💬 dropdown on any session. NotchGate types it into that
   session's terminal and presses Return, so Claude Code receives a genuine prompt.
+- **Attach images**: paste one (⌘V) into any notch prompt box, or drag images from
+  Finder, a browser or a screenshot onto the notch. It opens with every session
+  outlined; drop on the project you want and add a message (or just send). Images
+  reach Claude as file paths, the same way a file dragged into the terminal does.
 - **Clicks never steal focus** from the app you're working in.
 
 ### Where you can send prompts from the notch

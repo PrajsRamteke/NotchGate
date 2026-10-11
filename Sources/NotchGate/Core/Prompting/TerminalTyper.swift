@@ -37,7 +37,7 @@ enum TerminalTyper {
         let probe = try await CommandRunner.run(tmux, server + ["display-message", "-p", "-t", pane, "#{pane_id}"])
         guard probe.succeeded else { throw .targetNotFound("tmux pane") }
 
-        if payload.isMultiline {
+        if payload.isPasted {
             // paste-buffer -p wraps in bracketed paste because Claude Code asks for it.
             try await tmuxRun(["load-buffer", "-b", "notchgate", "-"], stdin: payload.text)
             try await tmuxRun(["paste-buffer", "-p", "-d", "-b", "notchgate", "-t", pane])
@@ -65,7 +65,7 @@ enum TerminalTyper {
             guard output.succeeded else { throw .commandFailed(output.stderr.trimmed(or: "wezterm exited with \(output.status)")) }
         }
 
-        try await send(payload.text, asPaste: payload.isMultiline)
+        try await send(payload.text, asPaste: payload.isPasted)
         try? await Task.sleep(for: PromptPayload.submitDelay)
         try await send(PromptPayload.submitKey, asPaste: false)
     }

@@ -30,6 +30,17 @@ enum SnapshotRenderer {
             model.initialComposerSession = "demo-docs"
             model.showActivityNow()
         }
+        render(to: directory.appendingPathComponent("activity-drop.png")) { model in
+            model.activity.load(DemoActivity.sessions())
+            model.setDraggingImages(true)
+            model.showActivityNow()
+        }
+        render(to: directory.appendingPathComponent("activity-images.png")) { model in
+            model.activity.load(DemoActivity.sessions())
+            model.prompts.drafts.add(sampleImages(), to: "demo-docs")
+            model.initialComposerSession = "demo-docs"
+            model.showActivityNow()
+        }
         render(to: directory.appendingPathComponent("water-reminder.png")) { model in
             model.settings.playSound = false
             model.water.remind()
@@ -52,6 +63,21 @@ enum SnapshotRenderer {
         ], aheadBy: 2))
         renderMenu(MenuBarContentView(coordinator: coordinator), to: directory.appendingPathComponent("menu.png"))
         return true
+    }
+
+    /// Two stand-in "screenshots" for the attachment strip.
+    private static func sampleImages() -> [ImageAttachment] {
+        let palettes: [(NSColor, NSColor)] = [(.systemOrange, .systemPink), (.systemTeal, .systemIndigo)]
+        return palettes.compactMap { top, bottom in
+            let image = NSImage(size: CGSize(width: 320, height: 200), flipped: false) { rect in
+                NSGradient(starting: top, ending: bottom)?.draw(in: rect, angle: -60)
+                NSColor.white.withAlphaComponent(0.85).setFill()
+                NSBezierPath(roundedRect: CGRect(x: 30, y: 120, width: 180, height: 22), xRadius: 6, yRadius: 6).fill()
+                NSBezierPath(roundedRect: CGRect(x: 30, y: 80, width: 240, height: 14), xRadius: 5, yRadius: 5).fill()
+                return true
+            }
+            return ImageIntake.importImage(image)
+        }
     }
 
     /// The menu-bar popover floating on the wallpaper, like it appears on screen.

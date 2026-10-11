@@ -1,36 +1,118 @@
+import AppKit
 import SwiftUI
 
 /// Message field with a round send button: ⏎ sends, ⇧⏎ adds a line.
 /// The caller owns the text and clears it once delivery succeeds.
+///
+/// Attached images show as thumbnails above the field; with `onPaste`, ⌘V
+/// with an image on the clipboard attaches it instead of pasting text.
 struct PromptComposer: View {
     let placeholder: String
     @Binding var text: String
     var autofocus = false
     var isSending = false
+    var attachments: [ImageAttachment] = []
+    var onRemoveAttachment: (ImageAttachment) -> Void = { _ in }
+    var onPaste: ((NSPasteboard) -> Bool)?
     let onFocus: () -> Void
     let onSend: (String) -> Void
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var canSend: Bool { (!trimmed.isEmpty || !attachments.isEmpty) && !isSending }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            ReplyField(
-                placeholder: placeholder,
-                text: $text,
-                lineLimit: 1...6,
-                autofocus: autofocus,
-                onSubmit: send,
-                onFocus: onFocus
-            )
-            .disabled(isSending)
-            SendButton(isEnabled: !trimmed.isEmpty && !isSending, isSending: isSending, action: send)
-                .padding(.bottom, 3)
+        VStack(alignment: .leading, spacing: 8) {
+            if !attachments.isEmpty {
+                AttachmentStrip(attachments: attachments, isEnabled: !isSending, onRemove: onRemoveAttachment)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+            HStack(alignment: .bottom, spacing: 8) {
+                ReplyField(
+                    placeholder: placeholder,
+                    text: $text,
+                    lineLimit: 1...6,
+                    autofocus: autofocus,
+                    onSubmit: send,
+                    onFocus: onFocus,
+                    onPaste: onPaste
+                )
+                .disabled(isSending)
+                SendButton(isEnabled: canSend, isSending: isSending, action: send)
+                    .padding(.bottom, 3)
+            }
         }
+        .animation(Theme.Motion.content, value: attachments)
     }
 
     private func send() {
-        guard !trimmed.isEmpty, !isSending else { return }
+        guard canSend else { return }
         onSend(trimmed)
+    }
+}
+
+/// Thumbnails of the images going out with the next prompt, each removable.
+struct AttachmentStrip: View {
+    let attachments: [ImageAttachment]
+    var isEnabled = true
+    let onRemove: (ImageAttachment) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(attachments) { attachment in
+                    AttachmentThumbnail(attachment: attachment, isEnabled: isEnabled) { onRemove(attachment) }
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                }
+            }
+            // Room for the remove buttons that poke out of each corner.
+            .padding(.top, 5)
+            .padding(.trailing, 5)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+    }
+}
+
+private struct AttachmentThumbnail: View {
+    let attachment: ImageAttachment
+    let isEnabled: Bool
+    let onRemove: () -> Void
+
+    @State private var isHovered = false
+
+    private static let size: CGFloat = 46
+
+    var body: some View {
+        Image(nsImage: attachment.thumbnail)
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .frame(width: Self.size, height: Self.size)
+            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(isHovered ? Theme.Palette.clay.opacity(0.6) : Theme.Palette.hairline, lineWidth: 0.5)
+            )
+            .overlay(alignment: .topTrailing) {
+                if isEnabled && isHovered {
+                    Button(action: onRemove) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 7.5, weight: .bold))
+                            .foregroundStyle(Theme.Palette.ivory)
+                            .frame(width: 16, height: 16)
+                            .background(Circle().fill(Color.black.opacity(0.85)))
+                            .overlay(Circle().strokeBorder(Theme.Palette.hairline, lineWidth: 0.5))
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .offset(x: 5, y: -5)
+                    .help("Remove image")
+                    .accessibilityLabel("Remove image")
+                    .transition(.opacity)
+                }
+            }
+            .help(attachment.url.lastPathComponent)
+            .onHover { isHovered = $0 }
+            .animation(.easeOut(duration: 0.15), value: isHovered)
+            .accessibilityLabel("Attached image")
     }
 }
 

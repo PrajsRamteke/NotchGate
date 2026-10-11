@@ -36,6 +36,7 @@ final class AppCoordinator {
         installer.upgradeIfNeeded()
         updates.start()
         island.water.start()
+        ImageIntake.purgeOld()
 
         let window = NotchWindowController(viewModel: island)
         window.show()

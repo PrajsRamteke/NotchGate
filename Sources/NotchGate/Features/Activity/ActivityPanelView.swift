@@ -1,11 +1,22 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Revealed by hovering the notch while nothing needs you: a live view of
 /// every Claude Code session, with a per-project prompt dropdown.
+///
+/// Dragging images onto the notch opens it too: each session row becomes a
+/// drop target, so the images go to whichever project they're dropped on.
 struct ActivityPanelView: View {
     let model: IslandViewModel
 
     @State private var openComposer: String?
+    /// Session row the dragged images are over.
+    @State private var dropTarget: String?
+    /// Dragged images are over the panel but not a row (one session: still its drop).
+    @State private var isPanelTargeted = false
+
+    static let dropTypes: [UTType] = [.fileURL, .image]
 
     init(model: IslandViewModel, openComposer: String? = nil) {
         self.model = model
@@ -22,6 +33,11 @@ struct ActivityPanelView: View {
 
         VStack(alignment: .leading, spacing: 12) {
             header(count: tracker.sessions.count)
+
+            if model.isDraggingImages, !sessions.isEmpty {
+                dropHint(sessions: sessions)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
 
             if sessions.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
@@ -52,6 +68,12 @@ struct ActivityPanelView: View {
             }
         }
         .animation(Theme.Motion.content, value: settings.showQuickSettingsInNotch)
+        .animation(Theme.Motion.content, value: model.isDraggingImages)
+        // With a single session, dropping anywhere on the panel is unambiguous.
+        .onDrop(of: Self.dropTypes, isTargeted: $isPanelTargeted) { _ in
+            guard sessions.count == 1, let only = sessions.first else { return false }
+            return drop(on: only)
+        }
     }
 
     private func row(for session: SessionActivity) -> some View {
@@ -60,6 +82,7 @@ struct ActivityPanelView: View {
             session: session,
             isComposerOpen: openComposer == session.id,
             hasQueuedPrompt: queued != nil,
+            dropState: dropState(for: session),
             onToggleComposer: { toggleComposer(session.id) },
             onOpen: { model.openTerminal(for: session) }
         ) {
@@ -73,6 +96,51 @@ struct ActivityPanelView: View {
                 onOpenTerminal: { model.openTerminal(for: session) }
             )
         }
+        .onDrop(of: Self.dropTypes, isTargeted: dropBinding(for: session.id)) { _ in drop(on: session) }
+    }
+
+    // MARK: Dropping images
+
+    private func dropState(for session: SessionActivity) -> SessionDropState {
+        guard model.isDraggingImages else { return .none }
+        let single = tracker.sessions.count == 1
+        return dropTarget == session.id || (single && isPanelTargeted) ? .targeted : .available
+    }
+
+    private func dropBinding(for id: String) -> Binding<Bool> {
+        Binding(
+            get: { dropTarget == id },
+            set: { targeted in
+                if targeted { dropTarget = id } else if dropTarget == id { dropTarget = nil }
+            }
+        )
+    }
+
+    /// Saves the dragged images for this session and opens its prompt field.
+    private func drop(on session: SessionActivity) -> Bool {
+        dropTarget = nil
+        guard model.isDraggingImages else { return false }
+        let images = ImageIntake.attachments(
+            from: NSPasteboard(name: .drag),
+            limit: model.prompts.drafts.remaining(for: session.id)
+        )
+        guard !images.isEmpty else { return false }
+        model.attachImages(images, to: session.id)
+        withAnimation(Theme.Motion.content) { openComposer = session.id }
+        return true
+    }
+
+    private func dropHint(sessions: [SessionActivity]) -> some View {
+        let message = sessions.count == 1
+            ? "Drop to attach to \(sessions[0].projectName)"
+            : "Drop on a project to attach the image"
+        return Label(message, systemImage: "photo.on.rectangle.angled")
+            .font(Theme.Typeface.caption)
+            .foregroundStyle(Theme.Palette.clayGlow)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.Palette.clay.opacity(0.1)))
     }
 
     private func toggleComposer(_ id: String) {

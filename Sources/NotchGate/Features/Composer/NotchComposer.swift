@@ -1,8 +1,9 @@
+import AppKit
 import SwiftUI
 
-/// The notch's prompt box for one Claude session: types the message into that
-/// session's terminal, then reports success or explains what went wrong and
-/// offers the right next step.
+/// The notch's prompt box for one Claude session: types the message (and any
+/// attached images) into that session's terminal, then reports success or
+/// explains what went wrong and offers the right next step.
 struct NotchComposer: View {
     let controller: ComposerController
     let target: PromptTarget
@@ -23,6 +24,8 @@ struct NotchComposer: View {
         case failure(PromptDeliveryError, fallback: HookFallback?)
     }
 
+    private var drafts: ImageDrafts { controller.drafts }
+
     var body: some View {
         let availability = controller.availability(for: target)
         VStack(alignment: .leading, spacing: 7) {
@@ -34,6 +37,9 @@ struct NotchComposer: View {
                     text: $text,
                     autofocus: autofocus,
                     isSending: isSending,
+                    attachments: drafts.images(for: target.sessionID),
+                    onRemoveAttachment: { drafts.remove($0, from: target.sessionID) },
+                    onPaste: pasteImages,
                     onFocus: onFocus,
                     onSend: { send($0, force: false) }
                 )
@@ -52,6 +58,15 @@ struct NotchComposer: View {
             let outcome = await controller.send(message, to: target, force: force)
             apply(outcome, message: message)
         }
+    }
+
+    /// ⌘V with an image on the clipboard attaches it; anything else pastes as text.
+    private func pasteImages(from pasteboard: NSPasteboard) -> Bool {
+        guard ImageIntake.canRead(pasteboard) else { return false }
+        let images = ImageIntake.attachments(from: pasteboard, limit: drafts.remaining(for: target.sessionID))
+        drafts.add(images, to: target.sessionID)
+        if feedback != nil { feedback = nil }
+        return true
     }
 
     private func sendViaHook(_ message: String) {

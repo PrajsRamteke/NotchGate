@@ -29,6 +29,8 @@ final class ComposerController {
     private let store: RequestStore
     private let activity: ActivityTracker
     private let dispatcher = PromptDispatcher()
+    /// Images attached to each session's next prompt.
+    let drafts = ImageDrafts()
 
     init(store: RequestStore, activity: ActivityTracker) {
         self.store = store
@@ -47,16 +49,21 @@ final class ComposerController {
         return .unavailable(PromptDeliveryError.unsupportedTerminal(host.displayName).localizedDescription)
     }
 
-    /// Types the prompt into the session's terminal and presses Return.
+    /// Types the prompt (plus the session's attached images) into its terminal and presses Return.
     /// - Parameter force: send even though Claude seems to be waiting on an answer.
     func send(_ text: String, to target: PromptTarget, force: Bool = false) async -> PromptOutcome {
+        let images = drafts.images(for: target.sessionID)
         // Previews never type into a real terminal.
-        if target.isPreview { return .typed(into: "the preview") }
+        if target.isPreview {
+            drafts.markSent(images, for: target.sessionID)
+            return .typed(into: "the preview")
+        }
         if !force, let reason = awaitingReason(for: target.sessionID) {
             return .failed(.awaitingAnswer(reason), fallback: nil)
         }
         do {
-            let host = try await dispatcher.type(text, into: target)
+            let host = try await dispatcher.type(text, images: images.map(\.url), into: target)
+            drafts.markSent(images, for: target.sessionID)
             // Claude got a real prompt; release its finished-hook and any queued message.
             if let composer = store.composer(for: target.sessionID) {
                 store.resolve(composer.id, with: .passthrough)
@@ -71,7 +78,9 @@ final class ComposerController {
     /// The old path: wake Claude through its background Stop hook. Shows in
     /// Claude Code as "Stop hook feedback", so it's only offered as a fallback.
     func sendViaHook(_ text: String, to target: PromptTarget) -> PromptOutcome {
-        guard let payload = try? PromptPayload(text) else { return .failed(.emptyPrompt, fallback: nil) }
+        let images = drafts.images(for: target.sessionID)
+        guard let payload = try? PromptPayload(text, images: images.map(\.url)) else { return .failed(.emptyPrompt, fallback: nil) }
+        drafts.markSent(images, for: target.sessionID)
         switch store.sendPrompt(payload.text, to: target.sessionID) {
         case .sent: return .sentViaHook
         case .queued: return .queued
