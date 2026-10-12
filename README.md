@@ -130,6 +130,16 @@ on launch at login. Running it again simply updates NotchGate.
   reach Claude as file paths, the same way a file dragged into the terminal does.
 - **Clicks never steal focus** from the app you're working in.
 
+### The whole flow on one page
+
+<p align="center">
+  <a href="docs/notchgate-flow.png" target="_blank" title="Open the full-size flow chart">
+    <img src="docs/notchgate-flow.png" alt="Flow chart: Claude Code calls a tiny helper, which talks to the NotchGate app over a private socket; the app checks your switches and shows a card in the notch, and your answer travels back the same way" width="900">
+  </a>
+  <br>
+  <sub>Click the chart to open it full size · <a href="docs/notchgate-flow.svg">SVG version</a></sub>
+</p>
+
 ### Where you can send prompts from the notch
 
 | Claude Code running in | Supported |
