@@ -41,15 +41,42 @@ enum SessionTranscript {
             .first { fileManager.fileExists(atPath: $0.path) }
     }
 
+    /// Most bytes ever read from the end of a transcript.
+    static let maxTailBytes = 64 * 1024 * 1024
+    /// Fewer messages than this in the tail means tool output crowded them out.
+    private static let enoughMessages = 20
+
+    /// Size and modification time of a transcript, to tell cheaply whether it
+    /// changed since it was last read.
+    struct Stamp: Equatable, Sendable {
+        let size: UInt64
+        let modified: Date
+    }
+
+    static func stamp(of url: URL, fileManager: FileManager = .default) -> Stamp? {
+        guard let attributes = try? fileManager.attributesOfItem(atPath: url.path),
+              let size = (attributes[.size] as? NSNumber)?.uint64Value,
+              let modified = attributes[.modificationDate] as? Date else { return nil }
+        return Stamp(size: size, modified: modified)
+    }
+
     /// The conversation in a transcript, or `nil` if it can't be read.
     static func messages(in url: URL) -> [ConversationMessage]? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
         guard let size = try? handle.seekToEnd() else { return nil }
-        let start = size > UInt64(tailBytes) ? size - UInt64(tailBytes) : 0
-        guard (try? handle.seek(toOffset: start)) != nil, let data = try? handle.readToEnd() else { return nil }
-        // A line still being written fails to decode and is skipped.
-        return parse(SessionHistory.lines(in: data, startsMidLine: start > 0, endsMidLine: false))
+
+        // Big tool results can fill the tail with nothing to show, so widen it
+        // until there's a conversation or the whole file has been read.
+        var window = UInt64(tailBytes)
+        while true {
+            let start = size > window ? size - window : 0
+            guard (try? handle.seek(toOffset: start)) != nil, let data = try? handle.readToEnd() else { return nil }
+            // A line still being written fails to decode and is skipped.
+            let messages = parse(SessionHistory.lines(in: data, startsMidLine: start > 0, endsMidLine: false))
+            if start == 0 || messages.count >= enoughMessages || window >= UInt64(maxTailBytes) { return messages }
+            window *= 4
+        }
     }
 
     /// Prompts and Claude's replies, in order. Claude's text between tool

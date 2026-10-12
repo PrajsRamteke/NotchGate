@@ -16,8 +16,7 @@ struct SessionComposerView: View {
         VStack(alignment: .leading, spacing: 8) {
             ConversationHistoryView(
                 sessionID: session.id,
-                transcriptPath: session.transcriptPath,
-                revision: session.updatedAt
+                transcriptPath: session.transcriptPath
             )
             if let queuedPrompt {
                 queuedView(queuedPrompt)

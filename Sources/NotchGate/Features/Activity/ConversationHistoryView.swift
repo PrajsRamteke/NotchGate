@@ -5,8 +5,6 @@ import SwiftUI
 struct ConversationHistoryView: View {
     let sessionID: String
     let transcriptPath: String?
-    /// Changes whenever the session does, so the history reloads.
-    let revision: Date
 
     static let maxHeight: CGFloat = 240
     private static let bottomID = "conversation-bottom"
@@ -37,13 +35,15 @@ struct ConversationHistoryView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.white.opacity(0.035))
         )
-        .task(id: revision) { await reload() }
+        .task(id: "\(sessionID)|\(transcriptPath ?? "")") { await watch() }
     }
 
     private func transcript(_ messages: [ConversationMessage]) -> some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: true) {
-                LazyVStack(alignment: .leading, spacing: 10) {
+                // Not lazy: a lazy stack reports an estimated height, which left
+                // the box blank until it was scrolled.
+                VStack(alignment: .leading, spacing: 10) {
                     ForEach(messages) { message in
                         MessageBubble(message: message)
                     }
@@ -53,9 +53,12 @@ struct ConversationHistoryView: View {
                 .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: { contentHeight = $0 })
             }
             .scrollBounceBehavior(.basedOnSize)
-            .frame(height: min(max(contentHeight, 1), Self.maxHeight))
+            .defaultScrollAnchor(.bottom)
+            // Full height until the content is measured, so it never shows as an empty sliver.
+            .frame(height: contentHeight > 0 ? min(contentHeight, Self.maxHeight) : Self.maxHeight)
             .onAppear { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
-            .onChange(of: messages.last) { _, _ in
+            .onChange(of: messages) { old, new in
+                guard old.last != new.last || old.count != new.count else { return }
                 withAnimation(Theme.Motion.content) { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
             }
         }
@@ -69,20 +72,29 @@ struct ConversationHistoryView: View {
             .padding(10)
     }
 
-    /// Re-reads the transcript, briefly debounced: a busy session sends
-    /// several hook events a second.
-    private func reload() async {
-        if state != .loading {
-            try? await Task.sleep(for: .milliseconds(400))
-            guard !Task.isCancelled else { return }
-        }
+    /// Keeps the history in step with the transcript file itself, so what's
+    /// typed in Claude Code shows up as well as what's sent from the notch.
+    /// Hook events alone aren't enough: they can fire before Claude Code has
+    /// written the line they're about, and Claude's text between tool calls
+    /// has no hook at all.
+    private func watch() async {
         let id = sessionID
         let path = transcriptPath
-        let messages = await Task.detached(priority: .utility) {
-            SessionTranscript.url(sessionID: id, reportedPath: path).flatMap(SessionTranscript.messages(in:))
-        }.value
-        guard !Task.isCancelled else { return }
-        state = messages.map(LoadState.loaded) ?? .unavailable
+        var lastStamp: SessionTranscript.Stamp?
+        while !Task.isCancelled {
+            let previous = lastStamp
+            let result = await Task.detached(priority: .utility) { () -> (SessionTranscript.Stamp?, LoadState?) in
+                // Looked up each pass: the file may not exist yet on a brand-new session.
+                guard let url = SessionTranscript.url(sessionID: id, reportedPath: path) else { return (nil, .unavailable) }
+                let stamp = SessionTranscript.stamp(of: url)
+                if let stamp, stamp == previous { return (stamp, nil) }
+                return (stamp, SessionTranscript.messages(in: url).map(LoadState.loaded) ?? .unavailable)
+            }.value
+            guard !Task.isCancelled else { return }
+            lastStamp = result.0
+            if let next = result.1, next != state { state = next }
+            try? await Task.sleep(for: .milliseconds(600))
+        }
     }
 }
 

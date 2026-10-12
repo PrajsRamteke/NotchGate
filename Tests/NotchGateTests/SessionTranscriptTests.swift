@@ -72,4 +72,34 @@ struct SessionTranscriptTests {
         #expect(found.flatMap(SessionTranscript.messages(in:))?.map(\.text) == ["hello"])
         #expect(SessionTranscript.url(sessionID: "missing", reportedPath: nil, root: root) == nil)
     }
+
+    @Test func widensTheReadWhenToolOutputCrowdsOutTheConversation() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("wide-\(UUID().uuidString).jsonl")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let bulk = String(repeating: "x", count: 200_000)
+        var text = String(decoding: prompt("early question", uuid: "u1"), as: UTF8.self) + "\n"
+        for n in 0..<30 {
+            text += String(decoding: line(["type": "user", "uuid": "r\(n)", "message": ["role": "user", "content": [
+                ["type": "tool_result", "tool_use_id": "t", "content": bulk],
+            ]]]), as: UTF8.self) + "\n"
+        }
+        try text.write(to: file, atomically: true, encoding: .utf8)
+
+        #expect(SessionTranscript.messages(in: file)?.map(\.text) == ["early question"])
+    }
+
+    @Test func stampChangesWhenTheTranscriptGrows() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("stamp-\(UUID().uuidString).jsonl")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try "a\n".write(to: file, atomically: true, encoding: .utf8)
+        let before = SessionTranscript.stamp(of: file)
+        let handle = try FileHandle(forWritingTo: file)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data("b\n".utf8))
+        try handle.close()
+
+        #expect(before != nil)
+        #expect(SessionTranscript.stamp(of: file) != before)
+        #expect(SessionTranscript.stamp(of: file.appendingPathExtension("missing")) == nil)
+    }
 }

@@ -31,8 +31,19 @@ final class ActivityTracker {
     @ObservationIgnored private var pendingRemovals: [String: [String]] = [:]
     @ObservationIgnored private let fileExists: (String) -> Bool
 
-    init(fileExists: @escaping (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }) {
+    /// The project's files as of the last look, per session. Shell commands
+    /// change files without saying so; a later look shows what they did.
+    @ObservationIgnored private var baselines: [String: WorkingTreeSnapshot] = [:]
+    /// The look in progress per session; each waits for the one before it.
+    @ObservationIgnored private var scans: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored private let captureWorkingTree: @Sendable (String) async -> WorkingTreeSnapshot?
+
+    init(
+        fileExists: @escaping (String) -> Bool = { FileManager.default.fileExists(atPath: $0) },
+        captureWorkingTree: @escaping @Sendable (String) async -> WorkingTreeSnapshot? = { await WorkingTreeSnapshot.capture(cwd: $0) }
+    ) {
         self.fileExists = fileExists
+        self.captureWorkingTree = captureWorkingTree
     }
 
     func ingest(_ message: BridgeRequest, now: Date = .now) {
@@ -54,6 +65,57 @@ final class ActivityTracker {
             }
         }
         sessions = ActivityReducer.reduce(sessions, message, removedPaths: removedPaths(by: message), now: now)
+        trackWorkingTree(message)
+    }
+
+    /// Waits for the file looks in progress to finish.
+    func settleFileChanges() async {
+        for scan in Array(scans.values) { await scan.value }
+    }
+
+    /// Finds what shell commands changed. A baseline is taken when a turn
+    /// starts; after every `Bash` call and at the end of the turn, the files
+    /// are looked at again and the difference is what that command did.
+    private func trackWorkingTree(_ message: BridgeRequest) {
+        let payload = message.payload
+        guard let id = payload["session_id"]?.stringValue else { return }
+        if message.event == .sessionEnd {
+            scans.removeValue(forKey: id)?.cancel()
+            baselines[id] = nil
+            return
+        }
+        guard let cwd = sessions[id]?.cwd, !cwd.isEmpty else { return }
+        let isBash = payload["tool_name"]?.stringValue == "Bash"
+        switch message.event {
+        case .sessionStart where payload["source"]?.stringValue != "compact":
+            // Starting over: a look still running belongs to the old session.
+            scans[id]?.cancel()
+            scan(id, cwd: cwd, recordChanges: false)
+        case .userPromptSubmit:
+            scan(id, cwd: cwd, recordChanges: false)
+        case .preToolUse where isBash && baselines[id] == nil:
+            scan(id, cwd: cwd, recordChanges: false)
+        case .postToolUse where isBash, .stop:
+            scan(id, cwd: cwd, recordChanges: true)
+        default:
+            break
+        }
+    }
+
+    private func scan(_ id: String, cwd: String, recordChanges: Bool) {
+        let previous = scans[id]
+        let capture = captureWorkingTree
+        scans[id] = Task {
+            await previous?.value
+            let snapshot = await capture(cwd)
+            guard !Task.isCancelled, let snapshot, sessions[id] != nil else { return }
+            if recordChanges, let baseline = baselines[id] {
+                for change in snapshot.changes(since: baseline, exists: fileExists) {
+                    sessions[id]?.fileChanges.record(change.kind, path: change.path)
+                }
+            }
+            baselines[id] = snapshot
+        }
     }
 
     /// Removes a stopped session from the panel; Claude keeps running. It comes
