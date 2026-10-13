@@ -30,6 +30,7 @@ final class AppCoordinator {
             self?.island.handle(change)
             self?.syncHotKeys()
         }
+        store.onAlert = { [weak self] notice in self?.island.handleAlert(notice) }
         hotKeys = HotKeyCenter { [weak self] action in self?.island.perform(action) }
 
         startServer()
@@ -94,9 +95,11 @@ final class AppCoordinator {
                 return store.enqueue(request, responder: responder, parked: !settings.replyFromNotch)
             }
             store.enqueue(request, responder: responder)
-        case .notice(let notice):
+        case .notice(let notice), .attention(let notice):
             store.post(notice)
             if message.expectsReply { responder.send(.passthrough) }
+        case .attentionIfUnseen(let notice):
+            if !store.isAlerting(for: notice.session.id) { store.post(notice) }
         case .clearSession(let sessionID):
             store.clearSession(sessionID)
         case .toolCompleted(let sessionID, let toolName, let input):

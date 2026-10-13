@@ -38,6 +38,37 @@ struct RequestStoreTests {
         #expect(other.decisions.isEmpty)
     }
 
+    private func alert(_ tool: String = "Bash", session: String = "s1") -> Notice {
+        Notice(session: SessionInfo(id: session, cwd: "/tmp", claudePID: 1), title: "Waiting", message: nil,
+               tone: .attention, waitingOn: .init(toolName: tool, input: .object(["command": .string("git push")])))
+    }
+
+    @Test func alertStaysUntilItsToolFinishes() {
+        let store = RequestStore()
+        var alerted: [Notice] = []
+        store.onAlert = { alerted.append($0) }
+        store.post(alert())
+        #expect(alerted.count == 1)
+        #expect(store.isAlerting(for: "s1"))
+
+        // A passing notice never covers it.
+        store.post(Notice(session: SessionInfo(id: "s2", cwd: "/tmp", claudePID: 2), title: "Done", message: nil, tone: .done))
+        #expect(store.notice?.blocksClaude == true)
+
+        store.dismissCompletedTool(sessionID: "s1", toolName: "Bash", input: .object(["command": .string("ls")]))
+        #expect(store.notice != nil)
+        store.dismissCompletedTool(sessionID: "s1", toolName: "Bash", input: .object(["command": .string("git push")]))
+        #expect(store.notice == nil)
+    }
+
+    @Test func returningToTheSessionClearsItsAlert() {
+        let store = RequestStore()
+        store.post(alert())
+        store.clearSession("s1")
+        #expect(store.notice == nil)
+        #expect(!store.isAlerting(for: "s1"))
+    }
+
     @Test func otherSessionsAreUntouched() {
         let store = RequestStore()
         store.enqueue(permission("git status", session: "s2"), responder: Recorder())

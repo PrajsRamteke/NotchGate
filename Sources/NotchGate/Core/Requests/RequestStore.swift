@@ -40,6 +40,8 @@ final class RequestStore {
 
     /// Notified on every queue mutation (sound, hotkeys, expansion policy).
     @ObservationIgnored var onQueueChange: ((QueueChange) -> Void)?
+    /// Notified when a notice that blocks Claude is posted (sound, expansion).
+    @ObservationIgnored var onAlert: ((Notice) -> Void)?
 
     static let noticeDuration: Duration = .seconds(5)
 
@@ -82,13 +84,22 @@ final class RequestStore {
     }
 
     /// A tool finished running, so it was approved somewhere else (terminal,
-    /// auto mode, an allow rule). Drop any card still asking about it.
+    /// auto mode, an allow rule). Drop any card or alert still asking about it.
     func dismissCompletedTool(sessionID: String, toolName: String, input: JSONValue) {
         for pending in queue where pending.request.session.id == sessionID {
             guard case .permission(let permission) = pending.request.kind,
                   permission.toolName == toolName, permission.input == input else { continue }
             resolve(pending.request.id, with: .passthrough)
         }
+        if let notice, notice.session.id == sessionID,
+           notice.waitingOn?.isFinished(by: toolName, input: input) == true {
+            dismissNotice()
+        }
+    }
+
+    /// The notch is already showing that this session waits on the user.
+    func isAlerting(for sessionID: String) -> Bool {
+        pendingRequest(for: sessionID) != nil || (notice?.blocksClaude == true && notice?.session.id == sessionID)
     }
 
     /// Resolves every waiting permission card that `predicate` accepts.
@@ -162,9 +173,17 @@ final class RequestStore {
 
     // MARK: Notices
 
+    /// Shows a notice. A passing one never covers an alert that Claude is
+    /// blocked, and alerts stay until the wait is over or the user dismisses them.
     func post(_ notice: Notice) {
+        if !notice.blocksClaude, self.notice?.blocksClaude == true { return }
         self.notice = notice
-        scheduleNoticeDismissal()
+        if notice.blocksClaude {
+            noticeTask?.cancel()
+            onAlert?(notice)
+        } else {
+            scheduleNoticeDismissal()
+        }
     }
 
     /// Pauses auto-dismissal while the user is reading (hovering) the notice.
@@ -174,7 +193,8 @@ final class RequestStore {
     }
 
     private func scheduleNoticeDismissal() {
-        guard let id = notice?.id else { return }
+        guard let notice, !notice.blocksClaude else { return }
+        let id = notice.id
         noticeTask?.cancel()
         noticeTask = Task { [weak self] in
             try? await Task.sleep(for: Self.noticeDuration)

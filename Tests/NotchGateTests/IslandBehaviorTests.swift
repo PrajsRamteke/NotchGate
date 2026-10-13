@@ -34,6 +34,22 @@ struct IslandBehaviorTests {
         #expect(!model.isRequestMinimized)
     }
 
+    @Test func alertThatClaudeIsBlockedOpensTheNotchWithoutHover() {
+        let model = makeModel()
+        model.store.onAlert = model.handleAlert
+        let session = SessionInfo(id: "s1", cwd: "/tmp/app", claudePID: 1)
+
+        model.store.post(Notice(session: session, title: "Done", message: nil, tone: .done))
+        #expect(model.presentation == .peek)
+
+        model.store.post(Notice(session: session, title: "Waiting", message: nil, tone: .attention,
+                                waitingOn: .init(toolName: "AskUserQuestion")))
+        #expect(model.presentation == .expanded)
+
+        model.collapse()
+        #expect(model.presentation == .peek)
+    }
+
     @Test func minimizedRequestBecomesAPeekOnceTheCursorLeaves() {
         let model = makeModel()
         model.store.enqueue(permission(), responder: DemoResponder())

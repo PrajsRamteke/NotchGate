@@ -101,8 +101,9 @@ final class IslandViewModel {
         if store.current != nil {
             return (isCollapsedByUser && !engaged) ? .peek : .expanded
         }
-        if store.notice != nil {
-            return engaged ? .expanded : .peek
+        if let notice = store.notice {
+            // An alert that Claude is blocked opens like a card would.
+            return engaged || (notice.blocksClaude && !isCollapsedByUser) ? .expanded : .peek
         }
         return engaged && settings.showActivityOnHover ? .expanded : .hidden
     }
@@ -136,6 +137,13 @@ final class IslandViewModel {
             if answered, settings.playSound { SoundPlayer.play(.resolve, volume: 0.2) }
             if !store.hasPending { isCollapsedByUser = false }
         }
+    }
+
+    /// Claude is blocked in the terminal on something not shown as a card.
+    func handleAlert(_ notice: Notice) {
+        guard !store.hasPending else { return }
+        isCollapsedByUser = !settings.autoExpand
+        if settings.playSound { SoundPlayer.play(.arrive) }
     }
 
     // MARK: Intents

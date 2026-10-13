@@ -178,6 +178,9 @@ Open the ✦ menu. Every section folds open or closed.
 | Permissions (commands, web, MCP tools) | **On** |
 | File edits · Questions · Plan approvals · Reply when done | Off (handled in the terminal) |
 
+Whenever Claude is blocked on you, the notch opens: a type switched off shows an alert pointing to
+the terminal instead of its card, and the alert stays until you answer there.
+
 Also available: **Widgets** (see above), **Auto-allow permissions** (risky commands like `rm -rf`, `sudo`
 and `git push --force` still ask), **Claude's questions** (Notch / Terminal /
 Don't ask), live activity on hover, sounds and launch at login.

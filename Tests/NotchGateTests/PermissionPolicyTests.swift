@@ -73,7 +73,11 @@ struct PermissionPolicyTests {
             Issue.record("Notch mode should show the question")
             return
         }
-        #expect(router(questions: .terminal).route(question) == .ignore)
+        // Terminal mode: answered there, but the notch still alerts.
+        guard case .attention = router(questions: .terminal).route(question) else {
+            Issue.record("Terminal mode should still alert in the notch")
+            return
+        }
         #expect(router(questions: .off).route(question) == .autoRespond(.deny(message: QuestionMode.declineMessage)))
     }
 

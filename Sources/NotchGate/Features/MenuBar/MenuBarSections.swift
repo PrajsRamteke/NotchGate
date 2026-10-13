@@ -168,8 +168,8 @@ struct PermissionsSection: View {
     }
 }
 
-/// Which request types NotchGate shows. Off = Claude Code handles it in the
-/// terminal as if NotchGate weren't installed. Each row can preview its card.
+/// Which request types NotchGate shows. Off = answered in the terminal, with
+/// only an alert in the notch. Each row can preview its card.
 struct NotchFeaturesSection: View {
     @Bindable var settings: AppSettings
     let onPreview: (DemoRequests.Sample) -> Void
@@ -181,7 +181,7 @@ struct NotchFeaturesSection: View {
             row("Questions", detail: "Claude asking you to choose", sample: .question, isOn: questionsBinding)
             row("Plan approvals", detail: "Approve before Claude codes", sample: .plan, isOn: $settings.notchPlans)
             row("Reply when done", detail: "Pop-up box to send the next prompt", sample: .completion, isOn: $settings.replyFromNotch)
-            SettingNote("Off means the terminal handles it, just like without NotchGate.")
+            SettingNote("Off means you answer in the terminal; the notch still alerts you.")
                 .padding(.top, 2)
         }
     }

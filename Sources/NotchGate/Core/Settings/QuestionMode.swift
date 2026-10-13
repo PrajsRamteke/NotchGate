@@ -4,7 +4,7 @@ import Foundation
 enum QuestionMode: String, CaseIterable, Identifiable, Sendable {
     /// Answer from the notch card.
     case notch
-    /// Leave questions to Claude Code's terminal UI.
+    /// Answer in Claude Code's terminal UI; the notch only alerts you.
     case terminal
     /// Tell Claude not to ask: it picks the most reasonable option and continues.
     case off
@@ -22,7 +22,7 @@ enum QuestionMode: String, CaseIterable, Identifiable, Sendable {
     var detail: String {
         switch self {
         case .notch: return "Answer Claude's questions from the notch."
-        case .terminal: return "Questions appear only in the terminal."
+        case .terminal: return "Answer in the terminal; the notch alerts you."
         case .off: return "Claude decides for itself and keeps going."
         }
     }

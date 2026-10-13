@@ -88,7 +88,13 @@ struct RequestRouterTests {
     }
 
     @Test func notificationsAreFiltered() {
-        #expect(router.route(message(.notification, ["notification_type": .string("permission_prompt")])) == .ignore)
+        // Normally answered by the PermissionRequest card: only a fallback alert.
+        guard case .attentionIfUnseen(let fallback) = router.route(message(.notification, ["notification_type": .string("permission_prompt")])) else {
+            Issue.record("Expected a fallback alert")
+            return
+        }
+        #expect(fallback.blocksClaude)
+        #expect(router.route(message(.notification, ["notification_type": .string("elicitation_complete")])) == .ignore)
         guard case .notice(let notice) = router.route(message(.notification, ["notification_type": .string("idle_prompt")])) else {
             Issue.record("Expected an idle notice")
             return
@@ -115,17 +121,59 @@ struct RequestRouterTests {
             Issue.record("Permissions should be on by default")
             return
         }
-        #expect(defaults.route(message(.permissionRequest, ["tool_name": .string("Edit")])) == .ignore)
-        #expect(defaults.route(message(.preToolUse, ["tool_name": .string("ExitPlanMode")])) == .ignore)
         let question = message(.preToolUse, ["tool_name": .string("AskUserQuestion"), "tool_input": .object([
             "questions": .array([.object(["question": .string("Q?"), "options": .array([.object(["label": .string("A")])])])]),
         ])])
-        #expect(defaults.route(question) == .ignore)
+        // Switched off: answered in the terminal, but the notch still alerts.
+        for route in [
+            defaults.route(message(.permissionRequest, ["tool_name": .string("Edit")])),
+            defaults.route(message(.preToolUse, ["tool_name": .string("ExitPlanMode")])),
+            defaults.route(question),
+        ] {
+            guard case .attention(let notice) = route else {
+                Issue.record("Expected an alert, got \(route)")
+                continue
+            }
+            #expect(notice.blocksClaude)
+        }
+    }
+
+    @Test func questionAlertShowsTheQuestionAndEndsWhenAnswered() {
+        let question = message(.preToolUse, ["tool_name": .string("AskUserQuestion"), "tool_input": .object([
+            "questions": .array([.object(["question": .string("Q?"), "options": .array([.object(["label": .string("A")])])])]),
+        ])])
+        guard case .attention(let notice) = RequestRouter(options: .init(questionMode: .terminal)).route(question) else {
+            Issue.record("Expected an alert")
+            return
+        }
+        #expect(notice.message == "**Q?**\n- A")
+        // The answered call comes back with `answers` added, so any call of the tool ends it.
+        #expect(notice.waitingOn?.isFinished(by: "AskUserQuestion", input: .object(["answers": .object([:])])) == true)
+        #expect(notice.waitingOn?.isFinished(by: "Bash", input: .object([:])) == false)
+    }
+
+    @Test func unreadableQuestionStillAlerts() {
+        let broken = message(.preToolUse, ["tool_name": .string("AskUserQuestion"), "tool_input": .object([:])])
+        guard case .attention = router.route(broken) else {
+            Issue.record("A question the card can't show must still alert")
+            return
+        }
+    }
+
+    @Test func questionsTurnedOffNeverAlert() {
+        let off = RequestRouter(options: .init(questionMode: .off))
+        #expect(off.route(message(.preToolUse, ["tool_name": .string("AskUserQuestion")]))
+            == .autoRespond(.deny(message: QuestionMode.declineMessage)))
     }
 
     @Test func permissionsSwitchedOffAreLeftToTheTerminal() {
         let off = RequestRouter(options: .init(showPermissions: false, showFileEdits: true))
-        #expect(off.route(message(.permissionRequest, ["tool_name": .string("Bash")])) == .ignore)
+        let input = JSONValue.object(["command": .string("git push")])
+        guard case .attention(let notice) = off.route(message(.permissionRequest, ["tool_name": .string("Bash"), "tool_input": input])) else {
+            Issue.record("Expected an alert for a permission answered in the terminal")
+            return
+        }
+        #expect(notice.waitingOn == Notice.Wait(toolName: "Bash", input: input))
         guard case .present = off.route(message(.permissionRequest, ["tool_name": .string("Write")])) else {
             Issue.record("File edits are switched on independently")
             return
