@@ -33,6 +33,54 @@ struct PromptDeliveryTests {
         }
     }
 
+    @Test func pastesGetMoreTimeBeforeReturn() throws {
+        let typed = try PromptPayload("fix it")
+        let multiline = try PromptPayload("a\nb")
+        let withImage = try PromptPayload("look", images: [URL(fileURLWithPath: "/tmp/a.png")])
+        #expect(typed.submitDelayMilliseconds == 150)
+        #expect(multiline.submitDelayMilliseconds > typed.submitDelayMilliseconds)
+        // Claude Code drops a Return sent < ~100 ms after an image path paste.
+        #expect(withImage.submitDelayMilliseconds >= 500)
+    }
+
+    // MARK: Submission guard
+
+    @Test @MainActor func guardPressesReturnAgainWhenThePromptNeverSubmits() async {
+        var presses = 0
+        let submitted = await SubmissionGuard.ensureSubmitted(
+            isSubmitted: { presses >= 2 }, pressReturn: { presses += 1 }, sleep: { _ in }
+        )
+        #expect(submitted)
+        #expect(presses == 2)
+    }
+
+    @Test @MainActor func guardLeavesAnAlreadySubmittedPromptAlone() async {
+        var presses = 0
+        let submitted = await SubmissionGuard.ensureSubmitted(
+            isSubmitted: { true }, pressReturn: { presses += 1 }, sleep: { _ in }
+        )
+        #expect(submitted)
+        #expect(presses == 0)
+    }
+
+    @Test @MainActor func guardGivesUpAfterTheRetryLimit() async {
+        var presses = 0
+        let submitted = await SubmissionGuard.ensureSubmitted(
+            isSubmitted: { false }, pressReturn: { presses += 1 }, sleep: { _ in }
+        )
+        #expect(!submitted)
+        #expect(presses == SubmissionGuard.maxRetries)
+    }
+
+    @Test @MainActor func guardStopsWhenTheTerminalIsGone() async {
+        var presses = 0
+        let submitted = await SubmissionGuard.ensureSubmitted(
+            isSubmitted: { false }, pressReturn: { presses += 1; throw PromptDeliveryError.sessionEnded }, sleep: { _ in }
+        )
+        #expect(!submitted)
+        #expect(presses == 1)
+    }
+
     // MARK: Process environment
 
     @Test func parsesProcArgsLayout() {

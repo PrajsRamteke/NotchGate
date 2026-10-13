@@ -2,7 +2,7 @@
   "name": "notchgate-bridge",
   "displayName": "NotchGate Bridge",
   "description": "Lets the NotchGate notch app type prompts into the Claude Code session running in this window's terminal.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "notchgate",
   "license": "MIT",
   "repository": {

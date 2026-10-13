@@ -31,10 +31,20 @@ enum EditorBridgeTyper {
     }
 
     static func type(_ payload: PromptPayload, editor: String, processIDs: [Int32]) async throws(PromptDeliveryError) {
+        let request = Request(type: "send", pids: processIDs, text: payload.typedText,
+                              submitDelayMs: payload.submitDelayMilliseconds)
+        try await deliver(request, editor: editor)
+    }
+
+    /// Presses Return alone. An empty `send` does that (older helpers refuse it as a bad request).
+    static func pressReturn(editor: String, processIDs: [Int32]) async throws(PromptDeliveryError) {
+        try await deliver(Request(type: "send", pids: processIDs), editor: editor)
+    }
+
+    private static func deliver(_ request: Request, editor: String) async throws(PromptDeliveryError) {
         let sockets = connectedSockets
         guard !sockets.isEmpty else { throw .editorHelperMissing(editor) }
 
-        let request = Request(type: "send", pids: processIDs, text: payload.typedText)
         var reachedAnyWindow = false
         for socket in sockets {
             switch await exchange(request, with: socket) {

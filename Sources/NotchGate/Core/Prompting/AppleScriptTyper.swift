@@ -15,12 +15,21 @@ enum AppleScriptTyper {
 
     static func typeIntoITerm(_ payload: PromptPayload, sessionID: String?, tty: String?) async throws(PromptDeliveryError) {
         try await run(iTermScript, app: "iTerm", bundleID: iTermBundleID,
-                      arguments: [sessionID ?? "", tty ?? "", payload.typedText])
+                      arguments: [sessionID ?? "", tty ?? "", payload.typedText, String(payload.submitDelayMilliseconds)])
     }
 
     static func typeIntoTerminal(_ payload: PromptPayload, tty: String) async throws(PromptDeliveryError) {
         try await run(terminalScript, app: "Terminal", bundleID: terminalBundleID,
-                      arguments: [tty, payload.typedText])
+                      arguments: [tty, payload.typedText, String(payload.submitDelayMilliseconds)])
+    }
+
+    /// Presses Return alone (the scripts skip the text when it's empty).
+    static func returnInITerm(sessionID: String?, tty: String?) async throws(PromptDeliveryError) {
+        try await run(iTermScript, app: "iTerm", bundleID: iTermBundleID, arguments: [sessionID ?? "", tty ?? "", "", "0"])
+    }
+
+    static func returnInTerminal(tty: String) async throws(PromptDeliveryError) {
+        try await run(terminalScript, app: "Terminal", bundleID: terminalBundleID, arguments: [tty, "", "0"])
     }
 
     private static func run(_ script: String, app: String, bundleID: String, arguments: [String]) async throws(PromptDeliveryError) {
@@ -48,18 +57,22 @@ enum AppleScriptTyper {
     }
 
     // Return is sent separately after a pause so Claude Code treats it as a key press.
+    // An empty payload skips the text and just presses Return.
     private static let iTermScript = """
     on run argv
         set targetID to item 1 of argv
         set targetTTY to item 2 of argv
         set payload to item 3 of argv
+        set pause to (item 4 of argv as integer) / 1000
         tell application id "com.googlecode.iterm2"
             repeat with aWindow in windows
                 repeat with aTab in tabs of aWindow
                     repeat with aSession in sessions of aTab
                         if (targetID is not "" and (id of aSession as text) is targetID) or (targetTTY is not "" and (tty of aSession as text) is targetTTY) then
-                            tell aSession to write text payload newline no
-                            delay 0.15
+                            if payload is not "" then
+                                tell aSession to write text payload newline no
+                                delay pause
+                            end if
                             tell aSession to write text (character id 13) newline no
                             return "ok"
                         end if
@@ -73,17 +86,21 @@ enum AppleScriptTyper {
 
     // `do script` always appends Return. A second, empty `do script` makes sure
     // the prompt submits even if the first Return arrived inside the text
-    // (an empty Return in Claude Code does nothing).
+    // (an empty Return in Claude Code does nothing). An empty payload skips the
+    // text and just presses Return.
     private static let terminalScript = """
     on run argv
         set targetTTY to item 1 of argv
         set payload to item 2 of argv
+        set pause to (item 3 of argv as integer) / 1000
         tell application id "com.apple.Terminal"
             repeat with aWindow in windows
                 repeat with aTab in tabs of aWindow
                     if (tty of aTab as text) is targetTTY then
-                        do script payload in aTab
-                        delay 0.15
+                        if payload is not "" then
+                            do script payload in aTab
+                            delay pause
+                        end if
                         do script "" in aTab
                         return "ok"
                     end if

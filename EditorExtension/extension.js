@@ -4,6 +4,7 @@
 //   ~/Library/Application Support/NotchGate/editors/<extension-host-pid>.sock
 // NotchGate sends one JSON line per connection and gets one JSON line back:
 //   {"type":"send","pids":[...],"text":"...","submit":true,"submitDelayMs":150}
+//                                           (empty text + submit = press Return only)
 //   {"type":"find","pids":[...]}            (is the session in this window?)
 //   {"type":"ping"}
 // `pids` is the Claude process and its ancestors; the matching terminal is
@@ -71,16 +72,16 @@ async function handle(line) {
   const terminal = await findTerminal(request.pids);
   if (!terminal) return { ok: false, error: 'no-terminal' };
   if (request.type === 'find') return { ok: true, app: vscode.env.appName, terminal: terminal.name };
-  if (request.type !== 'send' || typeof request.text !== 'string' || request.text.length === 0) {
-    return { ok: false, error: 'bad-request' };
-  }
+  if (request.type !== 'send' || typeof request.text !== 'string') return { ok: false, error: 'bad-request' };
+  // Empty text with `submit` just presses Return (retrying a prompt that never went in).
+  if (request.text.length === 0 && !request.submit) return { ok: false, error: 'bad-request' };
 
-  terminal.sendText(request.text, false);
-  if (request.submit) {
+  if (request.text.length > 0) {
+    terminal.sendText(request.text, false);
     // Return goes separately so Claude Code sees a key press, not pasted text.
-    await delay(clamp(Number(request.submitDelayMs) || 150, 50, 1000));
-    terminal.sendText('\r', false);
+    if (request.submit) await delay(clamp(Number(request.submitDelayMs) || 150, 50, 1000));
   }
+  if (request.submit) terminal.sendText('\r', false);
   return { ok: true, app: vscode.env.appName };
 }
 

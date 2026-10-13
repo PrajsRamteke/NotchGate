@@ -16,7 +16,6 @@ struct PromptPayload: Equatable, Sendable {
     /// Return key. Sent separately, after a short pause, so Claude Code sees
     /// a key press rather than a newline inside pasted text.
     static let submitKey = "\r"
-    static let submitDelay: Duration = .milliseconds(150)
 
     let text: String
     let hasImages: Bool
@@ -25,6 +24,22 @@ struct PromptPayload: Equatable, Sendable {
 
     /// Multi-line text and image paths go in as a bracketed paste.
     var isPasted: Bool { isMultiline || hasImages }
+
+    /// How long to wait before Return. Claude Code handles a paste asynchronously
+    /// (it looks for image files in pasted paths) and drops a Return that lands
+    /// while it's still busy, leaving the prompt sitting unsent in its input box.
+    /// Measured: image-path pastes need ~100 ms, so the old fixed 150 ms was one
+    /// slow moment away from failing.
+    var submitDelay: Duration {
+        if hasImages { return .milliseconds(700) }
+        if isMultiline { return .milliseconds(250) }
+        return .milliseconds(150)
+    }
+
+    var submitDelayMilliseconds: Int {
+        let parts = submitDelay.components
+        return Int(parts.seconds) * 1000 + Int(parts.attoseconds / 1_000_000_000_000_000)
+    }
 
     /// What to write to the terminal before pressing Return.
     var typedText: String {

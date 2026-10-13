@@ -24,6 +24,12 @@ final class PromptDispatcher {
         return host
     }
 
+    /// Presses Return in the session's terminal, for a prompt that was typed but not submitted.
+    func pressReturn(into target: PromptTarget) async throws(PromptDeliveryError) {
+        guard ProcessInspector.isAlive(target.claudePID) else { throw .sessionEnded }
+        try await TerminalTyper.pressReturn(into: host(for: target.claudePID))
+    }
+
     /// Validates, then types the prompt (and any image paths) and presses Return.
     /// - Returns: the terminal it was typed into.
     func type(_ text: String, images: [URL] = [], into target: PromptTarget) async throws(PromptDeliveryError) -> TerminalHost {

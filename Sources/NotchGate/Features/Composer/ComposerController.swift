@@ -61,8 +61,14 @@ final class ComposerController {
         if !force, let reason = awaitingReason(for: target.sessionID) {
             return .failed(.awaitingAnswer(reason), fallback: nil)
         }
+        // Mid-turn, Claude queues the prompt and the hook fires later, so only an
+        // idle session gives a clear "it was submitted" signal.
+        let session = activity.sessions[target.sessionID]
+        let canConfirm = session?.canDismiss == true // idle or finished
+        let previousTurn = session?.turnStartedAt
         do {
             let host = try await dispatcher.type(text, images: images.map(\.url), into: target)
+            if canConfirm { confirmSubmission(for: target, previousTurn: previousTurn) }
             drafts.markSent(images, for: target.sessionID)
             // Claude got a real prompt; release its finished-hook and any queued message.
             if let composer = store.composer(for: target.sessionID) {
@@ -88,6 +94,17 @@ final class ComposerController {
     }
 
     // MARK: Private
+
+    /// Presses Return again if Claude Code dropped the first one and the prompt
+    /// is still sitting in its input box (no new turn started).
+    private func confirmSubmission(for target: PromptTarget, previousTurn: Date?) {
+        Task {
+            _ = await SubmissionGuard.ensureSubmitted(
+                isSubmitted: { activity.sessions[target.sessionID]?.turnStartedAt != previousTurn },
+                pressReturn: { try await dispatcher.pressReturn(into: target) }
+            )
+        }
+    }
 
     private func hookFallback(for sessionID: String) -> HookFallback? {
         if store.composer(for: sessionID) != nil { return .sendNow }
