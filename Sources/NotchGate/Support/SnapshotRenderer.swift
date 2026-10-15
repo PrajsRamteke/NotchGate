@@ -163,6 +163,23 @@ enum SnapshotRenderer {
             model.water.remind()
             model.water.drink()
         }
+        render(to: directory.appendingPathComponent("water-batman.png")) { model in
+            model.settings.playSound = false
+            model.settings.waterTheme = .batman
+            model.water.remind()
+        }
+        render(to: directory.appendingPathComponent("water-batman-hover.png")) { model in
+            model.settings.playSound = false
+            model.settings.waterTheme = .batman
+            model.water.remind()
+            model.setHoveringWaterBot(true)
+        }
+        render(to: directory.appendingPathComponent("water-batman-drinking.png")) { model in
+            model.settings.playSound = false
+            model.settings.waterTheme = .batman
+            model.water.remind()
+            model.water.drink()
+        }
         render(to: directory.appendingPathComponent("now-playing.png")) { model in
             model.activity.load(DemoActivity.sessions())
             model.settings.nowPlaying = true
@@ -209,6 +226,7 @@ enum SnapshotRenderer {
         }
         renderWaterBotMoods(to: directory.appendingPathComponent("water-bot-moods.png"))
         renderWaterBotMoods(of: .spidey, to: directory.appendingPathComponent("water-spidey-moods.png"))
+        renderWaterBotMoods(of: .batman, to: directory.appendingPathComponent("water-batman-moods.png"))
         let coordinator = AppCoordinator()
         coordinator.updates.showPreview(UpdateInfo(latestSHA: "abc1234", commits: [
             UpdateCommit(sha: "abc1234", title: "Type notch prompts into Claude Code as real user prompts"),
@@ -292,7 +310,7 @@ enum SnapshotRenderer {
         )
     }
 
-    /// Every face the water bot (or Spidey) can make, side by side.
+    /// Every face the water bot (or Spidey, or Batman) can make, side by side.
     private static func renderWaterBotMoods(of character: WaterCharacter = .robot, to url: URL) {
         let moods = WaterBotMood.allCases
         let size = WaterBotFigure.size
@@ -307,6 +325,7 @@ enum SnapshotRenderer {
                         case .robot: WaterBotFigure(mood: mood, time: time, sip: sip, waterLevel: waterLevel)
                         // Late enough that the arrival bounce has settled.
                         case .spidey: SpideyFigure(mood: mood, time: time + 3, sip: sip, waterLevel: waterLevel)
+                        case .batman: BatFigure(mood: mood, time: time, sip: sip, waterLevel: waterLevel)
                         }
                     }
                 }

@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The water-reminder extra: every few minutes a little bot (or Spidey) drops
+/// The water-reminder extra: every few minutes a little bot (or Spidey, or Batman) drops
 /// out of the notch holding a bottle and asks you to drink. Counts glasses per day.
 @MainActor
 @Observable

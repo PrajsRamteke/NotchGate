@@ -14,7 +14,7 @@ struct ExtrasSection: View {
         SettingsGroup {
             SettingRow(
                 "Water reminder",
-                info: "A little bot or Spidey drops from the notch with a bottle to remind you to drink.\n\nThe timer waits while you're away from your Mac.",
+                info: "A little bot, Spidey or Batman drops from the notch with a bottle to remind you to drink.\n\nThe timer waits while you're away from your Mac.",
                 isOn: Binding(get: { settings.waterReminder }, set: { [water] in water.setEnabled($0) })
             )
 

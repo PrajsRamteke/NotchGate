@@ -119,6 +119,11 @@ struct WaterReminderTests {
         #expect(water.character == .spidey)
 
         water.skip()
+        water.settings.waterTheme = .batman
+        water.remind()
+        #expect(water.character == .batman)
+
+        water.skip()
         water.settings.waterTheme = .robot
         water.remind()
         #expect(water.character == .robot)
@@ -136,8 +141,9 @@ struct WaterReminderTests {
         #expect(AppSettings(defaults: defaults).waterTheme == .random)
     }
 
-    @Test func spideyHasItsOwnLines() {
-        #expect(WaterBotMood.cheerful.line(variant: 0, character: .spidey) != WaterBotMood.cheerful.line(variant: 0))
+    @Test func eachCharacterHasItsOwnLines() {
+        let lines = WaterCharacter.allCases.map { WaterBotMood.cheerful.line(variant: 0, character: $0) }
+        #expect(Set(lines).count == WaterCharacter.allCases.count)
     }
 
     @Test func moodGrowsMoreInsistentTheLongerItWaits() {

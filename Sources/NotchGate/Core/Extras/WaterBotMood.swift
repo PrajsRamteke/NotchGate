@@ -39,7 +39,12 @@ enum WaterBotMood: CaseIterable, Equatable {
 
     /// What the speech bubble says. `variant` rotates the wording between reminders.
     func line(variant: Int, character: WaterCharacter = .robot) -> String {
-        let lines = character == .spidey ? spideyLines : robotLines
+        let lines: [String]
+        switch character {
+        case .robot: lines = robotLines
+        case .spidey: lines = spideyLines
+        case .batman: lines = batmanLines
+        }
         return lines[abs(variant) % lines.count]
     }
 
@@ -66,6 +71,18 @@ enum WaterBotMood: CaseIterable, Equatable {
         case .delighted: return ["Thwip-tastic!", "Hydration saved the day!", "Amazing! Spectacular!"]
         case .sleepy: return ["Zzz… hanging around"]
         case .tickled: return ["Hey! Not the web!", "Hehe, spidey-tickles!", "Whoa, I'm spinning!"]
+        }
+    }
+
+    private var batmanLines: [String] {
+        switch self {
+        case .cheerful: return ["I'm Batman. Drink water.", "Gotham needs you hydrated.", "Even the night needs water."]
+        case .excited: return ["To the water bottle!", "You found me. Now drink.", "Alfred says: hydrate!"]
+        case .pleading: return ["One sip, citizen.", "Don't make me ask twice.", "I came all this way…"]
+        case .thirsty: return ["Why so thirsty?", "My utility belt is dry…", "This city is parched."]
+        case .delighted: return ["Justice… and hydration!", "Mission accomplished.", "Alfred would be proud."]
+        case .sleepy: return ["Zzz… on patrol"]
+        case .tickled: return ["Hey! Not the cape!", "Batman doesn't giggle.", "That's classified!"]
         }
     }
 }

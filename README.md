@@ -198,9 +198,11 @@ Optional notch features unrelated to Claude. Turn them on or off under **✦ →
   **Snooze**; poke it and it giggles. It gets more insistent the longer you
   ignore it, waits while you're away from the Mac, and counts glasses toward a
   daily goal (8 glasses by default). Snooze for 5, 10, 15 or 30 minutes.
-- **Pick your buddy**: the robot, **Spidey** (who drops in upside down on a
-  web, one hand on the strand and the bottle in the other), or **Random**
-  for a different one on each reminder. Set it under **Extras → Buddy**.
+- **Pick your buddy**: the robot (clipped to its rope by the ring on its
+  antenna), **Spidey** (who hangs upside down from a web tied round his ankle
+  and rolls his mask up to drink), **Batman** (who lowers himself on his
+  grapnel line, cape and all), or **Random** for a different one on each
+  reminder. Set it under **Extras → Buddy**.
 
 <p align="center">
   <img src="assets/water-bot-moods.png" alt="Every mood of the water bot: cheerful, excited, pleading, thirsty, delighted, sleepy, tickled" width="720">
@@ -212,6 +214,14 @@ Optional notch features unrelated to Claude. Turn them on or off under **✦ →
 
 <p align="center">
   <img src="assets/water-spidey-moods.png" alt="Every mood of Spidey: cheerful, excited, pleading, thirsty, delighted, sleepy, tickled" width="720">
+</p>
+
+<p align="center">
+  <img src="assets/water-batman-hover.png" alt="Batman hanging from the notch on his grapnel line, holding a bottle" width="420">
+</p>
+
+<p align="center">
+  <img src="assets/water-batman-moods.png" alt="Every mood of Batman: cheerful, excited, pleading, thirsty, delighted, sleepy, tickled" width="720">
 </p>
 
 - **Now playing** (off by default): whatever's playing on your Mac (Music,

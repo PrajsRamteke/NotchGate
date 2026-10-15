@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The water bot (or Spidey, see `WaterCharacter`) hanging from the notch with
+/// The water bot (or Spidey, or Batman; see `WaterCharacter`) hanging from the notch with
 /// its speech bubble. Hover it to reveal Drank it / Snooze; click it and it
 /// giggles. It sips, celebrates and climbs back up when you drink.
 struct WaterBotView: View {
@@ -44,7 +44,7 @@ struct WaterBotView: View {
             figure(mood: mood, time: time, sipTime: sipTime)
                 .rotation3DEffect(
                     .degrees(spin), axis: (x: 0, y: 1, z: 0),
-                    anchor: UnitPoint(x: WaterBotFigure.ropeAnchor.x / WaterBotFigure.size.width, y: 0.5)
+                    anchor: UnitPoint(x: ropeAnchor.x / WaterBotFigure.size.width, y: 0.5)
                 )
                 .contentShape(Rectangle().offset(y: 40).size(width: WaterBotFigure.size.width, height: WaterBotFigure.size.height - 40))
                 .onTapGesture(perform: poke)
@@ -89,14 +89,26 @@ struct WaterBotView: View {
             WaterBotFigure(mood: mood, time: time, sip: Self.sip(at: sipTime), waterLevel: Self.waterLevel(at: sipTime))
         case .spidey:
             SpideyFigure(mood: mood, time: time, sip: Self.sip(at: sipTime), waterLevel: Self.waterLevel(at: sipTime))
+        case .batman:
+            BatFigure(mood: mood, time: time, sip: Self.sip(at: sipTime), waterLevel: Self.waterLevel(at: sipTime))
         }
     }
 
-    /// Where the drink splash bursts from: the robot's visor or Spidey's mouth, in stage coordinates.
+    /// Where the rope (web, grapnel line) leaves the notch; the figure twirls around it.
+    private var ropeAnchor: CGPoint {
+        switch water.character {
+        case .robot: return WaterBotFigure.ropeAnchor
+        case .spidey: return SpideyFigure.ropeAnchor
+        case .batman: return BatFigure.ropeAnchor
+        }
+    }
+
+    /// Where the drink splash bursts from: the robot's visor or the hero's mouth, in stage coordinates.
     private var splash: CGPoint {
         switch water.character {
-        case .robot: return CGPoint(x: 196, y: 112)
+        case .robot: return WaterBotFigure.mouth + Self.figureOrigin
         case .spidey: return SpideyFigure.mouth + Self.figureOrigin
+        case .batman: return BatFigure.mouth + Self.figureOrigin
         }
     }
 
@@ -239,7 +251,7 @@ private struct Sparkles: View {
                     context.fill(SparkShape(rays: 4, innerRatio: 0.2).path(in: CGRect(center: point, radius: 5)),
                                  with: .color(Theme.Palette.clayGlow))
                 } else {
-                    let color = index.isMultiple(of: 2) ? WaterBotFigure.Palette.water : Theme.Palette.clay
+                    let color = index.isMultiple(of: 2) ? Bottle.water : Theme.Palette.clay
                     context.fill(DropShape().path(in: CGRect(x: point.x - 3.5, y: point.y - 5, width: 7, height: 10)),
                                  with: .color(color))
                 }

@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// The water bot, drawn in code: a little ivory-and-clay robot hanging from a
-/// braided rope with a bottle in its other hand. Everything is a function of
-/// `mood` and `time`, so wrapping it in a `TimelineView` animates it.
+/// The water bot, drawn in code: a little ivory-and-clay robot clipped by the
+/// ring on its antenna to a rope from the notch, waving with one hand and
+/// holding the bottle in the other. Everything is a function of `mood` and
+/// `time`, so wrapping it in a `TimelineView` animates it.
 struct WaterBotFigure: View {
     var mood: WaterBotMood
     /// Seconds since the bot appeared; drives the idle motion.
@@ -14,7 +15,9 @@ struct WaterBotFigure: View {
 
     static let size = CGSize(width: 160, height: 204)
     /// Where the rope leaves the top edge; the bot swings around it.
-    static let ropeAnchor = CGPoint(x: 56, y: 0)
+    static let ropeAnchor = CGPoint(x: 72, y: 0)
+    /// Where the bottle meets the visor, for the splash when you drink.
+    static let mouth = CGPoint(x: 78, y: 99)
 
     var body: some View {
         let motion = Motion(mood: mood, time: time)
@@ -22,8 +25,7 @@ struct WaterBotFigure: View {
             draw(in: context, motion: motion)
         }
         .frame(width: Self.size.width, height: Self.size.height)
-        .shadow(color: Theme.Palette.clay.opacity(0.45), radius: 14)
-        .shadow(color: .black.opacity(0.35), radius: 5, y: 4)
+        .shadow(color: .black.opacity(0.4), radius: 5, y: 4)
         .rotationEffect(
             .degrees(motion.swing),
             anchor: UnitPoint(x: Self.ropeAnchor.x / Self.size.width, y: 0)
@@ -33,234 +35,235 @@ struct WaterBotFigure: View {
 
     // MARK: Drawing
 
+    /// The ring on top of the antenna; the bot hangs (and tilts) from it.
+    private static let ring = CGPoint(x: 72, y: 40)
+    private static let leftShoulder = CGPoint(x: 55, y: 131)
+    private static let rightShoulder = CGPoint(x: 89, y: 131)
+
     private func draw(in context: GraphicsContext, motion: Motion) {
-        let lift = CGPoint(x: 0, y: motion.lift)
-        let ropeHand = CGPoint(x: Self.ropeAnchor.x, y: 52) + lift
-        let neck = CGPoint(x: 84, y: 140) + lift
+        let ring = Self.ring + CGPoint(x: 0, y: motion.lift)
+        drawRope(in: context, to: ring + CGPoint(x: 0, y: -19))
 
-        drawRope(in: context, to: ropeHand)
-        drawArm(in: context, from: CGPoint(x: 62, y: 134) + lift, control: CGPoint(x: 2, y: 80) + lift, to: ropeHand + CGPoint(x: 0, y: 4))
-        drawLegs(in: context, motion: motion, lift: lift)
-        drawTorso(in: context, lift: lift)
+        var bot = context
+        bot.translateBy(x: ring.x, y: ring.y)
+        bot.rotate(by: .degrees(motion.tilt))
+        bot.translateBy(x: -Self.ring.x, y: -Self.ring.y)
+        let ink = Palette.inkStyle.turned(by: motion.tilt)
 
-        var head = context
-        head.translateBy(x: neck.x, y: neck.y)
-        head.rotate(by: .degrees(motion.headTilt))
-        head.translateBy(x: -neck.x, y: -neck.y)
-        drawHead(in: head, lift: lift)
+        drawCarabiner(in: bot, ink: ink)
+        drawLegs(in: bot, ink: ink, motion: motion)
+        drawTorso(in: bot, ink: ink)
+        drawHead(in: bot, ink: ink)
 
-        let (bottleCenter, bottleAngle) = bottlePose(lift: lift, wiggle: motion.wiggle)
-        // Grips the bottle's near side, fingers wrapped around the glass.
-        let bottleHand = bottleCenter + rotated(CGPoint(x: -12, y: 4), by: bottleAngle)
-        drawArm(in: context, from: CGPoint(x: 106, y: 152) + lift, control: CGPoint(x: 120, y: 166) + lift, to: bottleHand)
-        Self.drawBottle(in: context, center: bottleCenter, angle: bottleAngle, waterLevel: waterLevel, time: time)
-        drawHand(in: context, at: bottleHand)
-        drawHand(in: context, at: ropeHand)
-        drawRopeGrip(in: context, at: ropeHand)
+        let (bottleCenter, bottleAngle) = bottlePose(wiggle: motion.wiggle)
+        let grip = bottleCenter + Bottle.offset(CGPoint(x: -6, y: 7), angle: bottleAngle)
+        drawArm(in: bot, ink: ink, from: Self.rightShoulder, to: grip, bend: -0.22, handAngle: bottleAngle - 10, thumb: -1)
+        Palette.bottle.draw(in: bot, center: bottleCenter, angle: bottleAngle, level: waterLevel, time: time, ink: ink, capped: sip < 0.3)
+        drawHand(in: bot, ink: ink, at: grip, angle: bottleAngle - 10, thumb: -1)
+
+        let free = freeHand(motion: motion)
+        drawArm(in: bot, ink: ink, from: Self.leftShoulder, to: free.point, bend: free.bend, handAngle: free.angle, thumb: 1)
+        drawHand(in: bot, ink: ink, at: free.point, angle: free.angle, thumb: 1)
+
+        drawMoodExtras(in: bot)
     }
 
     private func drawRope(in context: GraphicsContext, to end: CGPoint) {
         var rope = Path()
         rope.move(to: CGPoint(x: Self.ropeAnchor.x, y: -6))
         rope.addLine(to: end)
-        context.stroke(rope, with: .color(Palette.clay), style: StrokeStyle(lineWidth: 6, lineCap: .round))
-        // Diagonal braid: short dashes in a deeper clay read as twisted strands.
-        context.stroke(rope, with: .color(Palette.clayDeep), style: StrokeStyle(lineWidth: 6, dash: [2.2, 3.2]))
+        context.stroke(rope, with: .color(Palette.ink), style: StrokeStyle(lineWidth: 6.4, lineCap: .round))
+        context.stroke(rope, with: .color(Palette.clay.base), style: StrokeStyle(lineWidth: 3.8, lineCap: .round))
+        // Twisted strands: short slanted dashes in a deeper clay.
+        context.stroke(rope, with: .color(Palette.clay.shade), style: StrokeStyle(lineWidth: 3.8, dash: [1.6, 2.4]))
         var shine = Path()
-        shine.move(to: CGPoint(x: Self.ropeAnchor.x - 1.3, y: -6))
-        shine.addLine(to: end + CGPoint(x: -1.3, y: 0))
-        context.stroke(shine, with: .color(Palette.clayGlow.opacity(0.7)), style: StrokeStyle(lineWidth: 1, dash: [2, 3.4]))
+        shine.move(to: CGPoint(x: Self.ropeAnchor.x - 0.9, y: -6))
+        shine.addLine(to: end + CGPoint(x: -0.9, y: 0))
+        context.stroke(shine, with: .color(Palette.clay.light.opacity(0.8)), style: StrokeStyle(lineWidth: 0.8, dash: [1.6, 2.4]))
     }
 
-    private func drawArm(in context: GraphicsContext, from start: CGPoint, control: CGPoint, to end: CGPoint) {
-        var arm = Path()
-        arm.move(to: start)
-        arm.addQuadCurve(to: end, control: control)
-        context.stroke(arm, with: .color(Palette.charcoal), style: StrokeStyle(lineWidth: 11, lineCap: .round))
-        context.stroke(arm, with: .color(Palette.shell), style: StrokeStyle(lineWidth: 7.5, lineCap: .round))
-        // Elbow joint at the curve's midpoint.
-        let elbow = CGPoint(
-            x: 0.25 * start.x + 0.5 * control.x + 0.25 * end.x,
-            y: 0.25 * start.y + 0.5 * control.y + 0.25 * end.y
-        )
-        context.fill(Circle().path(in: CGRect(center: elbow, radius: 5.5)), with: .color(Palette.charcoal))
-        context.stroke(Circle().path(in: CGRect(center: elbow, radius: 5.5)), with: .color(Palette.clay), lineWidth: 1.6)
+    /// The clip on the end of the rope, hooked through the antenna ring.
+    private func drawCarabiner(in context: GraphicsContext, ink: Ink) {
+        let clip = RoundedRectangle(cornerRadius: 4.6, style: .continuous).path(in: CGRect(x: 67.4, y: 19, width: 9.2, height: 20))
+        context.stroke(clip, with: .color(Palette.ink), lineWidth: 4.4)
+        context.stroke(clip, with: .color(Palette.steel), lineWidth: 2)
+        var gate = Path()
+        gate.move(to: CGPoint(x: 76.6, y: 24))
+        gate.addLine(to: CGPoint(x: 74.4, y: 34))
+        context.stroke(gate, with: .color(Palette.ink), lineWidth: 1)
+
+        // Ring and antenna stalk, drawn over the clip's lower bar so they interlock.
+        var stalk = Path()
+        stalk.move(to: Self.ring + CGPoint(x: 0, y: 4))
+        stalk.addLine(to: Self.ring + CGPoint(x: 0, y: 13))
+        context.stroke(stalk, with: .color(Palette.ink), style: StrokeStyle(lineWidth: 5.4, lineCap: .round))
+        context.stroke(stalk, with: .color(Palette.joint.light), style: StrokeStyle(lineWidth: 2.6, lineCap: .round))
+        let ring = Circle().path(in: CGRect(center: Self.ring, radius: 4.4))
+        context.stroke(ring, with: .color(Palette.ink), lineWidth: 4.8)
+        context.stroke(ring, with: .color(Palette.clay.base), lineWidth: 2.2)
+        var glint = Path()
+        glint.addArc(center: Self.ring, radius: 4.4, startAngle: .degrees(200), endAngle: .degrees(250), clockwise: false)
+        context.stroke(glint, with: .color(Palette.clay.light), style: StrokeStyle(lineWidth: 1, lineCap: .round))
     }
 
-    private func rotated(_ point: CGPoint, by degrees: Double) -> CGPoint {
-        let radians = degrees * .pi / 180
-        return CGPoint(x: point.x * cos(radians) - point.y * sin(radians), y: point.x * sin(radians) + point.y * cos(radians))
-    }
-
-    private func drawHand(in context: GraphicsContext, at point: CGPoint) {
-        let hand = Circle().path(in: CGRect(center: point, radius: 7.5))
-        context.fill(hand, with: .linearGradient(
-            Gradient(colors: [Palette.shell, Palette.shellShade]),
-            startPoint: point + CGPoint(x: -6, y: -6), endPoint: point + CGPoint(x: 6, y: 6)
-        ))
-        context.stroke(hand, with: .color(Palette.charcoal.opacity(0.35)), lineWidth: 1)
-    }
-
-    /// Fingers wrapped over the rope, drawn on top of it.
-    private func drawRopeGrip(in context: GraphicsContext, at point: CGPoint) {
-        for offset in [-3.0, 0.5, 4.0] {
-            var finger = Path()
-            finger.move(to: point + CGPoint(x: -6, y: offset))
-            finger.addQuadCurve(to: point + CGPoint(x: 6, y: offset), control: point + CGPoint(x: 0, y: offset + 2.5))
-            context.stroke(finger, with: .color(Palette.charcoal.opacity(0.28)), style: StrokeStyle(lineWidth: 1, lineCap: .round))
-        }
-        let cuff = CGRect(x: point.x - 7, y: point.y + 7, width: 14, height: 4)
-        context.fill(Capsule().path(in: cuff), with: .color(Palette.clay))
-    }
-
-    private func drawLegs(in context: GraphicsContext, motion: Motion, lift: CGPoint) {
-        for (hip, angle) in [(CGPoint(x: 72, y: 170), motion.legLeft), (CGPoint(x: 96, y: 170), motion.legRight)] {
-            let start = hip + lift
-            let radians = angle * .pi / 180
-            let foot = start + CGPoint(x: -sin(radians) * 17, y: cos(radians) * 17)
-            var leg = Path()
-            leg.move(to: start)
-            leg.addLine(to: foot)
-            context.stroke(leg, with: .color(Palette.charcoal), style: StrokeStyle(lineWidth: 9, lineCap: .round))
+    private func drawLegs(in context: GraphicsContext, ink: Ink, motion: Motion) {
+        for (hip, angle) in [(CGPoint(x: 64, y: 154), motion.legLeft), (CGPoint(x: 80, y: 154), motion.legRight)] {
+            let foot = hip + CGPoint(x: 0, y: 19).rotated(by: angle)
+            ink.paint(Sketch.limb(hip, (hip + foot) * 0.5, foot, 4.2, 3.6), Palette.joint, in: context)
 
             var boot = context
             boot.translateBy(x: foot.x, y: foot.y)
             boot.rotate(by: .degrees(angle))
-            let shape = Ellipse().path(in: CGRect(x: -10, y: -3, width: 20, height: 13))
-            boot.fill(shape, with: .linearGradient(
-                Gradient(colors: [Palette.shell, Palette.shellShade]),
-                startPoint: CGPoint(x: 0, y: -3), endPoint: CGPoint(x: 0, y: 10)
-            ))
-            boot.stroke(shape, with: .color(Palette.clay), lineWidth: 2.4)
+            let bootInk = ink.turned(by: angle)
+            let shoe = Path(roundedRect: CGRect(x: -8.5, y: -4, width: 17, height: 11), cornerRadius: 5.5, style: .continuous)
+            bootInk.paint(shoe, Palette.shell, in: boot)
+            var sole = boot
+            sole.clip(to: shoe)
+            sole.fill(Path(CGRect(x: -10, y: 3.4, width: 20, height: 6)), with: .color(Palette.clay.base))
+            var seam = Path()
+            seam.move(to: CGPoint(x: -8.5, y: 3.4))
+            seam.addLine(to: CGPoint(x: 8.5, y: 3.4))
+            bootInk.crease(seam, in: sole, width: 0.9, opacity: 0.5)
         }
     }
 
-    private func drawTorso(in context: GraphicsContext, lift: CGPoint) {
-        let rect = CGRect(x: 58, y: 136, width: 52, height: 40).offsetBy(dx: 0, dy: lift.y)
-        let torso = RoundedRectangle(cornerRadius: 16, style: .continuous).path(in: rect)
-        context.fill(torso, with: .linearGradient(
-            Gradient(colors: [Palette.shell, Palette.shellShade]),
-            startPoint: CGPoint(x: rect.minX, y: rect.minY), endPoint: CGPoint(x: rect.maxX, y: rect.maxY)
-        ))
-        var belt = context
-        belt.clip(to: torso)
-        belt.fill(Path(CGRect(x: rect.minX, y: rect.minY + 23, width: rect.width, height: 7)), with: .color(Palette.clay))
-        context.stroke(torso, with: .color(Palette.charcoal.opacity(0.25)), lineWidth: 1)
+    private func drawTorso(in context: GraphicsContext, ink: Ink) {
+        let neck = Path(roundedRect: CGRect(x: 64, y: 113, width: 16, height: 11), cornerRadius: 3)
+        ink.paint(neck, Palette.joint, in: context)
 
-        var light = context
-        light.addFilter(.shadow(color: Palette.clayGlow, radius: 4))
-        light.fill(Circle().path(in: CGRect(center: CGPoint(x: rect.midX, y: rect.minY + 12), radius: 3.6)), with: .color(Palette.eye))
+        let rect = CGRect(x: 51, y: 121, width: 42, height: 37)
+        let torso = Path(roundedRect: rect, cornerRadius: 15, style: .continuous)
+        ink.paint(torso, Palette.shell, in: context)
+
+        var band = context
+        band.clip(to: torso)
+        let belt = Path(CGRect(x: rect.minX, y: 146, width: rect.width, height: 5.5))
+        band.fill(belt, with: .color(Palette.clay.base))
+        band.fill(Path(CGRect(x: rect.minX, y: 150, width: rect.width, height: 1.5)), with: .color(Palette.clay.shade))
+        ink.crease(belt, in: band, width: 0.8, opacity: 0.35)
+
+        // Claude's spark on the chest, in a shallow round badge.
+        let badge = CGPoint(x: 72, y: 134)
+        band.fill(Circle().path(in: CGRect(center: badge, radius: 7.8)), with: .color(Palette.shell.shade))
+        band.fill(Circle().path(in: CGRect(center: badge + CGPoint(x: -0.5, y: -0.6), radius: 7)), with: .color(Palette.shell.base))
+        band.fill(SparkShape().path(in: CGRect(center: badge, radius: 6.4)), with: .color(Palette.clay.base))
+        ink.gloss(CGRect(x: rect.minX + 7, y: rect.minY + 4, width: 12, height: 5), in: band, opacity: 0.7, angle: -20)
     }
 
     // MARK: Head
 
-    private func drawHead(in context: GraphicsContext, lift: CGPoint) {
-        for center in [CGPoint(x: 36, y: 106), CGPoint(x: 132, y: 106)] {
-            let pod = center + lift
-            context.fill(Circle().path(in: CGRect(center: pod, radius: 13.5)), with: .linearGradient(
-                Gradient(colors: [Palette.clayGlow, Palette.clayDeep]),
-                startPoint: pod + CGPoint(x: -8, y: -10), endPoint: pod + CGPoint(x: 8, y: 10)
-            ))
-            context.fill(Circle().path(in: CGRect(center: pod, radius: 6.5)), with: .color(Palette.charcoal))
+    private static let shell = CGRect(x: 30, y: 52, width: 84, height: 68)
+    private static let visor = CGRect(x: 39, y: 63, width: 66, height: 46)
+
+    private func drawHead(in context: GraphicsContext, ink: Ink) {
+        for x in [25.0, 110.0] {
+            let cap = Path(roundedRect: CGRect(x: x, y: 75, width: 9, height: 22), cornerRadius: 4, style: .continuous)
+            ink.paint(cap, Palette.clay, in: context)
+            var groove = Path()
+            groove.move(to: CGPoint(x: x + 4.5, y: 80))
+            groove.addLine(to: CGPoint(x: x + 4.5, y: 92))
+            ink.crease(groove, in: context, width: 1, opacity: 0.45)
         }
 
-        let shell = CGRect(x: 37, y: 64, width: 94, height: 80).offsetBy(dx: 0, dy: lift.y)
-        let shellPath = RoundedRectangle(cornerRadius: 34, style: .continuous).path(in: shell)
-        context.fill(shellPath, with: .linearGradient(
-            Gradient(colors: [Palette.shell, Palette.shellShade]),
-            startPoint: CGPoint(x: shell.minX, y: shell.minY), endPoint: CGPoint(x: shell.maxX, y: shell.maxY)
-        ))
-        context.stroke(shellPath, with: .color(Palette.charcoal.opacity(0.25)), lineWidth: 1)
-        // Soft top highlight, like the glossy toy plastic in the reference art.
-        context.fill(
-            Ellipse().path(in: CGRect(x: shell.minX + 18, y: shell.minY + 5, width: 40, height: 10)),
-            with: .color(.white.opacity(0.55))
-        )
+        let dome = Ellipse().path(in: CGRect(x: 63, y: 48, width: 18, height: 9))
+        ink.paint(dome, Palette.shell, in: context)
 
-        let forehead = CGRect(center: CGPoint(x: 84, y: 76) + lift, radius: 7.5)
-        context.fill(SparkShape().path(in: forehead), with: .color(Palette.clay))
+        let shellPath = Path(roundedRect: Self.shell, cornerRadius: 30, style: .continuous)
+        ink.paint(shellPath, Palette.shell, in: context)
+        ink.gloss(CGRect(x: 42, y: 56, width: 26, height: 7), in: context, opacity: 0.85, angle: -10)
 
-        let visor = CGRect(x: 52, y: 87, width: 68, height: 46).offsetBy(dx: 0, dy: lift.y)
-        let visorPath = RoundedRectangle(cornerRadius: 19, style: .continuous).path(in: visor)
+        // The visor sits in a shallow bezel, glass catching two streaks of light.
+        let bezel = Path(roundedRect: Self.visor.insetBy(dx: -2.4, dy: -2.4), cornerRadius: 21, style: .continuous)
+        context.fill(bezel, with: .color(Palette.shell.shade))
+        let visorPath = Path(roundedRect: Self.visor, cornerRadius: 19, style: .continuous)
         context.fill(visorPath, with: .linearGradient(
             Gradient(colors: [Palette.visorTop, Palette.visorBottom]),
-            startPoint: CGPoint(x: visor.midX, y: visor.minY), endPoint: CGPoint(x: visor.midX, y: visor.maxY)
+            startPoint: CGPoint(x: Self.visor.midX, y: Self.visor.minY), endPoint: CGPoint(x: Self.visor.midX, y: Self.visor.maxY)
         ))
-        context.stroke(visorPath, with: .color(.white.opacity(0.10)), lineWidth: 1)
-        var gloss = context
-        gloss.clip(to: visorPath)
-        gloss.fill(
-            Ellipse().path(in: CGRect(x: visor.minX + 6, y: visor.minY + 3, width: 30, height: 9)),
-            with: .color(.white.opacity(0.09))
-        )
+        ink.crease(visorPath, in: context, width: 1.2, opacity: 0.9)
 
-        drawFace(in: context, visor: visor)
-        drawMoodExtras(in: context, shell: shell)
+        var glass = context
+        glass.clip(to: visorPath)
+        drawFace(in: glass)
+        for (x, width, opacity) in [(Self.visor.minX + 40, 9.0, 0.10), (Self.visor.minX + 53, 4.0, 0.08)] {
+            var streak = Path()
+            streak.move(to: CGPoint(x: x, y: Self.visor.minY))
+            streak.addLine(to: CGPoint(x: x + width, y: Self.visor.minY))
+            streak.addLine(to: CGPoint(x: x + width - 22, y: Self.visor.maxY))
+            streak.addLine(to: CGPoint(x: x - 22, y: Self.visor.maxY))
+            streak.closeSubpath()
+            glass.fill(streak, with: .color(.white.opacity(opacity)))
+        }
     }
 
-    private func drawFace(in context: GraphicsContext, visor: CGRect) {
-        var face = context
-        face.clip(to: RoundedRectangle(cornerRadius: 19, style: .continuous).path(in: visor))
-        let left = CGPoint(x: visor.minX + 21, y: visor.minY + 20)
-        let right = CGPoint(x: visor.maxX - 21, y: visor.minY + 20)
-        let mouth = CGPoint(x: visor.midX, y: visor.minY + 35)
+    private func drawFace(in context: GraphicsContext) {
+        let left = CGPoint(x: 59, y: 84), right = CGPoint(x: 85, y: 84)
+        let mouth = CGPoint(x: 72, y: 99)
 
         if [.delighted, .tickled, .excited].contains(mood) {
             for eye in [left, right] {
-                face.fill(
-                    Ellipse().path(in: CGRect(x: eye.x - 6, y: eye.y + 7, width: 12, height: 5)),
-                    with: .color(Palette.clay.opacity(0.55))
-                )
+                context.fill(Ellipse().path(in: CGRect(center: eye + CGPoint(x: 0, y: 10), width: 10, height: 4.5)),
+                             with: .color(Palette.blush.opacity(0.6)))
             }
         }
 
-        var glow = face
-        glow.addFilter(.shadow(color: Palette.clayGlow, radius: 4.5))
-        let line = StrokeStyle(lineWidth: 3.6, lineCap: .round, lineJoin: .round)
-        let ink = GraphicsContext.Shading.color(Palette.eye)
+        var glow = context
+        glow.addFilter(.shadow(color: Palette.glow, radius: 3.5))
+        let led = GraphicsContext.Shading.color(Palette.led)
+        let line = StrokeStyle(lineWidth: 3.2, lineCap: .round, lineJoin: .round)
 
         for (index, eye) in [left, right].enumerated() {
             let side: CGFloat = index == 0 ? -1 : 1
             switch mood {
-            case .cheerful, .delighted:
-                var arc = Path()
-                arc.move(to: eye + CGPoint(x: -6.5, y: 3))
-                arc.addQuadCurve(to: eye + CGPoint(x: 6.5, y: 3), control: eye + CGPoint(x: 0, y: -8))
-                glow.stroke(arc, with: ink, style: line)
+            case .cheerful:
+                var open = glow
+                open.translateBy(x: eye.x, y: eye.y)
+                open.scaleBy(x: 1, y: blink)
+                open.fill(Path(roundedRect: CGRect(x: -3.6, y: -6.5, width: 7.2, height: 13), cornerRadius: 3.6), with: led)
             case .excited:
                 var star = glow
                 star.translateBy(x: eye.x, y: eye.y)
-                star.rotate(by: .degrees(time * 90 * Double(side)))
-                star.fill(SparkShape(rays: 8, innerRatio: 0.26).path(in: CGRect(center: .zero, radius: 9.5)), with: ink)
+                star.rotate(by: .degrees(12 * sin(time * 4) * Double(side)))
+                star.scaleBy(x: 1 + 0.08 * sin(time * 8), y: 1 + 0.08 * sin(time * 8))
+                star.fill(SparkShape(rays: 4, innerRatio: 0.3).path(in: CGRect(center: .zero, radius: 9)), with: led)
             case .pleading:
                 var open = glow
                 open.translateBy(x: eye.x, y: eye.y)
                 open.scaleBy(x: 1, y: blink)
-                open.fill(Ellipse().path(in: CGRect(x: -6.5, y: -7.5, width: 13, height: 15)), with: ink)
-                open.fill(Circle().path(in: CGRect(center: CGPoint(x: -2.2, y: -3.2), radius: 2.6)), with: .color(.white))
-                open.fill(Circle().path(in: CGRect(center: CGPoint(x: 2.4, y: 3), radius: 1.3)), with: .color(.white))
+                open.fill(Ellipse().path(in: CGRect(x: -6, y: -6.5, width: 12, height: 13)), with: led)
+                open.fill(Circle().path(in: CGRect(center: CGPoint(x: -2.2, y: -2.6), radius: 2.2)), with: .color(.white))
+                open.fill(Circle().path(in: CGRect(center: CGPoint(x: 2.2, y: 2.4), radius: 1.1)), with: .color(.white))
+                var brow = Path()
+                brow.move(to: eye + CGPoint(x: -5 * side, y: -13.5))
+                brow.addLine(to: eye + CGPoint(x: 4.5 * side, y: -9.5))
+                glow.stroke(brow, with: led, style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
             case .thirsty:
-                // Heavy lids that slope down toward the outside: sad and droopy.
-                var lid = glow
+                // Heavy lids sloping down to the outside: droopy and parched.
+                var lidded = glow
                 var below = Path()
-                below.move(to: eye + CGPoint(x: -9, y: side < 0 ? 0 : -3))
-                below.addLine(to: eye + CGPoint(x: 9, y: side < 0 ? -3 : 0))
+                below.move(to: eye + CGPoint(x: -9, y: side < 0 ? 0.5 : -2.5))
+                below.addLine(to: eye + CGPoint(x: 9, y: side < 0 ? -2.5 : 0.5))
                 below.addLine(to: eye + CGPoint(x: 9, y: 10))
                 below.addLine(to: eye + CGPoint(x: -9, y: 10))
                 below.closeSubpath()
-                lid.clip(to: below)
-                lid.fill(Ellipse().path(in: CGRect(x: eye.x - 6.5, y: eye.y - 5, width: 13, height: 12)), with: ink)
+                lidded.clip(to: below)
+                lidded.fill(Path(roundedRect: CGRect(center: eye, width: 9, height: 12), cornerRadius: 4.5), with: led)
+            case .delighted:
+                var arc = Path()
+                arc.move(to: eye + CGPoint(x: -5.5, y: 2.5))
+                arc.addQuadCurve(to: eye + CGPoint(x: 5.5, y: 2.5), control: eye + CGPoint(x: 0, y: -7))
+                glow.stroke(arc, with: led, style: line)
             case .sleepy:
                 var shut = Path()
-                shut.move(to: eye + CGPoint(x: -6, y: 1))
-                shut.addQuadCurve(to: eye + CGPoint(x: 6, y: 1), control: eye + CGPoint(x: 0, y: 5))
-                glow.stroke(shut, with: ink, style: line)
+                shut.move(to: eye + CGPoint(x: -5.5, y: 0))
+                shut.addQuadCurve(to: eye + CGPoint(x: 5.5, y: 0), control: eye + CGPoint(x: 0, y: 5))
+                glow.stroke(shut, with: led, style: line)
             case .tickled:
                 var chevron = Path()
-                chevron.move(to: eye + CGPoint(x: -4.5 * side, y: -5))
-                chevron.addLine(to: eye + CGPoint(x: 4.5 * side, y: 0))
-                chevron.addLine(to: eye + CGPoint(x: -4.5 * side, y: 5))
-                glow.stroke(chevron, with: ink, style: line)
+                chevron.move(to: eye + CGPoint(x: -4 * side, y: -4.5))
+                chevron.addLine(to: eye + CGPoint(x: 4 * side, y: 0))
+                chevron.addLine(to: eye + CGPoint(x: -4 * side, y: 4.5))
+                glow.stroke(chevron, with: led, style: line)
             }
         }
 
@@ -268,47 +271,50 @@ struct WaterBotFigure: View {
         switch mood {
         case .cheerful:
             var smile = Path()
-            smile.move(to: mouth + CGPoint(x: -4, y: -1))
-            smile.addQuadCurve(to: mouth + CGPoint(x: 4, y: -1), control: mouth + CGPoint(x: 0, y: 3.5))
-            glow.stroke(smile, with: ink, style: thin)
-        case .delighted, .excited, .tickled:
-            let width: CGFloat = mood == .excited ? 5 : 6.5
+            smile.move(to: mouth + CGPoint(x: -4.5, y: -1.5))
+            smile.addQuadCurve(to: mouth + CGPoint(x: 4.5, y: -1.5), control: mouth + CGPoint(x: 0, y: 3.5))
+            glow.stroke(smile, with: led, style: thin)
+        case .excited, .delighted, .tickled:
+            let width: CGFloat = mood == .excited ? 5.5 : 6.5
             var grin = Path()
-            grin.move(to: mouth + CGPoint(x: -width, y: -2))
-            grin.addLine(to: mouth + CGPoint(x: width, y: -2))
-            grin.addQuadCurve(to: mouth + CGPoint(x: -width, y: -2), control: mouth + CGPoint(x: 0, y: 9))
-            glow.fill(grin, with: ink)
+            grin.move(to: mouth + CGPoint(x: -width, y: -2.5))
+            grin.addLine(to: mouth + CGPoint(x: width, y: -2.5))
+            grin.addQuadCurve(to: mouth + CGPoint(x: -width, y: -2.5), control: mouth + CGPoint(x: 0, y: 8 + (mood == .tickled ? 1.5 * sin(time * 20) : 0)))
+            glow.fill(grin, with: led)
         case .pleading:
-            glow.stroke(Ellipse().path(in: CGRect(x: mouth.x - 2, y: mouth.y - 3, width: 4, height: 4.5)), with: ink, lineWidth: 1.8)
+            glow.stroke(Ellipse().path(in: CGRect(center: mouth, width: 4, height: 4.6)), with: led, lineWidth: 1.8)
         case .thirsty:
             var wave = Path()
             wave.move(to: mouth + CGPoint(x: -6, y: 0))
-            wave.addQuadCurve(to: mouth + CGPoint(x: 0, y: 0), control: mouth + CGPoint(x: -3, y: -3))
+            wave.addQuadCurve(to: mouth, control: mouth + CGPoint(x: -3, y: -3))
             wave.addQuadCurve(to: mouth + CGPoint(x: 6, y: 0), control: mouth + CGPoint(x: 3, y: 3))
-            glow.stroke(wave, with: ink, style: thin)
+            glow.stroke(wave, with: led, style: thin)
         case .sleepy:
-            let snore = 2 + 1.2 * sin(time * 2)
-            glow.fill(Ellipse().path(in: CGRect(x: mouth.x - snore / 2, y: mouth.y - 2, width: snore, height: snore)), with: ink)
+            let snore = 2.4 + 1.2 * sin(time * 2)
+            glow.fill(Ellipse().path(in: CGRect(center: mouth, width: snore, height: snore)), with: led)
         }
     }
 
     /// Sweat when thirsty, floating z's when sleepy.
-    private func drawMoodExtras(in context: GraphicsContext, shell: CGRect) {
+    private func drawMoodExtras(in context: GraphicsContext) {
+        let shell = Self.shell
         switch mood {
         case .thirsty:
             let drip = (time * 0.6).truncatingRemainder(dividingBy: 1)
-            let top = CGPoint(x: shell.maxX - 6, y: shell.minY + 14 + drip * 10)
-            context.fill(DropShape().path(in: CGRect(x: top.x - 4, y: top.y, width: 8, height: 11)),
-                         with: .color(Palette.water.opacity(1 - drip * 0.6)))
+            let top = CGPoint(x: shell.maxX - 4, y: shell.minY + 10 + drip * 12)
+            let drop = DropShape().path(in: CGRect(x: top.x - 4, y: top.y, width: 8, height: 11))
+            var sweat = context
+            sweat.opacity = 1 - drip * 0.6
+            sweat.stroke(drop, with: .color(Palette.ink), lineWidth: 2)
+            sweat.fill(drop, with: .color(Bottle.water))
         case .sleepy:
             for index in 0..<3 {
                 let phase = (time * 0.45 + Double(index) / 3).truncatingRemainder(dividingBy: 1)
-                let point = CGPoint(x: shell.maxX + 2 + phase * 16, y: shell.minY + 6 - phase * 26)
-                let size = 9 + phase * 6
+                let point = CGPoint(x: shell.maxX + 4 + phase * 14, y: shell.minY + 4 - phase * 24)
                 var snore = context
                 snore.opacity = sin(phase * .pi)
                 snore.draw(
-                    Text("z").font(.system(size: size, weight: .heavy, design: .rounded)).foregroundColor(Palette.shell),
+                    Text("z").font(.system(size: 9 + phase * 6, weight: .heavy, design: .rounded)).foregroundColor(Palette.shell.base),
                     at: point
                 )
             }
@@ -317,76 +323,68 @@ struct WaterBotFigure: View {
         }
     }
 
+    // MARK: Arms
+
+    private func drawArm(in context: GraphicsContext, ink: Ink, from shoulder: CGPoint, to hand: CGPoint, bend: CGFloat, handAngle: Double, thumb: CGFloat) {
+        let control = Sketch.elbow(shoulder, hand, bend: bend)
+        let arm = Sketch.limb(shoulder, control, hand, 4.6, 3.9)
+        ink.paint(arm, Palette.shell, in: context)
+        // A clay cuff at the wrist.
+        let wrist = Sketch.quad(shoulder, control, hand, 0.78)
+        let along = (hand - control).normalized
+        var cuff = Path()
+        cuff.move(to: wrist + CGPoint(x: -along.y, y: along.x) * 4.4)
+        cuff.addLine(to: wrist - CGPoint(x: -along.y, y: along.x) * 4.4)
+        context.stroke(cuff, with: .color(Palette.ink), style: StrokeStyle(lineWidth: 4.6, lineCap: .round))
+        context.stroke(cuff, with: .color(Palette.clay.base), style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
+        // Ball joint peeking out at the shoulder.
+        ink.paint(Circle().path(in: CGRect(center: shoulder, radius: 4.2)), Palette.joint, in: context)
+    }
+
+    private func drawHand(in context: GraphicsContext, ink: Ink, at point: CGPoint, angle: Double, thumb: CGFloat) {
+        let hand = Sketch.mitten(at: point, radius: 5.6, angle: angle, thumb: thumb)
+        ink.paint([(hand.thumb, Palette.shell), (hand.palm, Palette.shell)], in: context)
+    }
+
+    /// The free hand (the bot's right): waving, pumping, pleading, or limp.
+    private func freeHand(motion: Motion) -> (point: CGPoint, angle: Double, bend: CGFloat) {
+        let shoulder = Self.leftShoulder
+        let t = time
+        switch mood {
+        case .cheerful:
+            let reach = CGPoint(x: -27, y: -27).rotated(by: 14 * sin(t * 5.5))
+            return (shoulder + reach, -110 + 14 * sin(t * 5.5), 0.22)
+        case .excited:
+            return (shoulder + CGPoint(x: -27, y: -33 - 3 * abs(sin(t * 6))), -105, 0.2)
+        case .pleading:
+            return (shoulder + CGPoint(x: -26, y: -2 + 1.5 * sin(t * 1.4)), 200, -0.2)
+        case .thirsty:
+            return (shoulder + CGPoint(x: -10, y: 29), 100, -0.12)
+        case .delighted:
+            let reach = CGPoint(x: -29, y: -30).rotated(by: 10 * sin(t * 9))
+            return (shoulder + reach, -105, 0.22)
+        case .sleepy:
+            return (shoulder + CGPoint(x: -8, y: 30), 95, -0.1)
+        case .tickled:
+            return (CGPoint(x: 70, y: 106) + CGPoint(x: 1.5 * sin(t * 22), y: 0), -60, -0.3)
+        }
+    }
+
     // MARK: Bottle
 
     /// Bottle center and tilt, eased between "at its side" and "at the visor".
-    private func bottlePose(lift: CGPoint, wiggle: Double) -> (CGPoint, Double) {
+    private func bottlePose(wiggle: Double) -> (CGPoint, Double) {
         let eased = sip * sip * (3 - 2 * sip)
-        let rest = CGPoint(x: 138, y: 150), mouth = CGPoint(x: 124, y: 116)
-        let center = CGPoint(x: rest.x + (mouth.x - rest.x) * eased, y: rest.y + (mouth.y - rest.y) * eased) + lift
-        return (center, 10 + (-112 - 10) * Double(eased) + wiggle)
-    }
-
-    /// The bottle, shared by every character: sloshing water, rising bubbles, a ridged cap.
-    static func drawBottle(
-        in context: GraphicsContext, center: CGPoint, angle: Double, waterLevel: CGFloat, time: TimeInterval,
-        cap capColors: (top: Color, bottom: Color) = (Palette.clayGlow, Palette.clayDeep)
-    ) {
-        var bottle = context
-        bottle.translateBy(x: center.x, y: center.y)
-        bottle.rotate(by: .degrees(angle))
-
-        let body = RoundedRectangle(cornerRadius: 9, style: .continuous).path(in: CGRect(x: -13, y: -17, width: 26, height: 40))
-        let neck = RoundedRectangle(cornerRadius: 3, style: .continuous).path(in: CGRect(x: -7, y: -24, width: 14, height: 9))
-        bottle.fill(body, with: .color(.white.opacity(0.18)))
-        bottle.fill(neck, with: .color(.white.opacity(0.18)))
-
-        // Water with a sloshing surface, and a few bubbles rising through it.
-        let height = 38 * max(0, min(1, waterLevel))
-        if height > 0.5 {
-            var water = bottle
-            water.clip(to: body)
-            let surface = 22 - height
-            var fill = Path()
-            fill.move(to: CGPoint(x: -14, y: 24))
-            fill.addLine(to: CGPoint(x: -14, y: surface))
-            for step in stride(from: -14.0, through: 14.0, by: 2) {
-                fill.addLine(to: CGPoint(x: step, y: surface + 1.3 * sin(step / 4 + time * 5)))
-            }
-            fill.addLine(to: CGPoint(x: 14, y: 24))
-            fill.closeSubpath()
-            water.fill(fill, with: .linearGradient(
-                Gradient(colors: [Palette.water.opacity(0.95), Palette.waterDeep.opacity(0.95)]),
-                startPoint: CGPoint(x: 0, y: surface), endPoint: CGPoint(x: 0, y: 23)
-            ))
-            for index in 0..<4 {
-                let rise = (time * 14 + Double(index) * 9.5).truncatingRemainder(dividingBy: Double(height))
-                let bubble = CGPoint(x: -6 + Double(index) * 4, y: 21 - rise)
-                water.stroke(Circle().path(in: CGRect(center: bubble, radius: 1.1 + Double(index % 2) * 0.6)),
-                             with: .color(.white.opacity(0.75)), lineWidth: 0.8)
-            }
-        }
-
-        bottle.stroke(body, with: .color(.white.opacity(0.85)), lineWidth: 1.3)
-        bottle.stroke(neck, with: .color(.white.opacity(0.85)), lineWidth: 1.1)
-        bottle.fill(Capsule().path(in: CGRect(x: -9, y: -12, width: 3, height: 28)), with: .color(.white.opacity(0.55)))
-
-        let cap = RoundedRectangle(cornerRadius: 3, style: .continuous).path(in: CGRect(x: -9.5, y: -34, width: 19, height: 11))
-        bottle.fill(cap, with: .linearGradient(
-            Gradient(colors: [capColors.top, capColors.bottom]),
-            startPoint: CGPoint(x: 0, y: -34), endPoint: CGPoint(x: 0, y: -23)
-        ))
-        for ridge in stride(from: -6.0, through: 6.0, by: 3) {
-            var line = Path()
-            line.move(to: CGPoint(x: ridge, y: -32))
-            line.addLine(to: CGPoint(x: ridge, y: -25))
-            bottle.stroke(line, with: .color(capColors.bottom.opacity(0.8)), lineWidth: 1)
-        }
+        let angle = 8 + (-100 - 8) * Double(eased) + wiggle
+        let rest = CGPoint(x: 124, y: 152)
+        let drinking = Self.mouth - Bottle.offset(Bottle.neck, angle: -100)
+        let center = rest + (drinking - rest) * eased
+        return (center, angle)
     }
 
     // MARK: Motion
 
-    /// Pleading eyes blink every few seconds.
+    /// Open eyes blink every few seconds.
     private var blink: CGFloat {
         time.truncatingRemainder(dividingBy: 3.8) > 3.66 ? 0.12 : 1
     }
@@ -395,7 +393,8 @@ struct WaterBotFigure: View {
     private struct Motion {
         var swing = 0.0
         var lift: CGFloat = 0
-        var headTilt = 0.0
+        /// The whole bot turning on its antenna ring.
+        var tilt = 0.0
         var legLeft = 0.0
         var legRight = 0.0
         /// Extra bottle rotation, for shaking it at you.
@@ -404,90 +403,63 @@ struct WaterBotFigure: View {
         init(mood: WaterBotMood, time t: TimeInterval) {
             switch mood {
             case .cheerful:
-                swing = 5 * sin(t * 1.7)
-                headTilt = 3 * sin(t * 1.3 + 0.5)
-                legLeft = 16 * sin(t * 2.6)
-                legRight = 16 * sin(t * 2.6 + 1.3)
+                swing = 4 * sin(t * 1.7)
+                tilt = 3 * sin(t * 1.3 + 0.5)
+                legLeft = 14 * sin(t * 2.6)
+                legRight = 14 * sin(t * 2.6 + 1.3)
             case .excited:
                 swing = 1.2 * sin(t * 2)
                 lift = -4 * abs(sin(t * 6))
-                headTilt = 4 * sin(t * 3)
-                legLeft = 24 * sin(t * 7)
-                legRight = 24 * sin(t * 7 + .pi)
+                tilt = 3 * sin(t * 3)
+                legLeft = 22 * sin(t * 7)
+                legRight = 22 * sin(t * 7 + .pi)
             case .pleading:
-                swing = 3 * sin(t * 1.5)
-                headTilt = 8 + 2 * sin(t * 1.2)
-                legLeft = 8 * sin(t * 2)
-                legRight = 8 * sin(t * 2 + 1)
+                swing = 2.5 * sin(t * 1.5)
+                tilt = 7 + 2 * sin(t * 1.2)
+                legLeft = 6 * sin(t * 2)
+                legRight = 6 * sin(t * 2 + 1)
                 let burst = t.truncatingRemainder(dividingBy: 2.6)
                 wiggle = burst < 0.6 ? 14 * sin(burst * 22) : 0
             case .thirsty:
                 swing = 2 * sin(t * 0.9)
                 lift = 2
-                headTilt = -9 + 1.5 * sin(t * 0.8)
+                tilt = -7 + 1.5 * sin(t * 0.8)
                 legLeft = 3 * sin(t * 0.9)
                 legRight = 3 * sin(t * 0.9 + 0.8)
             case .delighted:
-                swing = 6 * sin(t * 3.2)
+                swing = 5 * sin(t * 3.2)
                 lift = -3 * abs(sin(t * 5))
-                headTilt = 5 * sin(t * 3)
-                legLeft = 20 * sin(t * 6)
-                legRight = 20 * sin(t * 6 + .pi)
+                tilt = 4 * sin(t * 3)
+                legLeft = 18 * sin(t * 6)
+                legRight = 18 * sin(t * 6 + .pi)
             case .sleepy:
                 swing = 1.5 * sin(t * 0.7)
-                headTilt = -12 + 3 * sin(t * 0.9)
+                tilt = -9 + 2 * sin(t * 0.9)
                 legLeft = 2 * sin(t * 0.7)
                 legRight = 2 * sin(t * 0.7 + 0.5)
             case .tickled:
-                swing = 7 * sin(t * 26)
+                swing = 6 * sin(t * 26)
                 lift = -3
-                headTilt = 10 * sin(t * 18)
-                legLeft = 28 * sin(t * 12)
-                legRight = 28 * sin(t * 12 + .pi)
+                tilt = 8 * sin(t * 18)
+                legLeft = 26 * sin(t * 12)
+                legRight = 26 * sin(t * 12 + .pi)
             }
         }
     }
 
     enum Palette {
-        static let clay = Theme.Palette.clay
-        static let clayDeep = Theme.Palette.clayDeep
-        static let clayGlow = Theme.Palette.clayGlow
-        static let shell = Theme.Palette.ivory
-        static let shellShade = Color(hex: 0xE2D4C2)
-        static let charcoal = Color(hex: 0x2B2420)
+        static let ink = Color(hex: 0x33241D)
+        static let inkStyle = Ink(color: ink)
+        static let shell = Tone(0xF5F0E6, shade: 0xD9CCBA, light: 0xFFFFFF)
+        static let clay = Tone(0xD97757, shade: 0xB65A3B, light: 0xF0A587)
+        static let joint = Tone(0x4A3F3A, shade: 0x2E2724, light: 0x6E625B)
+        static let steel = Color(hex: 0xB9B3AC)
         static let visorTop = Color(hex: 0x2E2622)
         static let visorBottom = Color(hex: 0x0D0A09)
-        static let eye = Color(hex: 0xFFD9B0)
-        static let water = Color(hex: 0xA8DEFF)
-        static let waterDeep = Color(hex: 0x4FA6E6)
-        static let ink = Color(hex: 0x2A1D17)
-    }
-}
-
-/// A water droplet, point up.
-struct DropShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let radius = rect.width / 2
-        let center = CGPoint(x: rect.midX, y: rect.maxY - radius)
-        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: center.y), control: CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.45))
-        path.addArc(center: center, radius: radius, startAngle: .degrees(0), endAngle: .degrees(180), clockwise: false)
-        path.addQuadCurve(to: CGPoint(x: rect.midX, y: rect.minY), control: CGPoint(x: rect.minX, y: rect.minY + rect.height * 0.45))
-        path.closeSubpath()
-        return path
-    }
-}
-
-extension CGPoint {
-    static func + (lhs: CGPoint, rhs: CGPoint) -> CGPoint {
-        CGPoint(x: lhs.x + rhs.x, y: lhs.y + rhs.y)
-    }
-}
-
-extension CGRect {
-    init(center: CGPoint, radius: CGFloat) {
-        self.init(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+        static let led = Color(hex: 0xFFD9B0)
+        static let glow = Color(hex: 0xE8916F)
+        static let blush = Color(hex: 0xE8916F)
+        static let bottle = Bottle(cap: clay, label: Color(hex: 0xD97757))
     }
 }
 

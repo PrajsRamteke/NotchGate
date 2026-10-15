@@ -101,7 +101,7 @@ final class AppSettings {
     /// Glasses to drink per day.
     var waterDailyGoal: Int { didSet { defaults.set(waterDailyGoal, forKey: Key.waterDailyGoal) } }
 
-    /// Who brings the bottle: the robot, Spidey, or either at random.
+    /// Who brings the bottle: the robot, Spidey, Batman, or any of them at random.
     var waterTheme: WaterTheme { didSet { defaults.set(waterTheme.rawValue, forKey: Key.waterTheme) } }
 
     /// What's playing on the Mac (Music, Spotify, a browser tab…) with its controls (see `NowPlayingMonitor`).
