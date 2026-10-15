@@ -32,6 +32,18 @@ enum AppleScriptTyper {
         try await run(terminalScript, app: "Terminal", bundleID: terminalBundleID, arguments: [tty, "", "0"])
     }
 
+    // MARK: Bringing a session's tab forward
+
+    /// Selects the iTerm tab and pane running the session and brings its window to the front.
+    static func focusITerm(sessionID: String?, tty: String?) async throws(PromptDeliveryError) {
+        try await run(iTermFocusScript, app: "iTerm", bundleID: iTermBundleID, arguments: [sessionID ?? "", tty ?? ""])
+    }
+
+    /// Selects the Terminal tab on `tty` and brings its window to the front.
+    static func focusTerminal(tty: String) async throws(PromptDeliveryError) {
+        try await run(terminalFocusScript, app: "Terminal", bundleID: terminalBundleID, arguments: [tty])
+    }
+
     private static func run(_ script: String, app: String, bundleID: String, arguments: [String]) async throws(PromptDeliveryError) {
         // `tell application` would launch a closed app; never do that.
         guard !NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).isEmpty else {
@@ -77,6 +89,49 @@ enum AppleScriptTyper {
                             return "ok"
                         end if
                     end repeat
+                end repeat
+            end repeat
+        end tell
+        return "not-found"
+    end run
+    """
+
+    private static let iTermFocusScript = """
+    on run argv
+        set targetID to item 1 of argv
+        set targetTTY to item 2 of argv
+        tell application id "com.googlecode.iterm2"
+            repeat with aWindow in windows
+                repeat with aTab in tabs of aWindow
+                    repeat with aSession in sessions of aTab
+                        if (targetID is not "" and (id of aSession as text) is targetID) or (targetTTY is not "" and (tty of aSession as text) is targetTTY) then
+                            select aWindow
+                            tell aTab to select
+                            tell aSession to select
+                            activate
+                            return "ok"
+                        end if
+                    end repeat
+                end repeat
+            end repeat
+        end tell
+        return "not-found"
+    end run
+    """
+
+    private static let terminalFocusScript = """
+    on run argv
+        set targetTTY to item 1 of argv
+        tell application id "com.apple.Terminal"
+            repeat with aWindow in windows
+                repeat with aTab in tabs of aWindow
+                    if (tty of aTab as text) is targetTTY then
+                        set miniaturized of aWindow to false
+                        set selected of aTab to true
+                        set index of aWindow to 1
+                        activate
+                        return "ok"
+                    end if
                 end repeat
             end repeat
         end tell

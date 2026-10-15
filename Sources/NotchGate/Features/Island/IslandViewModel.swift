@@ -248,7 +248,7 @@ final class IslandViewModel {
     }
 
     func openTerminal(for session: SessionInfo) {
-        TerminalActivator.activate(claudePID: session.claudePID)
+        TerminalActivator.activate(claudePID: session.claudePID, cwd: session.cwd)
     }
 
     func requestKeyFocus() {
@@ -289,7 +289,7 @@ final class IslandViewModel {
     }
 
     func openTerminal(for session: SessionActivity) {
-        TerminalActivator.activate(claudePID: session.claudePID)
+        TerminalActivator.activate(claudePID: session.claudePID, cwd: session.cwd)
     }
 
     /// Removes a stopped session from the notch without touching Claude: its

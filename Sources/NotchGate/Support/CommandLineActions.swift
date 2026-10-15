@@ -6,6 +6,7 @@ import Foundation
 ///     NotchGate --setup                   hooks + editor helper + launch at login
 ///     NotchGate --uninstall               remove hooks + status line relay + disable launch at login
 ///     NotchGate --send-prompt PID TEXT    type a prompt into a Claude session (diagnostics)
+///     NotchGate --focus-session PID DIR   bring a Claude session's own window/tab forward (diagnostics)
 ///     NotchGate --now-playing             print what the Now Playing helper reports for 5 s (diagnostics)
 ///     NotchGate --snapshot DIR            render every card to PNG
 @MainActor
@@ -18,6 +19,11 @@ enum CommandLineActions {
         if arguments.contains("--setup") { return runAsync(setUp) }
         if arguments.contains("--uninstall") { return finish(tearDown()) }
         if arguments.contains("--now-playing") { return runAsync(watchNowPlaying) }
+        if let flag = arguments.firstIndex(of: "--focus-session"), arguments.count > flag + 2,
+           let pid = Int32(arguments[flag + 1]) {
+            let directory = arguments[flag + 2]
+            return runAsync { await focusSession(pid, in: directory) }
+        }
         if let flag = arguments.firstIndex(of: "--send-prompt"), arguments.count > flag + 2,
            let pid = Int32(arguments[flag + 1]) {
             let text = arguments[(flag + 2)...].joined(separator: " ")
@@ -90,6 +96,16 @@ enum CommandLineActions {
             report("✗ \(error.localizedDescription)")
             return false
         }
+    }
+
+    /// Same path as the ↗ button on a session row.
+    private static func focusSession(_ pid: Int32, in directory: String) async -> Bool {
+        let host = TerminalHostDetector.detect(claudePID: pid)
+        report("• Session \(pid) runs in: \(host.displayName)")
+        TerminalActivator.activate(claudePID: pid, cwd: directory)
+        try? await Task.sleep(for: .seconds(2))
+        report("✓ Asked \(host.displayName) to show it")
+        return true
     }
 
     /// Runs the real helper (without touching the user's settings) and prints each change.
