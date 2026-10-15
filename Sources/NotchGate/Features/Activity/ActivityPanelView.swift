@@ -225,29 +225,88 @@ struct ActivityPanelView: View {
         if openComposer == nil { model.endComposing() } else { model.beginComposing() }
     }
 
+    /// How much of the header's left side fits beside the card buttons.
+    private enum HeaderFit {
+        /// Every pill with its words, and the session count.
+        case full
+        /// No session count (the list below shows the sessions anyway).
+        case withoutCount
+        /// "Activity" and "Auto-allow" shrink to their icons; "Update" keeps its word.
+        case compact
+    }
+
     private func header(count: Int) -> some View {
         HStack(spacing: 8) {
-            Label(tracker.workingCount > 0 ? "Live" : "Activity", systemImage: "waveform")
-                .font(Theme.Typeface.micro)
-                .foregroundStyle(Theme.Palette.clay)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Theme.Palette.clay.opacity(0.12)))
+            // The card buttons are sized first; the pills take what's left and
+            // drop detail instead of wrapping ("ACTI / VITY").
+            ViewThatFits(in: .horizontal) {
+                statusPills(count: count, fit: .full)
+                statusPills(count: count, fit: .withoutCount)
+                statusPills(count: count, fit: .compact)
+            }
+            cardButtons
+                .fixedSize()
+                .layoutPriority(1)
+        }
+    }
+
+    private func statusPills(count: Int, fit: HeaderFit) -> some View {
+        HStack(spacing: 8) {
+            let title = tracker.workingCount > 0 ? "Live" : "Activity"
+            pill(title, systemImage: "waveform", iconOnly: fit == .compact)
+                .help(fit == .compact ? title : "")
             if settings.autoAllowPermissions {
-                Label("Auto-allow", systemImage: "bolt.fill")
-                    .font(Theme.Typeface.micro)
-                    .foregroundStyle(Theme.Palette.textSecondary)
+                Group {
+                    if fit == .compact {
+                        Image(systemName: "bolt.fill")
+                    } else {
+                        Label("Auto-allow", systemImage: "bolt.fill")
+                    }
+                }
+                .font(Theme.Typeface.micro)
+                .foregroundStyle(Theme.Palette.textSecondary)
+                .lineLimit(1)
+                .fixedSize()
+                .help("Auto-allow is on")
+                .accessibilityLabel("Auto-allow is on")
             }
             if model.updates.isUpdateAvailable {
                 NotchUpdateButton(updates: model.updates)
+                    .fixedSize()
                     .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
             }
-            Spacer()
-            if count > 0 {
+            Spacer(minLength: 0)
+            if count > 0, fit == .full {
                 Text(count == 1 ? "1 session" : "\(count) sessions")
                     .font(Theme.Typeface.caption)
                     .foregroundStyle(Theme.Palette.textTertiary)
+                    .lineLimit(1)
+                    .fixedSize()
             }
+        }
+    }
+
+    private func pill(_ title: String, systemImage: String, iconOnly: Bool) -> some View {
+        Group {
+            if iconOnly {
+                Image(systemName: systemImage)
+            } else {
+                Label(title, systemImage: systemImage)
+            }
+        }
+        .font(Theme.Typeface.micro)
+        .foregroundStyle(Theme.Palette.clay)
+        .lineLimit(1)
+        .fixedSize()
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(Theme.Palette.clay.opacity(0.12)))
+        .accessibilityLabel(title)
+    }
+
+    /// One button per widget that's switched on, to show or hide its card.
+    private var cardButtons: some View {
+        HStack(spacing: 8) {
             if settings.nowPlaying {
                 CardToggleButton(
                     systemName: "music.note",

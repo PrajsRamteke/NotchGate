@@ -88,6 +88,15 @@ enum SnapshotRenderer {
                 model.showActivityNow()
             }
         }
+        // Everything in the header at once: it must shrink, never wrap.
+        render(to: directory.appendingPathComponent("activity-header-crowded.png")) { model in
+            model.activity.load(DemoActivity.sessions())
+            model.settings.autoAllowPermissions = true
+            model.settings.nowPlaying = true
+            model.settings.showQuickSettingsInNotch = false
+            model.updates.showPreview(UpdateInfo(latestSHA: "abc1234", commits: [], aheadBy: 1))
+            model.showActivityNow()
+        }
         render(to: directory.appendingPathComponent("activity-insights-hover.png")) { model in
             model.activity.load(DemoActivity.sessions())
             model.settings.insightsCardShown = true

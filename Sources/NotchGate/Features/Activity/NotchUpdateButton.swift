@@ -17,7 +17,9 @@ struct NotchUpdateButton: View {
                     Image(systemName: "arrow.down.circle.fill")
                 }
                 Text(isUpdating ? "Updating…" : "Update")
+                    .lineLimit(1)
             }
+            .fixedSize()
             .font(Theme.Typeface.micro)
             .foregroundStyle(Theme.Palette.clay)
             .padding(.horizontal, 8)
