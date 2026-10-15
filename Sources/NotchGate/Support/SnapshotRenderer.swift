@@ -88,14 +88,18 @@ enum SnapshotRenderer {
                 model.showActivityNow()
             }
         }
-        // Everything in the header at once: it must shrink, never wrap.
-        render(to: directory.appendingPathComponent("activity-header-crowded.png")) { model in
-            model.activity.load(DemoActivity.sessions())
-            model.settings.autoAllowPermissions = true
-            model.settings.nowPlaying = true
-            model.settings.showQuickSettingsInNotch = false
-            model.updates.showPreview(UpdateInfo(latestSHA: "abc1234", commits: [], aheadBy: 1))
-            model.showActivityNow()
+        // Everything in the header at once: the island widens so every word fits, never wraps.
+        for updating in [false, true] {
+            let name = updating ? "activity-header-updating.png" : "activity-header-crowded.png"
+            render(to: directory.appendingPathComponent(name)) { model in
+                model.activity.load(DemoActivity.sessions())
+                model.settings.autoAllowPermissions = true
+                model.settings.nowPlaying = true
+                model.settings.insightsWidget = true
+                model.settings.showQuickSettingsInNotch = false
+                model.updates.showPreview(UpdateInfo(latestSHA: "abc1234", commits: [], aheadBy: 1), updating: updating)
+                model.showActivityNow()
+            }
         }
         render(to: directory.appendingPathComponent("activity-insights-hover.png")) { model in
             model.activity.load(DemoActivity.sessions())

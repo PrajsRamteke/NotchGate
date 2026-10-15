@@ -96,12 +96,21 @@ struct UpdateStatusView: View {
                 .lineLimit(1)
                 .contentTransition(.opacity)
                 .animation(.easeOut(duration: 0.2), value: statusText)
-            if showsRefresh { refreshButton }
+            refreshButton
         }
     }
 
-    private var showsRefresh: Bool {
+    /// Dev builds can't be compared with GitHub, and an install in progress shouldn't be interrupted.
+    private var canRefresh: Bool {
         updates.state != .unsupported && updates.state != .updating
+    }
+
+    private var refreshHelp: String {
+        switch updates.state {
+        case .unsupported: return "Update checks are off for development builds"
+        case .updating: return "Installing the update…"
+        default: return "Check for updates"
+        }
     }
 
     @ViewBuilder private var refreshButton: some View {
@@ -120,7 +129,9 @@ struct UpdateStatusView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .help("Check for updates")
+            .disabled(!canRefresh)
+            .opacity(canRefresh ? 1 : 0.4)
+            .help(refreshHelp)
             .accessibilityLabel("Check for updates")
         }
     }
@@ -136,7 +147,7 @@ struct UpdateStatusView: View {
 
     private var versionText: String {
         // Dev builds (`swift run`) have no Info.plist; fall back to the release version.
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.10.0"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.10.2"
         return updates.shortInstalledCommit.map { "v\(version) (\($0))" } ?? "v\(version)"
     }
 }

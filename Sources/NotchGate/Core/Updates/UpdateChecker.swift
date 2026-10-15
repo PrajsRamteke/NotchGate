@@ -105,9 +105,9 @@ final class UpdateChecker {
     }
 
     /// Shows an update without asking GitHub (previews and snapshots).
-    func showPreview(_ info: UpdateInfo) {
+    func showPreview(_ info: UpdateInfo, updating: Bool = false) {
         available = info
-        state = .available(info)
+        state = updating ? .updating : .available(info)
     }
 
     /// Builds and installs the latest version, then relaunches NotchGate.

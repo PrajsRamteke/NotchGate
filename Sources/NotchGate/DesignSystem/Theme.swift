@@ -42,6 +42,9 @@ enum Theme {
         /// Transparent canvas the panel reserves at the top of the screen.
         static let canvasSize = CGSize(width: 680, height: 740)
         static let expandedWidth: CGFloat = 500
+        /// While an update is offered: room for the "Update" pill beside the other
+        /// pills, the session count and every card button, with no word squeezed.
+        static let expandedWithUpdateWidth: CGFloat = 580
         static let expandedMaxContentHeight: CGFloat = 400
         static let peekWingWidth: CGFloat = 92
         /// The closed notch while music plays: just room for the artwork and equalizer, hugging the camera.

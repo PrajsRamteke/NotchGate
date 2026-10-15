@@ -44,6 +44,7 @@ struct IslandRootView: View {
         .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }, action: { model.islandFrame = $0 })
         .animation(presentation == .expanded ? Theme.Motion.expand : Theme.Motion.collapse, value: presentation)
         .animation(Theme.Motion.expand, value: model.store.current?.id)
+        .animation(Theme.Motion.expand, value: model.updates.isUpdateAvailable)
     }
 
     private var islandWidth: CGFloat {
@@ -53,7 +54,10 @@ struct IslandRootView: View {
         case .peek:
             let wing = model.showsNowPlayingPeek ? Theme.Metrics.musicWingWidth : Theme.Metrics.peekWingWidth
             return notchWidth + wing * 2
-        case .expanded: return max(Theme.Metrics.expandedWidth, notchWidth + Theme.Metrics.peekWingWidth * 2)
+        case .expanded:
+            // Wider only while the "Update" pill is in the header; back to normal once updated.
+            let base = model.updates.isUpdateAvailable ? Theme.Metrics.expandedWithUpdateWidth : Theme.Metrics.expandedWidth
+            return max(base, notchWidth + Theme.Metrics.peekWingWidth * 2)
         }
     }
 }
