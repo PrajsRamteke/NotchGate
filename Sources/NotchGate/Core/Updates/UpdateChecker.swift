@@ -19,7 +19,9 @@ final class UpdateChecker {
     static let checkInterval: Duration = .seconds(6 * 60 * 60)
     static let launchDelay: Duration = .seconds(20)
     /// Opening the menu re-asks GitHub at most this often (its API allows 60 calls an hour).
-    nonisolated static let menuRecheckInterval: TimeInterval = 10 * 60
+    /// Kept short: a release lands a few minutes after a push, and a check made in that gap
+    /// would otherwise keep saying "up to date" for a long while.
+    nonisolated static let menuRecheckInterval: TimeInterval = 2 * 60
 
     private(set) var state: State = .idle
     /// The last update we found; kept while re-checking so the banner doesn't flicker.

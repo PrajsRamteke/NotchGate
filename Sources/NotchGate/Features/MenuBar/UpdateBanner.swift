@@ -83,18 +83,46 @@ struct UpdateBanner: View {
     }
 }
 
-/// Bottom-of-menu line: the installed version and what the last update check found.
-/// Opening the menu runs the check, so there's no button for it.
+/// Bottom-of-menu line: the installed version, what the last update check found,
+/// and a refresh button to ask GitHub again right away.
 struct UpdateStatusView: View {
     let updates: UpdateChecker
 
     var body: some View {
-        Text(statusText)
-            .font(.caption)
+        HStack(spacing: 6) {
+            Text(statusText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .contentTransition(.opacity)
+                .animation(.easeOut(duration: 0.2), value: statusText)
+            if showsRefresh { refreshButton }
+        }
+    }
+
+    private var showsRefresh: Bool {
+        updates.state != .unsupported && updates.state != .updating
+    }
+
+    @ViewBuilder private var refreshButton: some View {
+        if updates.state == .checking {
+            ProgressView()
+                .controlSize(.mini)
+                .frame(width: 14, height: 14)
+        } else {
+            Button {
+                Task { await updates.check() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .frame(width: 14, height: 14)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .contentTransition(.opacity)
-            .animation(.easeOut(duration: 0.2), value: statusText)
+            .help("Check for updates")
+            .accessibilityLabel("Check for updates")
+        }
     }
 
     private var statusText: String {
@@ -108,7 +136,7 @@ struct UpdateStatusView: View {
 
     private var versionText: String {
         // Dev builds (`swift run`) have no Info.plist; fall back to the release version.
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.9.1"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.10.0"
         return updates.shortInstalledCommit.map { "v\(version) (\($0))" } ?? "v\(version)"
     }
 }

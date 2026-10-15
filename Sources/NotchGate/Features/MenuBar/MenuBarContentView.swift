@@ -33,11 +33,15 @@ struct MenuBarContentView: View {
         .frame(width: 320)
         // Above the scroll area, so ⓘ bubbles aren't clipped by it.
         .infoTipHost()
-        .onAppear {
-            coordinator.installer.refresh()
-            coordinator.editorHelper.refresh()
-            coordinator.updates.checkOnMenuOpen()
-        }
+        .onAppear(perform: menuOpened)
+        // The menu window is kept alive between openings, so `onAppear` only fires the first time.
+        .background(WindowKeyObserver(onBecomeKey: menuOpened))
+    }
+
+    private func menuOpened() {
+        coordinator.installer.refresh()
+        coordinator.editorHelper.refresh()
+        coordinator.updates.checkOnMenuOpen()
     }
 
     /// Room for the sections: the screen's usable height minus the header, a

@@ -73,11 +73,11 @@ struct UpdateTests {
         #expect(checker.state == .unsupported)
     }
 
-    @Test func openingTheMenuRechecksAtMostEveryTenMinutes() {
+    @Test func openingTheMenuRechecksAtMostEveryTwoMinutes() {
         let now = Date()
         #expect(UpdateChecker.isDueOnMenuOpen(lastCheckedAt: nil, now: now))
         #expect(!UpdateChecker.isDueOnMenuOpen(lastCheckedAt: now.addingTimeInterval(-60), now: now))
-        #expect(!UpdateChecker.isDueOnMenuOpen(lastCheckedAt: now.addingTimeInterval(-9 * 60), now: now))
-        #expect(UpdateChecker.isDueOnMenuOpen(lastCheckedAt: now.addingTimeInterval(-10 * 60), now: now))
+        #expect(!UpdateChecker.isDueOnMenuOpen(lastCheckedAt: now.addingTimeInterval(-110), now: now))
+        #expect(UpdateChecker.isDueOnMenuOpen(lastCheckedAt: now.addingTimeInterval(-2 * 60), now: now))
     }
 }
