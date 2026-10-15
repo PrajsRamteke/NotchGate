@@ -91,7 +91,7 @@ struct MenuBarContentView: View {
     }
 
     private var extras: ExtrasSection {
-        ExtrasSection(settings: coordinator.settings, water: coordinator.island.water)
+        ExtrasSection(settings: coordinator.settings, water: coordinator.island.water, nowPlaying: coordinator.island.nowPlaying)
     }
 
     private var footer: some View {

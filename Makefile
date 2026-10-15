@@ -9,6 +9,7 @@ test:
 # Run from source (the hook binary is built alongside, so "Install hooks" works).
 run: build
 	swift build --product notchgate-hook
+	swift build --product NotchGateMedia
 	.build/debug/NotchGate
 
 app:

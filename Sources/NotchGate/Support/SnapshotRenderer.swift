@@ -119,6 +119,37 @@ enum SnapshotRenderer {
             model.water.remind()
             model.water.drink()
         }
+        render(to: directory.appendingPathComponent("now-playing.png")) { model in
+            model.activity.load(DemoActivity.sessions())
+            model.settings.nowPlaying = true
+            model.settings.showQuickSettingsInNotch = false
+            model.settings.sessionCardShown = false
+            model.nowPlaying.showPreview(sampleTrack(), artwork: sampleArtwork())
+            model.showActivityNow()
+        }
+        render(to: directory.appendingPathComponent("now-playing-video.png")) { model in
+            model.settings.nowPlaying = true
+            model.settings.showQuickSettingsInNotch = false
+            model.settings.sessionCardShown = false
+            model.nowPlaying.showPreview(NowPlayingTrack(
+                title: "Building a notch app in SwiftUI, from first sketch to shipping",
+                artist: "Indie Dev Diaries", appName: "Google Chrome", appBundleID: "com.google.Chrome",
+                duration: 1_394, elapsed: 312, sampledAt: Date(), isPlaying: false,
+                commands: [0, 1, 2, 3, 24]
+            ), artwork: sampleArtwork(hues: (.systemTeal, .systemIndigo)))
+            model.showActivityNow()
+        }
+        render(to: directory.appendingPathComponent("now-playing-empty.png")) { model in
+            model.settings.nowPlaying = true
+            model.settings.showQuickSettingsInNotch = false
+            model.settings.sessionCardShown = false
+            model.nowPlaying.showPreview(nil)
+            model.showActivityNow()
+        }
+        render(to: directory.appendingPathComponent("now-playing-closed.png")) { model in
+            model.settings.nowPlaying = true
+            model.nowPlaying.showPreview(sampleTrack(), artwork: sampleArtwork())
+        }
         renderWaterBotMoods(to: directory.appendingPathComponent("water-bot-moods.png"))
         renderWaterBotMoods(of: .spidey, to: directory.appendingPathComponent("water-spidey-moods.png"))
         let coordinator = AppCoordinator()
@@ -128,6 +159,29 @@ enum SnapshotRenderer {
         ], aheadBy: 2))
         renderMenu(MenuBarContentView(coordinator: coordinator), to: directory.appendingPathComponent("menu.png"))
         return true
+    }
+
+    /// A made-up album, mid-song, in a player that takes every command.
+    private static func sampleTrack() -> NowPlayingTrack {
+        NowPlayingTrack(
+            title: "Golden Hour Drive (Extended Sunset Mix)", artist: "Lumen & The Tides", album: "Neon Coast",
+            appName: "Music", appBundleID: "com.apple.Music", duration: 247, elapsed: 83, sampledAt: Date(),
+            isPlaying: true, shuffleMode: 3, repeatMode: 1, commands: [0, 1, 2, 4, 5, 6, 7, 24, 25, 26]
+        )
+    }
+
+    /// Stand-in cover art: a sunset gradient with a sun and horizon lines.
+    private static func sampleArtwork(hues: (NSColor, NSColor) = (.systemOrange, .systemPink)) -> NSImage {
+        NSImage(size: CGSize(width: 300, height: 300), flipped: false) { rect in
+            NSGradient(starting: hues.0, ending: hues.1)?.draw(in: rect, angle: -90)
+            NSColor.white.withAlphaComponent(0.85).setFill()
+            NSBezierPath(ovalIn: CGRect(x: 95, y: 110, width: 110, height: 110)).fill()
+            NSColor.black.withAlphaComponent(0.35).setFill()
+            for (index, y) in stride(from: 40.0, to: 130.0, by: 18.0).enumerated() {
+                NSBezierPath(rect: CGRect(x: 0, y: y, width: 300, height: 4 + Double(index))).fill()
+            }
+            return true
+        }
     }
 
     /// Two stand-in "screenshots" for the attachment strip.

@@ -7,13 +7,18 @@ struct IslandStatusBar: View {
 
     private var presentation: IslandPresentation { model.presentation }
 
+    /// The closed notch is showing what's playing rather than Claude.
+    private var showsMusic: Bool { presentation == .peek && model.showsNowPlayingPeek }
+
+    private var musicAccent: Color { model.nowPlaying.accent.map { Color(nsColor: $0) } ?? Theme.Palette.clay }
+
     var body: some View {
         HStack(spacing: 0) {
             leadingWing
             Spacer(minLength: model.notch.notchSize.width)
             trailingWing
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, showsMusic ? 6 : 12)
         .opacity(presentation == .hidden ? 0 : 1)
         .contentShape(Rectangle())
         .onTapGesture { if presentation == .peek || model.isRequestMinimized { model.expand() } }
@@ -21,7 +26,12 @@ struct IslandStatusBar: View {
 
     private var leadingWing: some View {
         HStack(spacing: 7) {
-            ClaudeSpark(size: 14, isActive: model.store.hasPending || model.activity.workingCount > 0, color: sparkColor)
+            if showsMusic {
+                NowPlayingArtwork(image: model.nowPlaying.artwork, accent: musicAccent, isPlaying: true, size: 20, cornerRadius: 5)
+                    .transition(.scale(scale: 0.5).combined(with: .opacity))
+            } else {
+                ClaudeSpark(size: 14, isActive: model.store.hasPending || model.activity.workingCount > 0, color: sparkColor)
+            }
             if presentation == .expanded, let title = leadingTitle {
                 Text(title)
                     .font(Theme.Typeface.caption)
@@ -46,6 +56,9 @@ struct IslandStatusBar: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(notice.tone.color)
                 .symbolEffect(.bounce, value: notice.id)
+        } else if showsMusic {
+            EqualizerBars(isPlaying: true, color: musicAccent, height: 12)
+                .transition(.scale(scale: 0.5).combined(with: .opacity))
         }
     }
 

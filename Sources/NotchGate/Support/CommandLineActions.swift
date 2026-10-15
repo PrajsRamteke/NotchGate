@@ -6,6 +6,7 @@ import Foundation
 ///     NotchGate --setup                   hooks + editor helper + launch at login
 ///     NotchGate --uninstall               remove hooks + status line relay + disable launch at login
 ///     NotchGate --send-prompt PID TEXT    type a prompt into a Claude session (diagnostics)
+///     NotchGate --now-playing             print what the Now Playing helper reports for 5 s (diagnostics)
 ///     NotchGate --snapshot DIR            render every card to PNG
 @MainActor
 enum CommandLineActions {
@@ -16,6 +17,7 @@ enum CommandLineActions {
         if SnapshotRenderer.runIfRequested() { return finish(true) }
         if arguments.contains("--setup") { return runAsync(setUp) }
         if arguments.contains("--uninstall") { return finish(tearDown()) }
+        if arguments.contains("--now-playing") { return runAsync(watchNowPlaying) }
         if let flag = arguments.firstIndex(of: "--send-prompt"), arguments.count > flag + 2,
            let pid = Int32(arguments[flag + 1]) {
             let text = arguments[(flag + 2)...].joined(separator: " ")
@@ -88,6 +90,32 @@ enum CommandLineActions {
             report("✗ \(error.localizedDescription)")
             return false
         }
+    }
+
+    /// Runs the real helper (without touching the user's settings) and prints each change.
+    private static func watchNowPlaying() async -> Bool {
+        let defaults = UserDefaults(suiteName: "now-playing-diagnostics") ?? .standard
+        defaults.removePersistentDomain(forName: "now-playing-diagnostics")
+        let monitor = NowPlayingMonitor(settings: AppSettings(defaults: defaults))
+        monitor.setEnabled(true)
+        if let error = monitor.setupError {
+            report("✗ \(error)")
+            return false
+        }
+        var last: String?
+        for _ in 0..<20 {
+            try? await Task.sleep(for: .milliseconds(250))
+            let line = monitor.track.map { track in
+                let position = track.position(at: Date()).map(NowPlayingTrack.clock) ?? "–"
+                let duration = track.duration.map(NowPlayingTrack.clock) ?? "live"
+                let artwork = monitor.artwork.map { "artwork \(Int($0.size.width))×\(Int($0.size.height))" } ?? "no artwork"
+                return "\(track.isPlaying ? "▶" : "⏸") \(track.title) · \(track.subtitle ?? "–") · \(track.appName ?? "?") · \(position)/\(duration) · \(artwork) · commands \(track.commands.sorted())"
+            } ?? "Nothing playing"
+            if line != last { report(line) }
+            last = line
+        }
+        monitor.stop()
+        return monitor.setupError == nil
     }
 
     // MARK: Plumbing

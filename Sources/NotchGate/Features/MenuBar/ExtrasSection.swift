@@ -5,6 +5,7 @@ import SwiftUI
 struct ExtrasSection: View {
     @Bindable var settings: AppSettings
     let water: WaterReminder
+    let nowPlaying: NowPlayingMonitor
 
     static let intervals = 5...240
     static let snoozeOptions = [5, 10, 15, 30]
@@ -51,8 +52,37 @@ struct ExtrasSection: View {
                 .padding(.leading, 16)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
+
+            SettingRow(
+                "Now playing",
+                detail: "Artwork and controls for Music, Spotify or a browser tab",
+                isOn: Binding(get: { settings.nowPlaying }, set: { [nowPlaying] in nowPlaying.setEnabled($0) })
+            )
+
+            if settings.nowPlaying {
+                VStack(alignment: .leading, spacing: 8) {
+                    SettingRow(
+                        "Show while closed",
+                        detail: "Artwork and a live equalizer beside the notch while music plays",
+                        isOn: $settings.nowPlayingInClosedNotch
+                    )
+                    SettingNote(nowPlayingStatus)
+                }
+                .padding(.leading, 16)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .animation(.snappy(duration: 0.25), value: settings.waterReminder)
+        .animation(.snappy(duration: 0.25), value: settings.nowPlaying)
+    }
+
+    private var nowPlayingStatus: String {
+        if let error = nowPlaying.setupError { return error }
+        guard let track = nowPlaying.track else {
+            return "Nothing playing. Hover the notch to see the player."
+        }
+        let source = track.appName.map { " in \($0)" } ?? ""
+        return "\(track.isPlaying ? "Playing" : "Paused"): \(track.title)\(source). Hover the notch to control it."
     }
 
     private var intervalBinding: Binding<Int> {
@@ -76,7 +106,7 @@ struct ExtrasSection: View {
 
 extension ExtrasSection {
     var summary: String {
-        let switches = [settings.waterReminder]
+        let switches = [settings.waterReminder, settings.nowPlaying]
         return "\(switches.filter { $0 }.count) of \(switches.count) on"
     }
 }

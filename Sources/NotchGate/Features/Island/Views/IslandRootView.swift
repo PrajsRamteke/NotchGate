@@ -50,7 +50,9 @@ struct IslandRootView: View {
         let notchWidth = model.notch.notchSize.width + shape.topRadius * 2
         switch presentation {
         case .hidden: return notchWidth
-        case .peek: return notchWidth + Theme.Metrics.peekWingWidth * 2
+        case .peek:
+            let wing = model.showsNowPlayingPeek ? Theme.Metrics.musicWingWidth : Theme.Metrics.peekWingWidth
+            return notchWidth + wing * 2
         case .expanded: return max(Theme.Metrics.expandedWidth, notchWidth + Theme.Metrics.peekWingWidth * 2)
         }
     }

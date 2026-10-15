@@ -36,6 +36,11 @@ struct ActivityPanelView: View {
         VStack(alignment: .leading, spacing: 12) {
             header(count: tracker.sessions.count)
 
+            if model.nowPlaying.isEnabled, settings.nowPlayingCardShown {
+                NowPlayingCardView(monitor: model.nowPlaying)
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            }
+
             NotchWidgetsView(
                 usage: model.usage,
                 session: model.session,
@@ -83,6 +88,8 @@ struct ActivityPanelView: View {
             }
         }
         .animation(Theme.Motion.content, value: settings.showQuickSettingsInNotch)
+        .animation(Theme.Motion.content, value: settings.nowPlaying)
+        .animation(Theme.Motion.content, value: settings.nowPlayingCardShown)
         .animation(Theme.Motion.content, value: settings.usageWidget)
         .animation(Theme.Motion.content, value: settings.usageCardShown)
         .animation(Theme.Motion.content, value: settings.sessionWidget)
@@ -220,6 +227,13 @@ struct ActivityPanelView: View {
                 Text(count == 1 ? "1 session" : "\(count) sessions")
                     .font(Theme.Typeface.caption)
                     .foregroundStyle(Theme.Palette.textTertiary)
+            }
+            if settings.nowPlaying {
+                CardToggleButton(
+                    systemName: "music.note",
+                    name: "now playing",
+                    isOn: settings.nowPlayingCardShown
+                ) { settings.nowPlayingCardShown.toggle() }
             }
             if settings.usageWidget {
                 CardToggleButton(

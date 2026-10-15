@@ -23,6 +23,8 @@ final class IslandViewModel {
     let prompts: ComposerController
     /// The water-reminder bot that hangs from the notch (an Extra).
     let water: WaterReminder
+    /// What's playing on the Mac, and its remote (an Extra).
+    let nowPlaying: NowPlayingMonitor
     /// Plan limits for the Usage widget.
     let usage: UsageMonitor
     /// Model, context, cost and branch for the Session widget.
@@ -71,6 +73,7 @@ final class IslandViewModel {
         settings: AppSettings,
         activity: ActivityTracker,
         water: WaterReminder? = nil,
+        nowPlaying: NowPlayingMonitor? = nil,
         usage: UsageMonitor? = nil,
         session: SessionMonitor? = nil,
         resume: ResumeMonitor? = nil,
@@ -81,6 +84,7 @@ final class IslandViewModel {
         self.activity = activity
         self.prompts = ComposerController(store: store, activity: activity)
         self.water = water ?? WaterReminder(settings: settings)
+        self.nowPlaying = nowPlaying ?? NowPlayingMonitor(settings: settings)
         self.usage = usage ?? UsageMonitor(settings: settings)
         self.session = session ?? SessionMonitor(settings: settings)
         self.resume = resume ?? ResumeMonitor(settings: settings)
@@ -109,7 +113,15 @@ final class IslandViewModel {
             // An alert that Claude is blocked opens like a card would.
             return engaged || (notice.blocksClaude && !isCollapsedByUser) ? .expanded : .peek
         }
-        return engaged && settings.showActivityOnHover ? .expanded : .hidden
+        if engaged && settings.showActivityOnHover { return .expanded }
+        return showsNowPlayingPeek ? .peek : .hidden
+    }
+
+    /// Music is playing and Claude needs nothing: the closed notch widens a
+    /// little to show the artwork and a live equalizer.
+    var showsNowPlayingPeek: Bool {
+        settings.nowPlayingInClosedNotch && nowPlaying.isEnabled && nowPlaying.track?.isPlaying == true
+            && store.current == nil && store.notice == nil && !isAcceptingDrop
     }
 
     /// The bot hangs below the notch only while the island is small, so it never
@@ -247,9 +259,10 @@ final class IslandViewModel {
         hoverIntent?.cancel()
         guard hovering != isHovering else { return }
 
-        // An idle notch waits for a deliberate hover; anything already
-        // visible (peek, notice) responds instantly.
-        guard hovering, presentation == .hidden else { return applyHover(hovering) }
+        // An idle notch waits for a deliberate hover (even while it shows what's
+        // playing); anything that needs you (peek, notice) responds instantly.
+        let isIdle = presentation == .hidden || (presentation == .peek && showsNowPlayingPeek)
+        guard hovering, isIdle else { return applyHover(hovering) }
         hoverIntent = Task { [weak self] in
             try? await Task.sleep(for: Self.hoverIntentDelay)
             guard !Task.isCancelled else { return }

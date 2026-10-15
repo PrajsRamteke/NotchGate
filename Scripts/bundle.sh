@@ -19,6 +19,7 @@ cd "$ROOT"
 echo "→ Building ($CONFIG)…"
 swift build "${BUILD_FLAGS[@]}" --product NotchGate
 swift build "${BUILD_FLAGS[@]}" --product notchgate-hook
+swift build "${BUILD_FLAGS[@]}" --product NotchGateMedia
 BIN="$(swift build "${BUILD_FLAGS[@]}" --show-bin-path)"
 
 echo "→ Assembling $APP"
@@ -26,6 +27,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/NotchGate" "$APP/Contents/MacOS/NotchGate"
 cp "$BIN/notchgate-hook" "$APP/Contents/MacOS/notchgate-hook"
+# Loaded into /usr/bin/perl for Now Playing (see NowPlayingMonitor).
+cp "$BIN/libNotchGateMedia.dylib" "$APP/Contents/MacOS/libNotchGateMedia.dylib"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 # Record the source commit so the app can tell when GitHub has something newer.
@@ -35,6 +38,7 @@ COMMIT="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
 
 echo "→ Signing (ad-hoc)"
 codesign --force --sign - "$APP/Contents/MacOS/notchgate-hook" 2>/dev/null
+codesign --force --sign - "$APP/Contents/MacOS/libNotchGateMedia.dylib" 2>/dev/null
 codesign --force --sign - "$APP" 2>/dev/null
 
 if [[ "${1:-}" == "--install" ]]; then

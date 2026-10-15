@@ -24,6 +24,9 @@ final class AppSettings {
         static let waterSnoozeMinutes = "waterSnoozeMinutes"
         static let waterDailyGoal = "waterDailyGoal"
         static let waterTheme = "waterTheme"
+        static let nowPlaying = "nowPlaying"
+        static let nowPlayingCardShown = "nowPlayingCardShown"
+        static let nowPlayingInClosedNotch = "nowPlayingInClosedNotch"
         static let usageWidget = "widgetUsage"
         static let usageCardShown = "usageCardShown"
         static let sessionWidget = "widgetSession"
@@ -98,6 +101,17 @@ final class AppSettings {
     /// Who brings the bottle: the robot, Spidey, or either at random.
     var waterTheme: WaterTheme { didSet { defaults.set(waterTheme.rawValue, forKey: Key.waterTheme) } }
 
+    /// What's playing on the Mac (Music, Spotify, a browser tab…) with its controls (see `NowPlayingMonitor`).
+    var nowPlaying: Bool { didSet { defaults.set(nowPlaying, forKey: Key.nowPlaying) } }
+
+    /// Whether the Now Playing card is open in the hover panel. Toggled from its header button.
+    var nowPlayingCardShown: Bool { didSet { defaults.set(nowPlayingCardShown, forKey: Key.nowPlayingCardShown) } }
+
+    /// While something plays, the closed notch widens a little to show its artwork and a live equalizer.
+    var nowPlayingInClosedNotch: Bool {
+        didSet { defaults.set(nowPlayingInClosedNotch, forKey: Key.nowPlayingInClosedNotch) }
+    }
+
     // MARK: Widgets (glanceable info in the hover panel)
 
     /// Plan limits (5-hour and weekly) in the notch (see `UsageMonitor`).
@@ -146,6 +160,9 @@ final class AppSettings {
             Key.waterSnoozeMinutes: 10,
             Key.waterDailyGoal: 8,
             Key.waterTheme: WaterTheme.robot.rawValue,
+            Key.nowPlaying: false,
+            Key.nowPlayingCardShown: true,
+            Key.nowPlayingInClosedNotch: true,
             Key.usageWidget: true,
             Key.usageCardShown: false,
             Key.sessionWidget: true,
@@ -173,6 +190,9 @@ final class AppSettings {
         waterSnoozeMinutes = defaults.integer(forKey: Key.waterSnoozeMinutes)
         waterDailyGoal = defaults.integer(forKey: Key.waterDailyGoal)
         waterTheme = WaterTheme(rawValue: defaults.string(forKey: Key.waterTheme) ?? "") ?? .robot
+        nowPlaying = defaults.bool(forKey: Key.nowPlaying)
+        nowPlayingCardShown = defaults.bool(forKey: Key.nowPlayingCardShown)
+        nowPlayingInClosedNotch = defaults.bool(forKey: Key.nowPlayingInClosedNotch)
         usageWidget = defaults.bool(forKey: Key.usageWidget)
         usageCardShown = defaults.bool(forKey: Key.usageCardShown)
         sessionWidget = defaults.bool(forKey: Key.sessionWidget)

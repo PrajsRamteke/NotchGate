@@ -214,6 +214,22 @@ Optional notch features unrelated to Claude. Turn them on or off under **✦ →
   <img src="assets/water-spidey-moods.png" alt="Every mood of Spidey: cheerful, excited, pleading, thirsty, delighted, sleepy, tickled" width="720">
 </p>
 
+- **Now playing** (off by default): whatever's playing on your Mac (Music,
+  Spotify, Podcasts, or a YouTube tab in Chrome or Safari) gets a card at the top of
+  the hover panel. It shows the artwork, a title that scrolls when it's too long, and
+  a progress bar you can drag to seek. Below that are shuffle, ±15 s, previous,
+  play/pause and next, repeat. Buttons the player doesn't
+  support are dimmed or hidden. The card takes its colors from the artwork. Click the artwork
+  or the app chip to jump to the player. While music plays, the closed notch shows
+  the artwork and a live equalizer beside the camera (turn this off with **Show while
+  closed**). macOS only shares "now playing" with Apple-signed programs, so NotchGate
+  reads it through a small helper loaded into the system's `/usr/bin/perl`. The
+  helper quits with the app.
+
+<p align="center">
+  <img src="assets/now-playing.png" alt="The Now Playing card: artwork, title, progress bar and playback controls, tinted by the album colors" width="560">
+</p>
+
 ### Keyboard shortcuts (while a request is waiting)
 
 | Shortcut | Action |
