@@ -21,8 +21,9 @@ final class AppCoordinator {
     @ObservationIgnored private var hotKeys: HotKeyCenter?
 
     init() {
-        island = IslandViewModel(store: store, settings: settings, activity: activity)
-        updates = UpdateChecker(settings: settings)
+        let updates = UpdateChecker(settings: settings)
+        self.updates = updates
+        island = IslandViewModel(store: store, settings: settings, activity: activity, updates: updates)
     }
 
     func start() {

@@ -211,6 +211,10 @@ struct ActivityPanelView: View {
                     .font(Theme.Typeface.micro)
                     .foregroundStyle(Theme.Palette.textSecondary)
             }
+            if model.updates.isUpdateAvailable {
+                NotchUpdateButton(updates: model.updates)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
+            }
             Spacer()
             if count > 0 {
                 Text(count == 1 ? "1 session" : "\(count) sessions")

@@ -29,6 +29,8 @@ final class IslandViewModel {
     let session: SessionMonitor
     /// Recent sessions to resume, and new-session launches, for the Resume widget.
     let resume: ResumeMonitor
+    /// Whether a newer NotchGate exists; drives the Update pill in the Activity header.
+    let updates: UpdateChecker
 
     var notch: NotchMetrics = .fallback
 
@@ -71,7 +73,8 @@ final class IslandViewModel {
         water: WaterReminder? = nil,
         usage: UsageMonitor? = nil,
         session: SessionMonitor? = nil,
-        resume: ResumeMonitor? = nil
+        resume: ResumeMonitor? = nil,
+        updates: UpdateChecker? = nil
     ) {
         self.store = store
         self.settings = settings
@@ -81,6 +84,7 @@ final class IslandViewModel {
         self.usage = usage ?? UsageMonitor(settings: settings)
         self.session = session ?? SessionMonitor(settings: settings)
         self.resume = resume ?? ResumeMonitor(settings: settings)
+        self.updates = updates ?? UpdateChecker(settings: settings)
     }
 
     /// True when the expanded island is showing live activity rather than a request.
