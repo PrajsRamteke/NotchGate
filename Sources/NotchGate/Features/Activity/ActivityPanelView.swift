@@ -59,8 +59,10 @@ struct ActivityPanelView: View {
                         usage: model.usage,
                         session: model.session,
                         resume: model.resume,
+                        insights: model.insights,
                         sessions: tracker.ordered,
-                        dismissedIDs: Set(tracker.dismissed.keys)
+                        dismissedIDs: Set(tracker.dismissed.keys),
+                        insightsHoveredBar: model.previewInsightsBar
                     )
                         .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
 
@@ -113,6 +115,8 @@ struct ActivityPanelView: View {
         .animation(Theme.Motion.content, value: settings.toolsCardShown)
         .animation(Theme.Motion.content, value: settings.resumeWidget)
         .animation(Theme.Motion.content, value: settings.resumeCardShown)
+        .animation(Theme.Motion.content, value: settings.insightsWidget)
+        .animation(Theme.Motion.content, value: settings.insightsCardShown)
         .animation(Theme.Motion.content, value: model.isDraggingImages)
         // With a single session, dropping anywhere on the panel is unambiguous.
         .onDrop(of: Self.dropTypes, isTargeted: $isPanelTargeted) { _ in
@@ -257,6 +261,13 @@ struct ActivityPanelView: View {
                     name: "usage",
                     isOn: settings.usageCardShown
                 ) { settings.usageCardShown.toggle() }
+            }
+            if settings.insightsWidget {
+                CardToggleButton(
+                    systemName: "chart.bar.xaxis",
+                    name: "insights",
+                    isOn: settings.insightsCardShown
+                ) { settings.insightsCardShown.toggle() }
             }
             if settings.sessionWidget {
                 CardToggleButton(

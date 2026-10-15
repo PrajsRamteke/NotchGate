@@ -81,4 +81,46 @@ enum DemoActivity {
                         branch: nil, updatedAt: now.addingTimeInterval(-3 * 86_400)),
         ]
     }
+
+    /// A month of made-up Claude Code usage for the Insights widget: busy
+    /// afternoons, quiet nights, three projects and a mix of models.
+    static func insights(now: Date = .now) -> [InsightsRange: InsightsSummary] {
+        let projects = [("checkout-api", 0.55), ("dashboard", 0.3), ("docs-site", 0.15)]
+        var generator = SeededGenerator(seed: 7)
+        var files: [TranscriptUsage] = []
+        for (index, project) in projects.enumerated() {
+            var file = TranscriptUsage(sessionID: "demo-\(index)", isSubagent: false)
+            file.project = project.0
+            for hoursAgo in stride(from: 0, to: 30 * 24, by: 1) {
+                let time = now.addingTimeInterval(-Double(hoursAgo) * 3600 - 600)
+                let hour = Calendar.current.component(.hour, from: time)
+                let weekday = Calendar.current.component(.weekday, from: time)
+                guard (9...19).contains(hour), weekday != 1, weekday != 7 || hour > 14 else { continue }
+                let replies = Int(Double(generator.next() % 9) * project.1 * (hour == 15 ? 2.2 : 1)) + (hoursAgo < 3 ? 2 : 0)
+                for reply in 0..<replies {
+                    let family: ModelFamily = reply % 7 == 0 ? .sonnet : (reply % 11 == 0 ? .haiku : .opus)
+                    let model = family == .opus ? "claude-opus-5-5" : family == .sonnet ? "claude-sonnet-5-5" : "claude-haiku-5-5"
+                    let tokens = TokenUsage(input: 40, output: 900 + Int(generator.next() % 1500),
+                                            cacheRead: 80_000 + Int(generator.next() % 60_000), cacheWrite5m: 6_000)
+                    let at = time.addingTimeInterval(Double(reply) * 70)
+                    file.replies.append(ReplyUsage(key: "\(index)-\(hoursAgo)-\(reply)", time: at, family: family,
+                                                   cost: ModelPricing.cost(of: tokens, model: model), tokens: tokens))
+                    if reply % 4 == 0 { file.prompts.append(PromptMark(key: "\(index)-\(hoursAgo)-\(reply)", time: at)) }
+                    if reply % 3 == 0 { file.edits.append(FileEdit(time: at, path: "/\(project.0)/file\(generator.next() % 40).swift")) }
+                }
+            }
+            files.append(file)
+        }
+        return Dictionary(uniqueKeysWithValues: InsightsRange.allCases.map { ($0, InsightsSummary.make($0, from: files, now: now)) })
+    }
+}
+
+/// Repeatable "random" numbers, so the demo looks the same in every snapshot.
+struct SeededGenerator: RandomNumberGenerator {
+    private var state: UInt64
+    init(seed: UInt64) { state = seed }
+    mutating func next() -> UInt64 {
+        state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+        return state >> 33
+    }
 }

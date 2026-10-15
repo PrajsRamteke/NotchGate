@@ -77,6 +77,27 @@ enum SnapshotRenderer {
             ])
             model.showActivityNow()
         }
+        for range in InsightsRange.allCases {
+            render(to: directory.appendingPathComponent("activity-insights-\(range.title).png")) { model in
+                model.activity.load(DemoActivity.sessions())
+                model.settings.insightsCardShown = true
+                model.settings.insightsRange = range
+                model.settings.sessionCardShown = false
+                model.settings.showQuickSettingsInNotch = false
+                model.insights.showPreview(DemoActivity.insights())
+                model.showActivityNow()
+            }
+        }
+        render(to: directory.appendingPathComponent("activity-insights-hover.png")) { model in
+            model.activity.load(DemoActivity.sessions())
+            model.settings.insightsCardShown = true
+            model.settings.insightsRange = .day
+            model.settings.sessionCardShown = false
+            model.settings.showQuickSettingsInNotch = false
+            model.insights.showPreview(DemoActivity.insights())
+            model.previewInsightsBar = 21
+            model.showActivityNow()
+        }
         render(to: directory.appendingPathComponent("activity-tools-resume.png")) { model in
             model.activity.load(DemoActivity.sessions())
             model.settings.usageWidget = false

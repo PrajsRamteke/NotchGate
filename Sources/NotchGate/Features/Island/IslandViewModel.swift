@@ -31,6 +31,10 @@ final class IslandViewModel {
     let session: SessionMonitor
     /// Recent sessions to resume, and new-session launches, for the Resume widget.
     let resume: ResumeMonitor
+    /// Cost, tokens and activity from Claude Code's transcripts, for the Insights widget.
+    let insights: InsightsMonitor
+    /// Snapshots: an Insights bar drawn as if hovered.
+    var previewInsightsBar: Int?
     /// Whether a newer NotchGate exists; drives the Update pill in the Activity header.
     let updates: UpdateChecker
 
@@ -77,6 +81,7 @@ final class IslandViewModel {
         usage: UsageMonitor? = nil,
         session: SessionMonitor? = nil,
         resume: ResumeMonitor? = nil,
+        insights: InsightsMonitor? = nil,
         updates: UpdateChecker? = nil
     ) {
         self.store = store
@@ -88,6 +93,7 @@ final class IslandViewModel {
         self.usage = usage ?? UsageMonitor(settings: settings)
         self.session = session ?? SessionMonitor(settings: settings)
         self.resume = resume ?? ResumeMonitor(settings: settings)
+        self.insights = insights ?? InsightsMonitor(settings: settings)
         self.updates = updates ?? UpdateChecker(settings: settings)
     }
 

@@ -35,6 +35,9 @@ final class AppSettings {
         static let toolsCardShown = "toolsCardShown"
         static let resumeWidget = "widgetResume"
         static let resumeCardShown = "resumeCardShown"
+        static let insightsWidget = "widgetInsights"
+        static let insightsCardShown = "insightsCardShown"
+        static let insightsRange = "insightsRange"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -139,6 +142,15 @@ final class AppSettings {
     /// Whether the resume card is open in the hover panel. Toggled from its header button.
     var resumeCardShown: Bool { didSet { defaults.set(resumeCardShown, forKey: Key.resumeCardShown) } }
 
+    /// Cost, tokens and activity over 24 hours, 7 days and 30 days (see `InsightsMonitor`).
+    var insightsWidget: Bool { didSet { defaults.set(insightsWidget, forKey: Key.insightsWidget) } }
+
+    /// Whether the insights card is open in the hover panel. Toggled from its header button.
+    var insightsCardShown: Bool { didSet { defaults.set(insightsCardShown, forKey: Key.insightsCardShown) } }
+
+    /// The span the insights card last showed.
+    var insightsRange: InsightsRange { didSet { defaults.set(insightsRange.rawValue, forKey: Key.insightsRange) } }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         defaults.register(defaults: [
@@ -171,6 +183,8 @@ final class AppSettings {
             Key.toolsCardShown: false,
             Key.resumeWidget: true,
             Key.resumeCardShown: true,
+            Key.insightsWidget: true,
+            Key.insightsCardShown: false,
         ])
         playSound = defaults.bool(forKey: Key.playSound)
         autoExpand = defaults.bool(forKey: Key.autoExpand)
@@ -201,6 +215,9 @@ final class AppSettings {
         toolsCardShown = defaults.bool(forKey: Key.toolsCardShown)
         resumeWidget = defaults.bool(forKey: Key.resumeWidget)
         resumeCardShown = defaults.bool(forKey: Key.resumeCardShown)
+        insightsWidget = defaults.bool(forKey: Key.insightsWidget)
+        insightsCardShown = defaults.bool(forKey: Key.insightsCardShown)
+        insightsRange = InsightsRange(rawValue: defaults.string(forKey: Key.insightsRange) ?? "") ?? .day
     }
 
     var routerOptions: RequestRouter.Options {

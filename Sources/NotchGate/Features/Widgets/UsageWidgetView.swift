@@ -8,10 +8,13 @@ struct NotchWidgetsView: View {
     let usage: UsageMonitor
     let session: SessionMonitor
     let resume: ResumeMonitor
+    let insights: InsightsMonitor
     /// Sessions in the activity list, newest first; the Session and Tools cards follow them.
     let sessions: [SessionActivity]
     /// Sessions removed from the panel but still running; not offered for resuming.
     var dismissedIDs: Set<String> = []
+    /// Snapshots: the Insights bar shown as hovered.
+    var insightsHoveredBar: Int?
 
     private var settings: AppSettings { usage.settings }
 
@@ -20,6 +23,12 @@ struct NotchWidgetsView: View {
     var body: some View {
         if usage.isEnabled, settings.usageCardShown {
             UsageWidgetView(snapshot: usage.snapshot)
+        }
+        if insights.isEnabled, settings.insightsCardShown {
+            InsightsWidgetView(monitor: insights, settings: settings, hoveredBar: insightsHoveredBar)
+                // Reads what's new (throttled) each time the panel opens, and when a session starts or ends.
+                .onAppear { insights.refresh() }
+                .onChange(of: runningIDs) { _, _ in insights.refresh() }
         }
         if session.isEnabled, settings.sessionCardShown {
             SessionWidgetView(entries: sessionEntries)

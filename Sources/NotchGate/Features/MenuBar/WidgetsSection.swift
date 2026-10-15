@@ -7,6 +7,7 @@ struct WidgetsSection: View {
     let usage: UsageMonitor
     let session: SessionMonitor
     let resume: ResumeMonitor
+    let insights: InsightsMonitor
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -18,6 +19,16 @@ struct WidgetsSection: View {
                 )
                 if settings.usageWidget {
                     SettingStatus(usageStatus.text, tone: usageStatus.tone)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                GroupDivider()
+                SettingRow(
+                    "Insights",
+                    info: "Cost, tokens, sessions and active time for the last **24 hours**, **7 days** or **30 days**, with a small chart, your busiest projects and the split by model.\n\nCost is at API prices. Read from Claude Code's transcripts in **~/.claude/projects**, only while the card is open.",
+                    isOn: Binding(get: { settings.insightsWidget }, set: { [insights] in insights.setEnabled($0) })
+                )
+                if settings.insightsWidget, let insightsStatus {
+                    SettingStatus(insightsStatus.text, tone: insightsStatus.tone)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
                 GroupDivider()
@@ -56,12 +67,19 @@ struct WidgetsSection: View {
         .animation(.snappy(duration: 0.25), value: settings.usageWidget)
         .animation(.snappy(duration: 0.25), value: settings.sessionWidget)
         .animation(.snappy(duration: 0.25), value: settings.resumeWidget)
+        .animation(.snappy(duration: 0.25), value: settings.insightsWidget)
     }
 
     private var anyOn: Bool { switches.contains(true) }
 
     private var switches: [Bool] {
-        [settings.usageWidget, settings.sessionWidget, settings.toolsWidget, settings.resumeWidget]
+        [settings.usageWidget, settings.insightsWidget, settings.sessionWidget, settings.toolsWidget, settings.resumeWidget]
+    }
+
+    private var insightsStatus: (text: String, tone: SettingStatus.Tone)? {
+        if let error = insights.loadError { return (error, .error) }
+        guard let today = insights.summary(for: .day), !today.isEmpty else { return nil }
+        return ("Last 24h: \(InsightsFormat.cost(today.cost)) · \(InsightsFormat.tokens(today.tokens.total)) tokens", .normal)
     }
 
     private var resumeStatus: (text: String, tone: SettingStatus.Tone)? {

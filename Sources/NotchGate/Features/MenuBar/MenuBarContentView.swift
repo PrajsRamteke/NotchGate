@@ -92,7 +92,8 @@ struct MenuBarContentView: View {
             settings: coordinator.settings,
             usage: coordinator.island.usage,
             session: coordinator.island.session,
-            resume: coordinator.island.resume
+            resume: coordinator.island.resume,
+            insights: coordinator.island.insights
         )
     }
 
