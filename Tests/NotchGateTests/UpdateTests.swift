@@ -65,4 +65,19 @@ struct UpdateTests {
         #expect(checker.state == .unsupported)
         #expect(checker.installedCommit == nil)
     }
+
+    @Test @MainActor func devBuildsDontCheckWhenTheMenuOpens() {
+        let settings = AppSettings(defaults: UserDefaults(suiteName: "updates-\(UUID())") ?? .standard)
+        let checker = UpdateChecker(settings: settings, bundle: .main)
+        checker.checkOnMenuOpen()
+        #expect(checker.state == .unsupported)
+    }
+
+    @Test func openingTheMenuRechecksAtMostEveryTenMinutes() {
+        let now = Date()
+        #expect(UpdateChecker.isDueOnMenuOpen(lastCheckedAt: nil, now: now))
+        #expect(!UpdateChecker.isDueOnMenuOpen(lastCheckedAt: now.addingTimeInterval(-60), now: now))
+        #expect(!UpdateChecker.isDueOnMenuOpen(lastCheckedAt: now.addingTimeInterval(-9 * 60), now: now))
+        #expect(UpdateChecker.isDueOnMenuOpen(lastCheckedAt: now.addingTimeInterval(-10 * 60), now: now))
+    }
 }

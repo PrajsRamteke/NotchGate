@@ -36,6 +36,7 @@ struct MenuBarContentView: View {
         .onAppear {
             coordinator.installer.refresh()
             coordinator.editorHelper.refresh()
+            coordinator.updates.checkOnMenuOpen()
         }
     }
 
@@ -100,14 +101,12 @@ struct MenuBarContentView: View {
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        HStack {
             UpdateStatusView(updates: coordinator.updates)
-            HStack {
-                Spacer()
-                Button("Quit NotchGate") { NSApp.terminate(nil) }
-                    .keyboardShortcut("q")
-            }
+            Spacer(minLength: 8)
+            Button("Quit NotchGate") { NSApp.terminate(nil) }
+                .keyboardShortcut("q")
+                .controlSize(.small)
         }
     }
 }
-

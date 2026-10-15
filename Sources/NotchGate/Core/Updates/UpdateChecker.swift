@@ -18,6 +18,8 @@ final class UpdateChecker {
 
     static let checkInterval: Duration = .seconds(6 * 60 * 60)
     static let launchDelay: Duration = .seconds(20)
+    /// Opening the menu re-asks GitHub at most this often (its API allows 60 calls an hour).
+    nonisolated static let menuRecheckInterval: TimeInterval = 10 * 60
 
     private(set) var state: State = .idle
     /// The last update we found; kept while re-checking so the banner doesn't flicker.
@@ -29,6 +31,8 @@ final class UpdateChecker {
     @ObservationIgnored private let settings: AppSettings
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var schedule: Task<Void, Never>?
+    /// When GitHub last answered (or failed to), for throttling menu-open checks.
+    @ObservationIgnored private var lastCheckedAt: Date?
 
     /// Commit we were on when an update started; checked on the next launch.
     static let updateStartedFromKey = "update.startedFromCommit"
@@ -67,11 +71,25 @@ final class UpdateChecker {
         }
     }
 
+    /// Opening the menu checks quietly in the background; the menu shows
+    /// straight away and the banner appears if GitHub has something newer.
+    func checkOnMenuOpen(now: Date = .now) {
+        guard installedCommit != nil, Self.isDueOnMenuOpen(lastCheckedAt: lastCheckedAt, now: now) else { return }
+        Task { await check(userInitiated: false) }
+    }
+
+    /// Never checked, or the last check is older than `menuRecheckInterval`.
+    nonisolated static func isDueOnMenuOpen(lastCheckedAt: Date?, now: Date) -> Bool {
+        guard let lastCheckedAt else { return true }
+        return now.timeIntervalSince(lastCheckedAt) >= menuRecheckInterval
+    }
+
     func check(userInitiated: Bool = true) async {
         guard let installedCommit, state != .updating, state != .checking else { return }
         // Keep a failure on screen until the user acts on it; background checks would replace it.
         if !userInitiated, case .failed = state { return }
         state = .checking
+        defer { lastCheckedAt = .now }
         do {
             let info = try await UpdateSource.compare(installedSHA: installedCommit)
             available = info.aheadBy > 0 ? info : nil

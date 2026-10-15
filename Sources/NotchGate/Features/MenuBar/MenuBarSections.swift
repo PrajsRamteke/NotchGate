@@ -112,7 +112,7 @@ extension IntegrationSection {
 
 extension PermissionsSection {
     var summary: String {
-        "Auto-allow \(settings.autoAllowPermissions ? "on" : "off")"
+        settings.autoAllowPermissions ? "Auto-allow" : "Ask first"
     }
 }
 
@@ -169,8 +169,8 @@ struct PreferencesSection: View {
             )
             GroupDivider()
             SettingRow(
-                "Check for updates",
-                info: "Looks for a newer NotchGate on GitHub and offers it at the top of this menu.",
+                "Check in the background",
+                info: "Checks GitHub every few hours, even with this menu closed, and puts a dot on the menu bar icon when an update is out.\n\nOpening this menu always checks.",
                 isOn: $settings.checkForUpdates
             )
             GroupDivider()

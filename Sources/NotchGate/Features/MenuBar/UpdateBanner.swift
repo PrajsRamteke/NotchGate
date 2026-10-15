@@ -83,52 +83,32 @@ struct UpdateBanner: View {
     }
 }
 
-/// Bottom-of-menu row: a visible "Check for updates" (or "Update") button with the installed version.
+/// Bottom-of-menu line: the installed version and what the last update check found.
+/// Opening the menu runs the check, so there's no button for it.
 struct UpdateStatusView: View {
     let updates: UpdateChecker
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            actionButton
-            Text(statusText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-    }
-
-    @ViewBuilder
-    private var actionButton: some View {
-        if updates.isUpdateAvailable {
-            Button { Task { await updates.update() } } label: {
-                Label("Update NotchGate", systemImage: "arrow.down.circle.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.Palette.clay)
-            .disabled(updates.state == .updating)
-        } else {
-            Button { Task { await updates.check() } } label: {
-                Label(updates.state == .checking ? "Checking for updates…" : "Check for updates",
-                      systemImage: "arrow.triangle.2.circlepath")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .disabled(updates.state == .checking || updates.state == .unsupported)
-        }
+        Text(statusText)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .contentTransition(.opacity)
+            .animation(.easeOut(duration: 0.2), value: statusText)
     }
 
     private var statusText: String {
         switch updates.state {
-        case .unsupported: return "\(versionText) · updates are checked in the installed app"
+        case .unsupported: return "\(versionText) · dev build"
+        case .checking: return "\(versionText) · checking for updates…"
         case .upToDate: return "\(versionText) · up to date"
-        default: return updates.isUpdateAvailable ? "\(versionText) · a newer version is on GitHub" : versionText
+        default: return updates.isUpdateAvailable ? "\(versionText) · update available" : versionText
         }
     }
 
     private var versionText: String {
         // Dev builds (`swift run`) have no Info.plist; fall back to the release version.
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.8.0"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.8.1"
         return updates.shortInstalledCommit.map { "v\(version) (\($0))" } ?? "v\(version)"
     }
 }
