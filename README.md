@@ -183,7 +183,9 @@ the terminal instead of its card, and the alert stays until you answer there.
 
 Also available: **Widgets** (see above), **Auto-allow permissions** (risky commands like `rm -rf`, `sudo`
 and `git push --force` still ask), **Claude's questions** (Notch / Terminal /
-Don't ask), live activity on hover, sounds and launch at login.
+Don't ask), live activity on hover, sounds and launch at login. Under **Behavior → Sounds**, pick the
+sound for **Claude needs you** and **Claude finished** from macOS's built-in sounds (or None), and press
+**▶** to listen; turn **Sounds** off for silence.
 
 ### Extras
 

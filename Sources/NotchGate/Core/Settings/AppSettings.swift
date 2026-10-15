@@ -7,6 +7,8 @@ import Observation
 final class AppSettings {
     private enum Key {
         static let playSound = "playSound"
+        static let attentionSound = "attentionSound"
+        static let finishedSound = "finishedSound"
         static let autoExpand = "autoExpand"
         static let showNotices = "showNotices"
         static let replyFromNotch = "replyFromNotch"
@@ -42,8 +44,14 @@ final class AppSettings {
 
     @ObservationIgnored private let defaults: UserDefaults
 
-    /// Soft chime when a request arrives.
+    /// Sounds on or off: Claude's cues below, and the water reminder's.
     var playSound: Bool { didSet { defaults.set(playSound, forKey: Key.playSound) } }
+
+    /// Plays when Claude needs you: a card or an alert arrives.
+    var attentionSound: AlertSound { didSet { defaults.set(attentionSound.rawValue, forKey: Key.attentionSound) } }
+
+    /// Plays when Claude finishes: the reply box or the "Claude finished" notice.
+    var finishedSound: AlertSound { didSet { defaults.set(finishedSound.rawValue, forKey: Key.finishedSound) } }
 
     /// Expand the full card on arrival (otherwise show a compact peek first).
     var autoExpand: Bool { didSet { defaults.set(autoExpand, forKey: Key.autoExpand) } }
@@ -155,6 +163,8 @@ final class AppSettings {
         self.defaults = defaults
         defaults.register(defaults: [
             Key.playSound: true,
+            Key.attentionSound: AlertSound.tink.rawValue,
+            Key.finishedSound: AlertSound.pop.rawValue,
             Key.autoExpand: true,
             Key.showNotices: false,
             Key.replyFromNotch: false,
@@ -187,6 +197,8 @@ final class AppSettings {
             Key.insightsCardShown: false,
         ])
         playSound = defaults.bool(forKey: Key.playSound)
+        attentionSound = AlertSound(rawValue: defaults.string(forKey: Key.attentionSound) ?? "") ?? .tink
+        finishedSound = AlertSound(rawValue: defaults.string(forKey: Key.finishedSound) ?? "") ?? .pop
         autoExpand = defaults.bool(forKey: Key.autoExpand)
         showNotices = defaults.bool(forKey: Key.showNotices)
         replyFromNotch = defaults.bool(forKey: Key.replyFromNotch)

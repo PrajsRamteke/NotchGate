@@ -100,6 +100,7 @@ final class AppCoordinator {
             store.enqueue(request, responder: responder)
         case .notice(let notice), .attention(let notice):
             store.post(notice)
+            if message.event == .stop, store.notice == notice { island.handleFinishedNotice() }
             if message.expectsReply { responder.send(.passthrough) }
         case .attentionIfUnseen(let notice):
             if !store.isAlerting(for: notice.session.id) { store.post(notice) }

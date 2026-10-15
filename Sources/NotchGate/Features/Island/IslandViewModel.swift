@@ -151,10 +151,10 @@ final class IslandViewModel {
             if store.pendingCount == 1 { isCollapsedByUser = !settings.autoExpand }
             if case .completion = request.kind {
                 scheduleParking(request.id)
-                if settings.playSound { SoundPlayer.play(.resolve, volume: 0.2) }
+                playFinishedSound()
                 return
             }
-            if settings.playSound { SoundPlayer.play(.arrive) }
+            playAttentionSound()
         case .removed(_, let answered):
             if answered, settings.playSound { SoundPlayer.play(.resolve, volume: 0.2) }
             if !store.hasPending { isCollapsedByUser = false }
@@ -165,7 +165,20 @@ final class IslandViewModel {
     func handleAlert(_ notice: Notice) {
         guard !store.hasPending else { return }
         isCollapsedByUser = !settings.autoExpand
-        if settings.playSound { SoundPlayer.play(.arrive) }
+        playAttentionSound()
+    }
+
+    /// Claude finished, shown as a passing notice rather than the reply box.
+    func handleFinishedNotice() {
+        playFinishedSound()
+    }
+
+    private func playAttentionSound() {
+        if settings.playSound { SoundPlayer.play(settings.attentionSound, volume: SoundPlayer.attentionVolume) }
+    }
+
+    private func playFinishedSound() {
+        if settings.playSound { SoundPlayer.play(settings.finishedSound, volume: SoundPlayer.finishedVolume) }
     }
 
     // MARK: Intents

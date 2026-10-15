@@ -157,10 +157,27 @@ struct PreferencesSection: View {
             )
             GroupDivider()
             SettingRow(
-                "Play a sound",
-                info: "Plays a short sound when Claude needs your attention.",
+                "Sounds",
+                info: "Short sounds when Claude needs you or finishes, and the water reminder's.\n\nTurn off for silence.",
                 isOn: $settings.playSound
             )
+            if settings.playSound {
+                VStack(alignment: .leading, spacing: 0) {
+                    SoundPickerRow(
+                        title: "Claude needs you",
+                        info: "A card or an alert arrives: a permission, a question, a plan, or anything else Claude is waiting on.",
+                        selection: $settings.attentionSound,
+                        volume: SoundPlayer.attentionVolume
+                    )
+                    SoundPickerRow(
+                        title: "Claude finished",
+                        info: "Plays with the reply box (**Reply when done**) or the **“Finished” notice**. With both off, Claude finishes quietly.",
+                        selection: $settings.finishedSound,
+                        volume: SoundPlayer.finishedVolume
+                    )
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
             GroupDivider()
             SettingRow(
                 "“Finished” notices",
@@ -182,6 +199,36 @@ struct PreferencesSection: View {
             )
             .onChange(of: launchAtLogin) { _, enabled in LaunchAtLogin.setEnabled(enabled) }
         }
+        .animation(.snappy(duration: 0.25), value: settings.playSound)
+    }
+}
+
+/// Picks the sound for one cue. Choosing a sound plays it, and ▶ plays it again.
+private struct SoundPickerRow: View {
+    let title: String
+    let info: String
+    @Binding var selection: AlertSound
+    let volume: Float
+
+    var body: some View {
+        HStack(spacing: 8) {
+            SettingLabel(title: title, info: info)
+            Spacer(minLength: 8)
+            Picker(title, selection: $selection) {
+                Text(AlertSound.none.rawValue).tag(AlertSound.none)
+                Divider()
+                ForEach(AlertSound.sounds) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .controlSize(.small)
+            .fixedSize()
+            PreviewButton(help: "Listen") { SoundPlayer.preview(selection, volume: volume) }
+                .disabled(selection == .none)
+                .opacity(selection == .none ? 0.4 : 1)
+        }
+        .settingRowPadding(isIndented: true)
+        .onChange(of: selection) { _, sound in SoundPlayer.preview(sound, volume: volume) }
     }
 }
 
