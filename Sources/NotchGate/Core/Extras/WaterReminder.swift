@@ -1,8 +1,8 @@
 import Foundation
 import Observation
 
-/// The water-reminder extra: every few minutes a little bot drops out of the
-/// notch holding a bottle and asks you to drink. Counts glasses per day.
+/// The water-reminder extra: every few minutes a little bot (or Spidey) drops
+/// out of the notch holding a bottle and asks you to drink. Counts glasses per day.
 @MainActor
 @Observable
 final class WaterReminder {
@@ -36,10 +36,13 @@ final class WaterReminder {
     private(set) var reminderCount = 0
     /// No keyboard or mouse input for a while: the bot naps instead of nagging.
     private(set) var isUserAway = false
+    /// Who's hanging from the notch this time; picked from `settings.waterTheme` on each reminder.
+    private(set) var character: WaterCharacter = .robot
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let idleSeconds: () -> TimeInterval
+    @ObservationIgnored private var generator: any RandomNumberGenerator
     @ObservationIgnored private var ticker: Task<Void, Never>?
     @ObservationIgnored private var exit: Task<Void, Never>?
 
@@ -54,12 +57,14 @@ final class WaterReminder {
         settings: AppSettings,
         defaults: UserDefaults = .standard,
         now: @escaping () -> Date = { Date() },
-        idleSeconds: @escaping () -> TimeInterval = SystemIdle.seconds
+        idleSeconds: @escaping () -> TimeInterval = SystemIdle.seconds,
+        generator: any RandomNumberGenerator = SystemRandomNumberGenerator()
     ) {
         self.settings = settings
         self.defaults = defaults
         self.now = now
         self.idleSeconds = idleSeconds
+        self.generator = generator
         let today = defaults.string(forKey: Key.day) == Self.dayStamp(now())
         glassesToday = today ? defaults.integer(forKey: Key.glasses) : 0
     }
@@ -120,6 +125,7 @@ final class WaterReminder {
         guard state == .away else { return }
         exit?.cancel()
         reminderCount += 1
+        character = settings.waterTheme.pick(using: &generator)
         askedAt = now()
         state = .asking
         if settings.playSound { SoundPlayer.play(.water, volume: 0.3) }

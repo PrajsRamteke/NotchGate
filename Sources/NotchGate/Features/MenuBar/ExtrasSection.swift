@@ -13,12 +13,23 @@ struct ExtrasSection: View {
         VStack(alignment: .leading, spacing: 8) {
             SettingRow(
                 "Water reminder",
-                detail: "A little bot drops from the notch with a bottle",
+                detail: "A little bot or Spidey drops from the notch with a bottle",
                 isOn: Binding(get: { settings.waterReminder }, set: { [water] in water.setEnabled($0) })
             )
 
             if settings.waterReminder {
                 VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Buddy").font(.callout)
+                        Spacer(minLength: 8)
+                        Picker("Buddy", selection: $settings.waterTheme) {
+                            ForEach(WaterTheme.allCases) { Text($0.title).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        .help("Who brings the bottle. Random picks one each time.")
+                    }
                     Stepper(value: intervalBinding, in: Self.intervals, step: 5) {
                         labeled("Remind every", WaterReminder.format(minutes: settings.waterReminderMinutes))
                     }

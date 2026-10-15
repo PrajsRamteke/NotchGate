@@ -102,7 +102,25 @@ enum SnapshotRenderer {
             model.water.remind()
             model.water.drink()
         }
+        render(to: directory.appendingPathComponent("water-spidey.png")) { model in
+            model.settings.playSound = false
+            model.settings.waterTheme = .spidey
+            model.water.remind()
+        }
+        render(to: directory.appendingPathComponent("water-spidey-hover.png")) { model in
+            model.settings.playSound = false
+            model.settings.waterTheme = .spidey
+            model.water.remind()
+            model.setHoveringWaterBot(true)
+        }
+        render(to: directory.appendingPathComponent("water-spidey-drinking.png")) { model in
+            model.settings.playSound = false
+            model.settings.waterTheme = .spidey
+            model.water.remind()
+            model.water.drink()
+        }
         renderWaterBotMoods(to: directory.appendingPathComponent("water-bot-moods.png"))
+        renderWaterBotMoods(of: .spidey, to: directory.appendingPathComponent("water-spidey-moods.png"))
         let coordinator = AppCoordinator()
         coordinator.updates.showPreview(UpdateInfo(latestSHA: "abc1234", commits: [
             UpdateCommit(sha: "abc1234", title: "Type notch prompts into Claude Code as real user prompts"),
@@ -152,8 +170,8 @@ enum SnapshotRenderer {
         )
     }
 
-    /// Every face the water bot can make, side by side.
-    private static func renderWaterBotMoods(to url: URL) {
+    /// Every face the water bot (or Spidey) can make, side by side.
+    private static func renderWaterBotMoods(of character: WaterCharacter = .robot, to url: URL) {
         let moods = WaterBotMood.allCases
         let size = WaterBotFigure.size
         let canvas = CGSize(width: CGFloat(moods.count) * (size.width + 12) + 48, height: size.height + 64)
@@ -161,8 +179,13 @@ enum SnapshotRenderer {
             SnapshotBackdrop(showsMenuBar: false) {
                 HStack(spacing: 12) {
                     ForEach(Array(moods.enumerated()), id: \.offset) { index, mood in
-                        WaterBotFigure(mood: mood, time: 0.9 + Double(index) * 0.37, sip: mood == .delighted ? 1 : 0,
-                                       waterLevel: mood == .delighted ? 0.4 : 0.8)
+                        let time = 0.9 + Double(index) * 0.37, sip: CGFloat = mood == .delighted ? 1 : 0
+                        let waterLevel: CGFloat = mood == .delighted ? 0.4 : 0.8
+                        switch character {
+                        case .robot: WaterBotFigure(mood: mood, time: time, sip: sip, waterLevel: waterLevel)
+                        // Late enough that the arrival bounce has settled.
+                        case .spidey: SpideyFigure(mood: mood, time: time + 3, sip: sip, waterLevel: waterLevel)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

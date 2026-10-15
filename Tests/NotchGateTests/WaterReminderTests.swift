@@ -112,6 +112,34 @@ struct WaterReminderTests {
         #expect(water.nextReminder == nil)
     }
 
+    @Test func theChosenCharacterDropsIn() {
+        let (water, _, _) = make()
+        water.settings.waterTheme = .spidey
+        water.remind()
+        #expect(water.character == .spidey)
+
+        water.skip()
+        water.settings.waterTheme = .robot
+        water.remind()
+        #expect(water.character == .robot)
+    }
+
+    @Test func randomThemeMixesCharacters() {
+        var generator = SplitMix(seed: 7)
+        let picks = Set((0..<40).map { _ in WaterTheme.random.pick(using: &generator) })
+        #expect(picks == Set(WaterCharacter.allCases))
+    }
+
+    @Test func themeIsRemembered() {
+        let defaults = UserDefaults(suiteName: "water-theme-\(UUID())") ?? .standard
+        AppSettings(defaults: defaults).waterTheme = .random
+        #expect(AppSettings(defaults: defaults).waterTheme == .random)
+    }
+
+    @Test func spideyHasItsOwnLines() {
+        #expect(WaterBotMood.cheerful.line(variant: 0, character: .spidey) != WaterBotMood.cheerful.line(variant: 0))
+    }
+
     @Test func moodGrowsMoreInsistentTheLongerItWaits() {
         func mood(_ waited: TimeInterval, hovered: Bool = false, away: Bool = false) -> WaterBotMood {
             WaterBotMood.current(state: .asking, waited: waited, isHovered: hovered, isUserAway: away, isTickled: false)
@@ -145,5 +173,18 @@ struct WaterReminderTests {
         #expect(WaterReminder.format(minutes: 45) == "45 min")
         #expect(WaterReminder.format(minutes: 60) == "1 hr")
         #expect(WaterReminder.format(minutes: 90) == "1 hr 30 min")
+    }
+}
+
+/// A tiny seeded generator, so "random" is repeatable in tests.
+private struct SplitMix: RandomNumberGenerator {
+    var state: UInt64
+    init(seed: UInt64) { state = seed }
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
     }
 }

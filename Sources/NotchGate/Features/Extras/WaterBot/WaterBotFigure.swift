@@ -53,7 +53,7 @@ struct WaterBotFigure: View {
         // Grips the bottle's near side, fingers wrapped around the glass.
         let bottleHand = bottleCenter + rotated(CGPoint(x: -12, y: 4), by: bottleAngle)
         drawArm(in: context, from: CGPoint(x: 106, y: 152) + lift, control: CGPoint(x: 120, y: 166) + lift, to: bottleHand)
-        drawBottle(in: context, center: bottleCenter, angle: bottleAngle)
+        Self.drawBottle(in: context, center: bottleCenter, angle: bottleAngle, waterLevel: waterLevel, time: time)
         drawHand(in: context, at: bottleHand)
         drawHand(in: context, at: ropeHand)
         drawRopeGrip(in: context, at: ropeHand)
@@ -327,7 +327,11 @@ struct WaterBotFigure: View {
         return (center, 10 + (-112 - 10) * Double(eased) + wiggle)
     }
 
-    private func drawBottle(in context: GraphicsContext, center: CGPoint, angle: Double) {
+    /// The bottle, shared by every character: sloshing water, rising bubbles, a ridged cap.
+    static func drawBottle(
+        in context: GraphicsContext, center: CGPoint, angle: Double, waterLevel: CGFloat, time: TimeInterval,
+        cap capColors: (top: Color, bottom: Color) = (Palette.clayGlow, Palette.clayDeep)
+    ) {
         var bottle = context
         bottle.translateBy(x: center.x, y: center.y)
         bottle.rotate(by: .degrees(angle))
@@ -369,14 +373,14 @@ struct WaterBotFigure: View {
 
         let cap = RoundedRectangle(cornerRadius: 3, style: .continuous).path(in: CGRect(x: -9.5, y: -34, width: 19, height: 11))
         bottle.fill(cap, with: .linearGradient(
-            Gradient(colors: [Palette.clayGlow, Palette.clayDeep]),
+            Gradient(colors: [capColors.top, capColors.bottom]),
             startPoint: CGPoint(x: 0, y: -34), endPoint: CGPoint(x: 0, y: -23)
         ))
         for ridge in stride(from: -6.0, through: 6.0, by: 3) {
             var line = Path()
             line.move(to: CGPoint(x: ridge, y: -32))
             line.addLine(to: CGPoint(x: ridge, y: -25))
-            bottle.stroke(line, with: .color(Palette.clayDeep.opacity(0.8)), lineWidth: 1)
+            bottle.stroke(line, with: .color(capColors.bottom.opacity(0.8)), lineWidth: 1)
         }
     }
 

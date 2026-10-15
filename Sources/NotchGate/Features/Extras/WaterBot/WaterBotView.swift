@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The water bot hanging from the notch with its speech bubble. Hover it to
-/// reveal Drank it / Snooze; click it and it giggles. It sips, celebrates
-/// and climbs back up when you drink.
+/// The water bot (or Spidey, see `WaterCharacter`) hanging from the notch with
+/// its speech bubble. Hover it to reveal Drank it / Snooze; click it and it
+/// giggles. It sips, celebrates and climbs back up when you drink.
 struct WaterBotView: View {
     let water: WaterReminder
     let isHovered: Bool
@@ -41,7 +41,7 @@ struct WaterBotView: View {
         let sipTime = water.drankAt.map { date.timeIntervalSince($0) }
 
         return ZStack(alignment: .topLeading) {
-            WaterBotFigure(mood: mood, time: time, sip: Self.sip(at: sipTime), waterLevel: Self.waterLevel(at: sipTime))
+            figure(mood: mood, time: time, sipTime: sipTime)
                 .rotation3DEffect(
                     .degrees(spin), axis: (x: 0, y: 1, z: 0),
                     anchor: UnitPoint(x: WaterBotFigure.ropeAnchor.x / WaterBotFigure.size.width, y: 0.5)
@@ -53,7 +53,7 @@ struct WaterBotView: View {
                 .padding(.leading, Self.figureOrigin.x)
                 .padding(.top, Self.figureOrigin.y)
 
-            Sparkles(time: time, sipTime: sipTime)
+            Sparkles(time: time, sipTime: sipTime, splash: splash)
                 .allowsHitTesting(false)
 
             WaterBotBubble(
@@ -80,6 +80,24 @@ struct WaterBotView: View {
         }
         .animation(.spring(response: 0.32, dampingFraction: 0.72), value: isHovered && water.state == .asking)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: title(for: mood))
+    }
+
+    @ViewBuilder
+    private func figure(mood: WaterBotMood, time: TimeInterval, sipTime: TimeInterval?) -> some View {
+        switch water.character {
+        case .robot:
+            WaterBotFigure(mood: mood, time: time, sip: Self.sip(at: sipTime), waterLevel: Self.waterLevel(at: sipTime))
+        case .spidey:
+            SpideyFigure(mood: mood, time: time, sip: Self.sip(at: sipTime), waterLevel: Self.waterLevel(at: sipTime))
+        }
+    }
+
+    /// Where the drink splash bursts from: the robot's visor or Spidey's mouth, in stage coordinates.
+    private var splash: CGPoint {
+        switch water.character {
+        case .robot: return CGPoint(x: 196, y: 112)
+        case .spidey: return SpideyFigure.mouth + Self.figureOrigin
+        }
     }
 
     private var actions: some View {
@@ -125,9 +143,9 @@ struct WaterBotView: View {
         case .sleepy where water.state == .snoozing:
             return "Okay… nap time"
         case .tickled:
-            return mood.line(variant: pokes)
+            return mood.line(variant: pokes, character: water.character)
         default:
-            return mood.line(variant: water.reminderCount - 1)
+            return mood.line(variant: water.reminderCount - 1, character: water.character)
         }
     }
 
@@ -153,7 +171,7 @@ struct WaterBotView: View {
         pokes += 1
         pokedAt = Date()
         if water.settings.playSound { SoundPlayer.play(.resolve, volume: 0.15) }
-        // Every fifth poke it does a little twirl on its rope.
+        // Every fifth poke it does a little twirl on its rope (or web).
         if pokes.isMultiple(of: 5) {
             withAnimation(.spring(response: 0.9, dampingFraction: 0.7)) { spin += 360 }
         }
@@ -187,9 +205,8 @@ struct WaterBotView: View {
 private struct Sparkles: View {
     let time: TimeInterval
     let sipTime: TimeInterval?
-
-    /// Burst origin: the bot's visor, in stage coordinates.
-    private static let splash = CGPoint(x: 196, y: 112)
+    /// Burst origin: where the bottle meets the face, in stage coordinates.
+    let splash: CGPoint
 
     var body: some View {
         Canvas { context, _ in
@@ -215,8 +232,8 @@ private struct Sparkles: View {
                 let angle = Double(index) / 16 * 2 * .pi + 0.3
                 let speed = 70 + Double((index * 37) % 50)
                 let point = CGPoint(
-                    x: Self.splash.x + cos(angle) * speed * burst,
-                    y: Self.splash.y + sin(angle) * speed * burst + 60 * burst * burst
+                    x: splash.x + cos(angle) * speed * burst,
+                    y: splash.y + sin(angle) * speed * burst + 60 * burst * burst
                 )
                 if index.isMultiple(of: 3) {
                     context.fill(SparkShape(rays: 4, innerRatio: 0.2).path(in: CGRect(center: point, radius: 5)),

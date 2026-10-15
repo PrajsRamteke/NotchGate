@@ -23,6 +23,7 @@ final class AppSettings {
         static let waterReminderMinutes = "waterReminderMinutes"
         static let waterSnoozeMinutes = "waterSnoozeMinutes"
         static let waterDailyGoal = "waterDailyGoal"
+        static let waterTheme = "waterTheme"
         static let usageWidget = "widgetUsage"
         static let usageCardShown = "usageCardShown"
         static let sessionWidget = "widgetSession"
@@ -94,6 +95,9 @@ final class AppSettings {
     /// Glasses to drink per day.
     var waterDailyGoal: Int { didSet { defaults.set(waterDailyGoal, forKey: Key.waterDailyGoal) } }
 
+    /// Who brings the bottle: the robot, Spidey, or either at random.
+    var waterTheme: WaterTheme { didSet { defaults.set(waterTheme.rawValue, forKey: Key.waterTheme) } }
+
     // MARK: Widgets (glanceable info in the hover panel)
 
     /// Plan limits (5-hour and weekly) in the notch (see `UsageMonitor`).
@@ -141,6 +145,7 @@ final class AppSettings {
             Key.waterReminderMinutes: 15,
             Key.waterSnoozeMinutes: 10,
             Key.waterDailyGoal: 8,
+            Key.waterTheme: WaterTheme.robot.rawValue,
             Key.usageWidget: true,
             Key.usageCardShown: false,
             Key.sessionWidget: true,
@@ -167,6 +172,7 @@ final class AppSettings {
         waterReminderMinutes = defaults.integer(forKey: Key.waterReminderMinutes)
         waterSnoozeMinutes = defaults.integer(forKey: Key.waterSnoozeMinutes)
         waterDailyGoal = defaults.integer(forKey: Key.waterDailyGoal)
+        waterTheme = WaterTheme(rawValue: defaults.string(forKey: Key.waterTheme) ?? "") ?? .robot
         usageWidget = defaults.bool(forKey: Key.usageWidget)
         usageCardShown = defaults.bool(forKey: Key.usageCardShown)
         sessionWidget = defaults.bool(forKey: Key.sessionWidget)
