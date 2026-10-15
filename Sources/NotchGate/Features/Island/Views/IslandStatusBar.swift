@@ -59,11 +59,38 @@ struct IslandStatusBar: View {
         } else if showsMusic {
             EqualizerBars(isPlaying: true, color: musicAccent, height: 12)
                 .transition(.scale(scale: 0.5).combined(with: .opacity))
+        } else if presentation == .expanded, model.isShowingActivity {
+            ActivityPill(isLive: model.activity.workingCount > 0)
+                .transition(.opacity)
         }
     }
 
     private var sparkColor: Color {
         model.store.notice?.tone == .done && !model.store.hasPending ? Theme.Palette.success : Theme.Palette.clay
+    }
+}
+
+/// Mirrors "✦ Claude" across the camera while the hover panel is open:
+/// "Activity", or "Live" with a moving waveform while a session works.
+private struct ActivityPill: View {
+    let isLive: Bool
+
+    var body: some View {
+        let title = isLive ? "Live" : "Activity"
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: "waveform")
+                .symbolEffect(.variableColor.iterative, options: .repeating, isActive: isLive)
+        }
+        .font(Theme.Typeface.micro)
+        .foregroundStyle(Theme.Palette.clay)
+        .lineLimit(1)
+        .fixedSize()
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(Theme.Palette.clay.opacity(0.12)))
+        .accessibilityLabel(title)
     }
 }
 
