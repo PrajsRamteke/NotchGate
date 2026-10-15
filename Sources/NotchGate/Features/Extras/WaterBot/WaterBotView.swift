@@ -163,6 +163,9 @@ struct WaterBotView: View {
 
     /// Second line of the bubble; nil shows today's glasses as droplets.
     private func detail(for mood: WaterBotMood) -> String? {
+        if water.isPreview, water.state == .drinking || water.state == .snoozing {
+            return "Just a preview"
+        }
         switch water.state {
         case .snoozing:
             return "Back in \(WaterReminder.format(minutes: water.settings.waterSnoozeMinutes))"

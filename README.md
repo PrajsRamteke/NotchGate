@@ -202,7 +202,9 @@ Optional notch features unrelated to Claude. Turn them on or off under **✦ →
   antenna), **Spidey** (who hangs upside down from a web tied round his ankle
   and rolls his mask up to drink), **Batman** (who lowers himself on his
   grapnel line, cape and all), or **Random** for a different one on each
-  reminder. Set it under **Extras → Buddy**.
+  reminder. Set it under **Extras → Buddy**, and press **▶** on the Water
+  reminder row to watch your buddy drop in right away (a preview doesn't count
+  a glass or move the next reminder).
 
 <p align="center">
   <img src="assets/water-bot-moods.png" alt="Every mood of the water bot: cheerful, excited, pleading, thirsty, delighted, sleepy, tickled" width="720">

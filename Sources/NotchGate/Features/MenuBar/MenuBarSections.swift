@@ -262,8 +262,9 @@ struct NotchFeaturesSection: View {
     }
 }
 
-/// Shows a demo of a card in the notch.
-private struct PreviewButton: View {
+/// Shows a demo in the notch.
+struct PreviewButton: View {
+    var help = "Preview this card"
     let action: () -> Void
     @State private var isHovered = false
 
@@ -278,8 +279,8 @@ private struct PreviewButton: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-        .help("Preview this card")
-        .accessibilityLabel("Preview this card")
+        .help(help)
+        .accessibilityLabel(help)
     }
 }
 

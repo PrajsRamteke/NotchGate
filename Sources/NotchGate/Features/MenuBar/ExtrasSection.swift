@@ -13,10 +13,12 @@ struct ExtrasSection: View {
     var body: some View {
         SettingsGroup {
             SettingRow(
-                "Water reminder",
-                info: "A little bot, Spidey or Batman drops from the notch with a bottle to remind you to drink.\n\nThe timer waits while you're away from your Mac.",
+                title: "Water reminder",
+                info: "A little bot, Spidey or Batman drops from the notch with a bottle to remind you to drink.\n\nThe timer waits while you're away from your Mac. Press ▶ to see your buddy now; a preview doesn't count a glass.",
                 isOn: Binding(get: { settings.waterReminder }, set: { [water] in water.setEnabled($0) })
-            )
+            ) {
+                PreviewButton(help: "Preview the water reminder") { [water] in water.preview() }
+            }
 
             if settings.waterReminder {
                 VStack(alignment: .leading, spacing: 0) {

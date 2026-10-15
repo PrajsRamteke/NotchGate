@@ -141,6 +141,68 @@ struct WaterReminderTests {
         #expect(AppSettings(defaults: defaults).waterTheme == .random)
     }
 
+    @Test func previewDropsInWithoutCountingOrRescheduling() {
+        let (water, world, _) = make()
+        let next = water.nextReminder
+        world.now += 60
+        water.preview()
+        #expect(water.state == .asking)
+        #expect(water.isPreview)
+
+        water.drink()
+        #expect(water.state == .drinking)
+        #expect(water.glassesToday == 0)
+        #expect(water.nextReminder == next)
+    }
+
+    @Test func snoozingOrSkippingAPreviewKeepsTheSchedule() {
+        let (water, world, _) = make()
+        let next = water.nextReminder
+        world.now += 60
+        water.preview()
+        water.snooze()
+        #expect(water.state == .snoozing)
+        #expect(water.nextReminder == next)
+
+        let (other, otherWorld, _) = make()
+        let otherNext = other.nextReminder
+        otherWorld.now += 60
+        other.preview()
+        other.skip()
+        #expect(other.state == .away)
+        #expect(!other.isPreview)
+        #expect(other.nextReminder == otherNext)
+    }
+
+    @Test func previewWorksWithTheReminderOff() {
+        let (water, _, _) = make(enabled: false)
+        water.preview()
+        #expect(water.state == .asking)
+        water.skip()
+        #expect(water.state == .away)
+        #expect(water.nextReminder == nil)
+    }
+
+    @Test func previewingAgainSwapsTheBuddy() {
+        let (water, _, _) = make()
+        water.settings.waterTheme = .spidey
+        water.preview()
+        water.settings.waterTheme = .batman
+        water.preview()
+        #expect(water.character == .batman)
+        #expect(water.state == .asking)
+    }
+
+    @Test func aRealReminderIsNotAPreview() {
+        let (water, _, _) = make()
+        water.preview()
+        water.skip()
+        water.remind()
+        #expect(!water.isPreview)
+        water.drink()
+        #expect(water.glassesToday == 1)
+    }
+
     @Test func eachCharacterHasItsOwnLines() {
         let lines = WaterCharacter.allCases.map { WaterBotMood.cheerful.line(variant: 0, character: $0) }
         #expect(Set(lines).count == WaterCharacter.allCases.count)

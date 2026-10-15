@@ -38,6 +38,9 @@ final class WaterReminder {
     private(set) var isUserAway = false
     /// Who's hanging from the notch this time; picked from `settings.waterTheme` on each reminder.
     private(set) var character: WaterCharacter = .robot
+    /// Dropped in from the Extras ▶ button: a demo that leaves today's count
+    /// and the next reminder alone.
+    private(set) var isPreview = false
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let now: () -> Date
@@ -106,6 +109,7 @@ final class WaterReminder {
             exit?.cancel()
             state = .away
             askedAt = nil
+            isPreview = false
             nextReminder = nil
             return
         }
@@ -120,21 +124,48 @@ final class WaterReminder {
 
     // MARK: Intents
 
-    /// Drops the bot in right away (also the menu bar's preview).
+    /// Drops the bot in right away.
     func remind() {
         guard state == .away else { return }
         exit?.cancel()
         reminderCount += 1
         character = settings.waterTheme.pick(using: &generator)
         askedAt = now()
+        isPreview = false
         state = .asking
         if settings.playSound { SoundPlayer.play(.water, volume: 0.3) }
+    }
+
+    /// The Extras ▶ button: drops the buddy in now, even with the reminder
+    /// off. Drinking or snoozing then plays out without logging a glass or
+    /// moving the next reminder. Pressed again while it hangs there, it swaps
+    /// in a fresh pick (so a new Buddy choice shows straight away).
+    func preview() {
+        switch state {
+        case .away:
+            remind()
+            isPreview = true
+        case .asking:
+            reminderCount += 1
+            character = settings.waterTheme.pick(using: &generator)
+            askedAt = now()
+        case .drinking, .snoozing:
+            break
+        }
     }
 
     /// Logs a glass. From the bot it sips and celebrates; from the activity
     /// panel it just counts and restarts the countdown.
     func drink() {
         guard state != .drinking else { return }
+        if isPreview {
+            guard state == .asking else { return }
+            if settings.playSound { SoundPlayer.play(.sip, volume: 0.3) }
+            drankAt = now()
+            state = .drinking
+            leave(after: Self.celebration)
+            return
+        }
         rollOverDayIfNeeded()
         glassesToday += 1
         defaults.set(glassesToday, forKey: Key.glasses)
@@ -150,7 +181,9 @@ final class WaterReminder {
 
     func snooze() {
         guard state == .asking else { return }
-        nextReminder = settings.waterReminder ? now().addingTimeInterval(TimeInterval(settings.waterSnoozeMinutes * 60)) : nil
+        if !isPreview {
+            nextReminder = settings.waterReminder ? now().addingTimeInterval(TimeInterval(settings.waterSnoozeMinutes * 60)) : nil
+        }
         state = .snoozing
         leave(after: Self.yawn)
     }
@@ -158,9 +191,10 @@ final class WaterReminder {
     /// Sends the bot home without counting a glass; the regular countdown restarts.
     func skip() {
         guard state == .asking else { return }
-        schedule()
+        if !isPreview { schedule() }
         state = .away
         askedAt = nil
+        isPreview = false
     }
 
     // MARK: Private
@@ -178,6 +212,7 @@ final class WaterReminder {
             guard let self, !Task.isCancelled else { return }
             state = .away
             askedAt = nil
+            isPreview = false
         }
     }
 
