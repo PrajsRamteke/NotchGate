@@ -27,6 +27,16 @@ struct ActivityPanelView: View {
 
     static let maxVisibleSessions = 4
 
+    /// Height of the window under the island's top strip and this panel's header,
+    /// leaving room for the island's padding and shadow.
+    private var scrollHeight: CGFloat {
+        let chrome = model.notch.notchSize.height + 10 + Theme.Metrics.contentPadding + Self.headerHeight + 12 + Self.bottomMargin
+        return max(200, Theme.Metrics.canvasSize.height - chrome)
+    }
+
+    private static let headerHeight: CGFloat = 26
+    private static let bottomMargin: CGFloat = 28
+
     private var tracker: ActivityTracker { model.activity }
     private var settings: AppSettings { model.settings }
 
@@ -36,55 +46,58 @@ struct ActivityPanelView: View {
         VStack(alignment: .leading, spacing: 12) {
             header(count: tracker.sessions.count)
 
-            if model.nowPlaying.isEnabled, settings.nowPlayingCardShown {
-                NowPlayingCardView(monitor: model.nowPlaying)
-                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
-            }
-
-            NotchWidgetsView(
-                usage: model.usage,
-                session: model.session,
-                resume: model.resume,
-                sessions: tracker.ordered,
-                dismissedIDs: Set(tracker.dismissed.keys)
-            )
-                .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
-
-            if model.isDraggingImages, !sessions.isEmpty {
-                dropHint(sessions: sessions)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
-            if sessions.isEmpty {
+            // Widgets, sessions and settings scroll together under the header,
+            // so a tall panel never runs past the bottom of its window.
+            CappedScroll(maxHeight: scrollHeight, scrollTarget: openComposer, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 12) {
-                    CardTitle(title: "Nothing running", subtitle: "Start Claude Code in any terminal and its progress shows up here.")
-                    // The Resume card has its own "New session" button.
-                    if !(model.resume.isEnabled && settings.resumeCardShown) {
-                        Button(action: model.startClaudeCode) {
-                            Label("Open Claude Code", systemImage: "terminal")
-                        }
-                        .buttonStyle(.island(.primary))
-                        .help("Opens Terminal and starts Claude Code")
+                    if model.nowPlaying.isEnabled, settings.nowPlayingCardShown {
+                        NowPlayingCardView(monitor: model.nowPlaying)
+                            .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
                     }
-                }
-                .padding(.bottom, 4)
-            } else {
-                // An open reply dropdown carries the conversation, so give it more room.
-                CappedScroll(maxHeight: openComposer == nil ? 400 : 480, scrollTarget: openComposer) {
-                    VStack(spacing: 8) {
-                        ForEach(sessions) { session in
-                            row(for: session)
-                                .id(session.id)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
-                    }
-                }
-                .animation(Theme.Motion.content, value: sessions.map(\.id))
-            }
 
-            if settings.showQuickSettingsInNotch {
-                QuickSettingsView(settings: settings, onSetAutoAllow: model.setAutoAllow)
-                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+                    NotchWidgetsView(
+                        usage: model.usage,
+                        session: model.session,
+                        resume: model.resume,
+                        sessions: tracker.ordered,
+                        dismissedIDs: Set(tracker.dismissed.keys)
+                    )
+                        .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+
+                    if model.isDraggingImages, !sessions.isEmpty {
+                        dropHint(sessions: sessions)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
+                    if sessions.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            CardTitle(title: "Nothing running", subtitle: "Start Claude Code in any terminal and its progress shows up here.")
+                            // The Resume card has its own "New session" button.
+                            if !(model.resume.isEnabled && settings.resumeCardShown) {
+                                Button(action: model.startClaudeCode) {
+                                    Label("Open Claude Code", systemImage: "terminal")
+                                }
+                                .buttonStyle(.island(.primary))
+                                .help("Opens Terminal and starts Claude Code")
+                            }
+                        }
+                        .padding(.bottom, 4)
+                    } else {
+                        VStack(spacing: 8) {
+                            ForEach(sessions) { session in
+                                row(for: session)
+                                    .id(session.id)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
+                        }
+                        .animation(Theme.Motion.content, value: sessions.map(\.id))
+                    }
+
+                    if settings.showQuickSettingsInNotch {
+                        QuickSettingsView(settings: settings, onSetAutoAllow: model.setAutoAllow)
+                            .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+                    }
+                }
             }
         }
         .animation(Theme.Motion.content, value: settings.showQuickSettingsInNotch)
@@ -112,6 +125,7 @@ struct ActivityPanelView: View {
             session: session,
             isComposerOpen: openComposer == session.id,
             hasQueuedPrompt: queued != nil,
+            hasDraft: model.prompts.texts.hasDraft(for: session.id) || !model.prompts.drafts.images(for: session.id).isEmpty,
             dropState: dropState(for: session),
             usage: usage(for: session),
             onToggleComposer: { toggleComposer(session.id) },

@@ -31,6 +31,8 @@ final class ComposerController {
     private let dispatcher = PromptDispatcher()
     /// Images attached to each session's next prompt.
     let drafts = ImageDrafts()
+    /// Text typed for each session's next prompt, kept while the island is closed.
+    let texts = TextDrafts()
 
     init(store: RequestStore, activity: ActivityTracker) {
         self.store = store

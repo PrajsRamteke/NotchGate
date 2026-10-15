@@ -13,7 +13,6 @@ struct NotchComposer: View {
     let onOpenTerminal: () -> Void
     var onDelivered: () -> Void = {}
 
-    @State private var text = ""
     @State private var isSending = false
     @State private var feedback: Feedback?
     /// The message that failed, kept so a fallback action can resend it.
@@ -26,6 +25,14 @@ struct NotchComposer: View {
 
     private var drafts: ImageDrafts { controller.drafts }
 
+    /// The session's unsent text, kept by the controller so it outlives this view.
+    private var text: Binding<String> {
+        Binding(
+            get: { controller.texts.text(for: target.sessionID) },
+            set: { controller.texts.set($0, for: target.sessionID) }
+        )
+    }
+
     var body: some View {
         let availability = controller.availability(for: target)
         VStack(alignment: .leading, spacing: 7) {
@@ -34,7 +41,7 @@ struct NotchComposer: View {
             } else {
                 PromptComposer(
                     placeholder: placeholder ?? defaultPlaceholder(availability),
-                    text: $text,
+                    text: text,
                     autofocus: autofocus,
                     isSending: isSending,
                     attachments: drafts.images(for: target.sessionID),
@@ -89,7 +96,7 @@ struct NotchComposer: View {
     }
 
     private func succeed(_ message: String) {
-        text = ""
+        controller.texts.clear(target.sessionID)
         feedback = .success(message)
         onDelivered()
         Task {

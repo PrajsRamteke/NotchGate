@@ -31,6 +31,12 @@ enum SnapshotRenderer {
             model.initialComposerSession = "demo-docs"
             model.showActivityNow()
         }
+        // Text typed and left: the island closed, the 💬 chip carries a dot.
+        render(to: directory.appendingPathComponent("activity-draft.png")) { model in
+            model.activity.load(DemoActivity.sessions())
+            model.prompts.texts.set("Also add a test for the timeout path", for: "demo-docs")
+            model.showActivityNow()
+        }
         render(to: directory.appendingPathComponent("activity-drop.png")) { model in
             model.activity.load(DemoActivity.sessions())
             model.setDraggingImages(true)
@@ -125,6 +131,19 @@ enum SnapshotRenderer {
             model.settings.showQuickSettingsInNotch = false
             model.settings.sessionCardShown = false
             model.nowPlaying.showPreview(sampleTrack(), artwork: sampleArtwork())
+            model.showActivityNow()
+        }
+        // Everything open at once: taller than the window, so the panel scrolls.
+        render(to: directory.appendingPathComponent("activity-everything.png")) { model in
+            model.activity.load(DemoActivity.sessions())
+            model.settings.nowPlaying = true
+            model.settings.usageCardShown = true
+            model.settings.toolsCardShown = true
+            model.settings.resumeCardShown = true
+            model.nowPlaying.showPreview(sampleTrack(), artwork: sampleArtwork())
+            model.usage.showPreview(nil)
+            model.session.showPreview([])
+            model.resume.showPreview(DemoActivity.pastSessions())
             model.showActivityNow()
         }
         render(to: directory.appendingPathComponent("now-playing-video.png")) { model in

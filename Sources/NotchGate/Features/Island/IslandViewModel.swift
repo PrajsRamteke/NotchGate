@@ -300,6 +300,7 @@ final class IslandViewModel {
         store.cancelQueuedPrompt(for: sessionID)
         store.clearSession(sessionID)
         prompts.drafts.clear(sessionID)
+        prompts.texts.clear(sessionID)
     }
 
     /// Opens a Terminal window running Claude Code, for when no session exists yet.

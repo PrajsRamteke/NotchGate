@@ -24,6 +24,8 @@ struct SessionActivityRow<Composer: View>: View {
     let session: SessionActivity
     let isComposerOpen: Bool
     let hasQueuedPrompt: Bool
+    /// Text or images typed for this session but not sent yet.
+    var hasDraft = false
     var dropState: SessionDropState = .none
     /// `nil` while the Session widget is off.
     var usage: SessionRowUsage?
@@ -51,7 +53,7 @@ struct SessionActivityRow<Composer: View>: View {
                 if let usage {
                     CardToggleButton(systemName: "cpu", name: "this session's usage", isOn: usage.isOpen, action: usage.toggle)
                 }
-                ReplyChip(isOpen: isComposerOpen, isQueued: hasQueuedPrompt, action: onToggleComposer)
+                ReplyChip(isOpen: isComposerOpen, isQueued: hasQueuedPrompt, hasDraft: hasDraft, action: onToggleComposer)
                 IconButton(systemName: "arrow.up.forward.app", help: "Open this session's terminal", action: onOpen)
                 IconButton(
                     systemName: "xmark",
@@ -276,9 +278,13 @@ private struct ElapsedLabel: View {
 private struct ReplyChip: View {
     let isOpen: Bool
     let isQueued: Bool
+    let hasDraft: Bool
     let action: () -> Void
 
     @State private var isHovered = false
+
+    /// A closed box with unsent text gets a dot, so the draft isn't forgotten.
+    private var showsDraftDot: Bool { hasDraft && !isOpen && !isQueued }
 
     var body: some View {
         Button(action: action) {
@@ -293,12 +299,23 @@ private struct ReplyChip: View {
             .padding(.horizontal, 8)
             .frame(height: 22)
             .background(Capsule().fill(isOpen ? Theme.Palette.clay : (isHovered ? Theme.Palette.surfaceRaised : Theme.Palette.surface)))
+            .overlay(alignment: .topTrailing) {
+                if showsDraftDot {
+                    Circle()
+                        .fill(Theme.Palette.clay)
+                        .frame(width: 7, height: 7)
+                        .overlay(Circle().strokeBorder(Theme.Palette.island, lineWidth: 1.5))
+                        .offset(x: 2, y: -2)
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .help(isQueued ? "Message queued for this project" : "Send this project a prompt")
+        .help(isQueued ? "Message queued for this project" : (showsDraftDot ? "Continue your unsent prompt" : "Send this project a prompt"))
         .accessibilityLabel("Reply to this session")
         .onHover { isHovered = $0 }
         .animation(.easeOut(duration: 0.15), value: isOpen)
+        .animation(.easeOut(duration: 0.15), value: showsDraftDot)
     }
 }
