@@ -5,6 +5,8 @@ struct IslandToggleRow: View {
     let title: String
     var caption: String?
     var symbol: String?
+    /// What the switch does, behind an ⓘ (needs an `.infoTipHost(.island)` above).
+    var info: String?
     @Binding var isOn: Bool
 
     var body: some View {
@@ -16,9 +18,14 @@ struct IslandToggleRow: View {
                     .frame(width: 16)
             }
             VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(Theme.Typeface.caption)
-                    .foregroundStyle(Theme.Palette.textPrimary)
+                HStack(spacing: 4) {
+                    Text(title)
+                        .font(Theme.Typeface.caption)
+                        .foregroundStyle(Theme.Palette.textPrimary)
+                    if let info {
+                        InfoButton(text: info, title: title, tint: Theme.Palette.textTertiary)
+                    }
+                }
                 if let caption {
                     Text(caption)
                         .font(.system(size: 10.5))

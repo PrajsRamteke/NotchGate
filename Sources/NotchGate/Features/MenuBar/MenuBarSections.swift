@@ -6,30 +6,32 @@ struct IntegrationSection: View {
     let editorHelper: EditorHelperInstaller
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        SettingsGroup {
             HStack(spacing: 8) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 7, height: 7)
-                Text(statusText)
-                    .font(.callout)
-                    .lineLimit(2)
-                Spacer()
+                StatusDot(color: statusColor)
+                SettingLabel(
+                    title: statusText,
+                    info: "Connects NotchGate to Claude Code through hooks in **~/.claude/settings.json**. A backup is saved first.\n\nRestart running Claude sessions to pick it up."
+                )
+                Spacer(minLength: 8)
                 if installer.status == .installed {
                     Button("Remove", action: installer.uninstall)
+                        .controlSize(.small)
                 } else {
-                    Button("Install hooks", action: installer.install)
+                    Button("Install", action: installer.install)
                         .buttonStyle(.borderedProminent)
                         .tint(Theme.Palette.clay)
+                        .controlSize(.small)
                 }
             }
-            Text("Adds NotchGate to ~/.claude/settings.json (a backup is saved first). Restart running Claude sessions to pick it up.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            .settingRowPadding()
+            if case .failed(let message) = installer.status {
+                SettingStatus(message, tone: .error)
+            }
+
             if !editorHelper.editors.isEmpty {
+                GroupDivider()
                 EditorHelperRow(helper: editorHelper)
-                    .padding(.top, 4)
             }
         }
     }
@@ -38,7 +40,7 @@ struct IntegrationSection: View {
         switch installer.status {
         case .installed: return "Hooks installed"
         case .notInstalled: return "Hooks not installed"
-        case .failed(let message): return message
+        case .failed: return "Hooks couldn't install"
         }
     }
 
@@ -56,40 +58,49 @@ private struct EditorHelperRow: View {
     let helper: EditorHelperInstaller
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
-                Circle()
-                    .fill(helper.installed.isEmpty ? Color.secondary : Theme.Palette.success)
-                    .frame(width: 7, height: 7)
-                Text(title).font(.callout).lineLimit(1)
-                Spacer()
+                StatusDot(color: helper.installed.isEmpty ? .secondary : Theme.Palette.success)
+                SettingLabel(
+                    title: "Editor helper",
+                    info: "Lets the notch type prompts straight into **Cursor** and **VS Code** terminals.\n\nAfter installing, reload open editor windows once."
+                )
+                Spacer(minLength: 8)
                 if helper.isInstalling {
                     ProgressView().controlSize(.small)
                 } else {
                     Button(helper.installed.isEmpty ? "Install" : "Reinstall") {
                         Task { await helper.install() }
                     }
+                    .controlSize(.small)
                 }
             }
-            SettingNote(detail)
+            .settingRowPadding()
+            if let status {
+                SettingStatus(status.text, tone: status.tone)
+            }
         }
     }
 
-    private var title: String {
-        helper.installed.isEmpty
-            ? "Editor helper not installed"
-            : "Editor helper in \(helper.installed.sorted().joined(separator: ", "))"
-    }
-
-    private var detail: String {
-        if let error = helper.lastError { return error }
+    private var status: (text: String, tone: SettingStatus.Tone)? {
+        if let error = helper.lastError { return (error, .error) }
+        guard !helper.installed.isEmpty else { return nil }
+        let editors = helper.installed.sorted().joined(separator: ", ")
         let windows = helper.connectedWindows
-        if helper.installed.isEmpty {
-            return "Lets the notch type prompts into Cursor / VS Code terminals."
-        }
         return windows == 0
-            ? "No editor window connected yet. Reload open windows once."
-            : "\(windows) editor window\(windows == 1 ? "" : "s") connected. Prompts type straight into their terminals."
+            ? ("\(editors) · no window connected yet, reload once", .warning)
+            : ("\(editors) · \(windows) window\(windows == 1 ? "" : "s") connected", .normal)
+    }
+}
+
+/// Green / grey / red connection light before a status title.
+private struct StatusDot: View {
+    let color: Color
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 7, height: 7)
     }
 }
 
@@ -113,23 +124,63 @@ extension NotchFeaturesSection {
     }
 }
 
+extension PreferencesSection {
+    var summary: String {
+        settings.autoExpand ? "Auto-expand on" : "Auto-expand off"
+    }
+}
+
 /// Behavior toggles.
 struct PreferencesSection: View {
     @Bindable var settings: AppSettings
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SettingRow("Expand automatically", detail: "Open the full card as soon as Claude asks", isOn: $settings.autoExpand)
-            SettingRow("Live activity on hover", detail: "Hover the notch to see every session", isOn: $settings.showActivityOnHover)
-            SettingRow("Quick settings in the notch", isOn: $settings.showQuickSettingsInNotch, isIndented: true)
-                .disabled(!settings.showActivityOnHover)
-            SettingRow("Play a sound", isOn: $settings.playSound)
-            SettingRow("“Claude finished” notices", detail: "A brief note in the notch when a task ends", isOn: $settings.showNotices)
-            SettingRow("Check for updates", detail: "Looks for a newer NotchGate on GitHub", isOn: $settings.checkForUpdates)
-            SettingRow("Launch at login", detail: "Opens the notch when you turn on your Mac", isOn: $launchAtLogin)
-                .disabled(!LaunchAtLogin.isAvailable)
-                .onChange(of: launchAtLogin) { _, enabled in LaunchAtLogin.setEnabled(enabled) }
+        SettingsGroup {
+            SettingRow(
+                "Expand automatically",
+                info: "Opens the full card the moment Claude asks for something, instead of a small alert you click to open.",
+                isOn: $settings.autoExpand
+            )
+            GroupDivider()
+            SettingRow(
+                "Live activity on hover",
+                info: "Hover the notch to see every running Claude session, its progress, and your widgets.",
+                isOn: $settings.showActivityOnHover
+            )
+            SettingRow(
+                "Quick settings",
+                info: "Puts the auto-allow switch and question mode at the bottom of the hover panel.\n\nNeeds **Live activity on hover**.",
+                isOn: $settings.showQuickSettingsInNotch,
+                isIndented: true,
+                isDisabled: !settings.showActivityOnHover
+            )
+            GroupDivider()
+            SettingRow(
+                "Play a sound",
+                info: "Plays a short sound when Claude needs your attention.",
+                isOn: $settings.playSound
+            )
+            GroupDivider()
+            SettingRow(
+                "“Finished” notices",
+                info: "Shows a brief note in the notch when Claude finishes a task.",
+                isOn: $settings.showNotices
+            )
+            GroupDivider()
+            SettingRow(
+                "Check for updates",
+                info: "Looks for a newer NotchGate on GitHub and offers it at the top of this menu.",
+                isOn: $settings.checkForUpdates
+            )
+            GroupDivider()
+            SettingRow(
+                "Launch at login",
+                info: "Starts NotchGate when you log in to your Mac.",
+                isOn: $launchAtLogin,
+                isDisabled: !LaunchAtLogin.isAvailable
+            )
+            .onChange(of: launchAtLogin) { _, enabled in LaunchAtLogin.setEnabled(enabled) }
         }
     }
 }
@@ -140,30 +191,31 @@ struct PermissionsSection: View {
     let onSetAutoAllow: @MainActor (Bool) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        SettingsGroup {
             SettingRow(
                 "Auto-allow permissions",
-                detail: "Approve prompts instantly, with no card",
+                info: "Approves Claude's permission prompts instantly, with no card to click.",
                 isOn: Binding(get: { settings.autoAllowPermissions }, set: { [onSetAutoAllow] in onSetAutoAllow($0) })
             )
             SettingRow(
-                "Still ask for risky commands",
-                detail: "rm -rf, sudo, force push, DROP TABLE…",
+                "Still ask for risky ones",
+                info: "Even with auto-allow on, dangerous commands still stop and ask: **rm -rf**, **sudo**, **git push --force**, **DROP TABLE** and similar.",
                 isOn: $settings.askForRiskyCommands,
-                isIndented: true
+                isIndented: true,
+                isDisabled: !settings.autoAllowPermissions
             )
-            .disabled(!settings.autoAllowPermissions)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Claude's questions").font(.callout)
+            GroupDivider()
+            VStack(alignment: .leading, spacing: 8) {
+                SettingLabel(title: "Claude's questions", info: QuestionMode.explanation)
                 Picker("Claude's questions", selection: $settings.questionMode) {
                     ForEach(QuestionMode.allCases) { mode in Text(mode.title).tag(mode) }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                SettingNote(settings.questionMode.detail)
+                .controlSize(.small)
             }
-            .padding(.top, 2)
+            .settingRowPadding()
+            .padding(.bottom, 2)
         }
     }
 }
@@ -174,15 +226,24 @@ struct NotchFeaturesSection: View {
     @Bindable var settings: AppSettings
     let onPreview: (DemoRequests.Sample) -> Void
 
+    private static let offNote = "\n\nWhen off, you answer in the terminal and the notch only alerts you."
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            row("Permissions", detail: "Commands, web, MCP tools", sample: .permission, isOn: $settings.notchPermissions)
-            row("File edits", detail: "Edit / Write approvals", sample: .edit, isOn: $settings.notchFileEdits)
-            row("Questions", detail: "Claude asking you to choose", sample: .question, isOn: questionsBinding)
-            row("Plan approvals", detail: "Approve before Claude codes", sample: .plan, isOn: $settings.notchPlans)
-            row("Reply when done", detail: "Pop-up box to send the next prompt", sample: .completion, isOn: $settings.replyFromNotch)
-            SettingNote("Off means you answer in the terminal; the notch still alerts you.")
-                .padding(.top, 2)
+        SettingsGroup {
+            row("Permissions", info: "Approve commands, web fetches and MCP tools from the notch." + Self.offNote,
+                sample: .permission, isOn: $settings.notchPermissions)
+            GroupDivider()
+            row("File edits", info: "Review Edit and Write changes as a diff in the notch before they're applied." + Self.offNote,
+                sample: .edit, isOn: $settings.notchFileEdits)
+            GroupDivider()
+            row("Questions", info: "Answer Claude's multiple-choice questions from the notch." + Self.offNote,
+                sample: .question, isOn: questionsBinding)
+            GroupDivider()
+            row("Plan approvals", info: "Read and approve Claude's plan in the notch before it starts coding." + Self.offNote,
+                sample: .plan, isOn: $settings.notchPlans)
+            GroupDivider()
+            row("Reply when done", info: "When Claude finishes, a reply box pops up so you can send the next prompt without switching windows.",
+                sample: .completion, isOn: $settings.replyFromNotch)
         }
     }
 
@@ -194,36 +255,75 @@ struct NotchFeaturesSection: View {
         )
     }
 
-    private func row(_ title: String, detail: String, sample: DemoRequests.Sample, isOn: Binding<Bool>) -> some View {
-        SettingRow(title: title, detail: detail, isOn: isOn) {
-            Button { onPreview(sample) } label: {
-                Image(systemName: "play.circle")
-            }
-            .buttonStyle(.borderless)
-            .help("Preview this card")
+    private func row(_ title: String, info: String, sample: DemoRequests.Sample, isOn: Binding<Bool>) -> some View {
+        SettingRow(title: title, info: info, isOn: isOn) {
+            PreviewButton { onPreview(sample) }
         }
+    }
+}
+
+/// Shows a demo of a card in the notch.
+private struct PreviewButton: View {
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "play.fill")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(isHovered ? Theme.Palette.clay : Color.secondary)
+                .frame(width: 20, height: 20)
+                .background(Circle().fill(Color.primary.opacity(isHovered ? 0.1 : 0.06)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help("Preview this card")
+        .accessibilityLabel("Preview this card")
     }
 }
 
 /// Reference card for the global shortcuts.
 struct ShortcutsSection: View {
-    private let rows: [(String, String)] = [
-        ("⌃⌥⏎", "Allow / approve"),
-        ("⌃⌥⌫", "Deny / reject"),
-        ("⌃⌥Space", "Expand or minimize"),
+    private let rows: [(keys: [String], action: String)] = [
+        (["⌃", "⌥", "⏎"], "Allow / approve"),
+        (["⌃", "⌥", "⌫"], "Deny / reject"),
+        (["⌃", "⌥", "Space"], "Expand or minimize"),
     ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            SettingNote("These work anywhere while a request is waiting.")
-            ForEach(rows, id: \.0) { keys, action in
-                HStack {
-                    Text(keys)
-                        .font(.system(.caption, design: .rounded).weight(.semibold))
-                        .frame(width: 64, alignment: .leading)
-                    Text(action).font(.caption).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsGroup {
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    if index > 0 { GroupDivider() }
+                    HStack {
+                        Text(row.action).font(.callout)
+                        Spacer(minLength: 8)
+                        HStack(spacing: 3) {
+                            ForEach(row.keys, id: \.self) { MenuKeycap($0) }
+                        }
+                    }
+                    .settingRowPadding()
                 }
             }
+            SettingStatus("Work anywhere while a request is waiting.")
+                .padding(.top, 9)
         }
+    }
+}
+
+/// A keycap in the system-themed menu (the island's `KeyHint` is dark-only).
+private struct MenuKeycap: View {
+    let key: String
+    init(_ key: String) { self.key = key }
+
+    var body: some View {
+        Text(key)
+            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 5)
+            .frame(minWidth: 20, minHeight: 18)
+            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Color.primary.opacity(0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
     }
 }

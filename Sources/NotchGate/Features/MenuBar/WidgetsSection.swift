@@ -9,51 +9,48 @@ struct WidgetsSection: View {
     let resume: ResumeMonitor
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SettingRow(
-                "Usage",
-                detail: "5-hour and weekly limits, and when they reset",
-                isOn: Binding(get: { settings.usageWidget }, set: { [usage] in usage.setEnabled($0) })
-            )
-
-            if settings.usageWidget {
-                SettingNote(usageStatus)
-                    .padding(.leading, 16)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
-            SettingRow(
-                "Session",
-                detail: "Model, context used, cost and git branch",
-                isOn: Binding(get: { settings.sessionWidget }, set: { [session] in session.setEnabled($0) })
-            )
-
-            if settings.sessionWidget {
-                SettingNote(sessionStatus)
-                    .padding(.leading, 16)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
-            SettingRow(
-                "Tool activity",
-                detail: "Bash, Edit, Read… calls per session, and a heat strip of the last hour",
-                isOn: $settings.toolsWidget
-            )
-
-            SettingRow(
-                "Resume",
-                detail: "Pick up a recent session or start a new one in Terminal",
-                isOn: Binding(get: { settings.resumeWidget }, set: { [resume] in resume.setEnabled($0) })
-            )
-
-            if settings.resumeWidget {
-                SettingNote(resumeStatus)
-                    .padding(.leading, 16)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsGroup {
+                SettingRow(
+                    "Usage",
+                    info: "Your **5-hour** and **weekly** plan limits, and when they reset. Needs a Pro or Max plan.\n\nRead from Claude Code's status line; your own status line keeps working.",
+                    isOn: Binding(get: { settings.usageWidget }, set: { [usage] in usage.setEnabled($0) })
+                )
+                if settings.usageWidget {
+                    SettingStatus(usageStatus.text, tone: usageStatus.tone)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                GroupDivider()
+                SettingRow(
+                    "Session",
+                    info: "Model, context used, cost and git branch for each running session, on its row in the notch.",
+                    isOn: Binding(get: { settings.sessionWidget }, set: { [session] in session.setEnabled($0) })
+                )
+                if settings.sessionWidget {
+                    SettingStatus(sessionStatus.text, tone: sessionStatus.tone)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                GroupDivider()
+                SettingRow(
+                    "Tool activity",
+                    info: "How often each session calls Bash, Edit, Read and other tools, plus a heat strip of the last hour.",
+                    isOn: $settings.toolsWidget
+                )
+                GroupDivider()
+                SettingRow(
+                    "Resume",
+                    info: "Pick up a recent Claude Code session, or start a new one, in Terminal.\n\nRead from Claude Code's transcripts in **~/.claude/projects**.",
+                    isOn: Binding(get: { settings.resumeWidget }, set: { [resume] in resume.setEnabled($0) })
+                )
+                if settings.resumeWidget, let resumeStatus {
+                    SettingStatus(resumeStatus.text, tone: resumeStatus.tone)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
 
             if anyOn, !settings.showActivityOnHover {
-                SettingNote("Widgets show when you hover the notch. Turn on “Live activity on hover” under Behavior.")
+                SettingStatus("Turn on Live activity on hover (Behavior) to see widgets.", tone: .warning)
+                    .padding(.top, 9)
             }
         }
         .animation(.snappy(duration: 0.25), value: settings.usageWidget)
@@ -67,39 +64,31 @@ struct WidgetsSection: View {
         [settings.usageWidget, settings.sessionWidget, settings.toolsWidget, settings.resumeWidget]
     }
 
-    private var resumeStatus: String {
-        if let error = resume.loadError { return error }
-        let source = "Read from Claude Code's transcripts in ~/.claude/projects; opens in Terminal."
-        guard let latest = resume.recent.first else { return source }
-        return "Last: \(latest.title) (\(latest.projectName)). \(source)"
+    private var resumeStatus: (text: String, tone: SettingStatus.Tone)? {
+        if let error = resume.loadError { return (error, .error) }
+        guard let latest = resume.recent.first else { return nil }
+        return ("Last: \(latest.title) · \(latest.projectName)", .normal)
     }
 
-    private var sessionStatus: String {
-        if let error = session.setupError { return "Couldn't connect to Claude Code: \(error)" }
-        guard let snapshot = session.latest else {
-            return "Waiting for Claude Code's next reply. Each session shows its own."
-        }
+    private var sessionStatus: (text: String, tone: SettingStatus.Tone) {
+        if let error = session.setupError { return ("Couldn't connect to Claude Code: \(error)", .error) }
+        guard let snapshot = session.latest else { return ("Waiting for Claude's next reply", .normal) }
         var parts: [String] = []
-        if session.snapshots.count > 1 { parts.append("\(session.snapshots.count) sessions, latest:") }
-        if let name = snapshot.projectName { parts.append(name) }
+        if session.snapshots.count > 1 { parts.append("\(session.snapshots.count) sessions") }
         if let model = snapshot.model { parts.append(model) }
         if let percent = snapshot.contextPercent { parts.append("\(Int(percent.rounded()))% context") }
         if let cost = snapshot.costUSD { parts.append(SessionUsageDetails.costPhrase(cost)) }
-        if let branch = snapshot.branch { parts.append(branch) }
-        return parts.joined(separator: " · ")
+        return (parts.isEmpty ? "Connected" : parts.joined(separator: " · "), .normal)
     }
 
-    private var usageStatus: String {
-        if let error = usage.setupError { return "Couldn't connect to Claude Code: \(error)" }
-        let source = "Read from Claude Code's status line; yours still shows as before."
-        guard let snapshot = usage.snapshot else {
-            return "Waiting for Claude Code's next reply. Needs a Pro or Max plan. \(source)"
-        }
+    private var usageStatus: (text: String, tone: SettingStatus.Tone) {
+        if let error = usage.setupError { return ("Couldn't connect to Claude Code: \(error)", .error) }
+        guard let snapshot = usage.snapshot else { return ("Waiting for Claude's next reply", .normal) }
         let now = Date()
         let fiveHour = UsageGauge.fiveHour(snapshot, now: now)
         let weekly = UsageGauge.weekly(snapshot, now: now)
         let updated = UsageGauge.updatedPhrase(snapshot.updatedAt, now: now)
-        return "5h \(fiveHour.percent)% · week \(weekly.percent)% · \(updated.lowercased()). \(source)"
+        return ("5h \(fiveHour.percent)% · week \(weekly.percent)% · \(updated.lowercased())", .normal)
     }
 }
 

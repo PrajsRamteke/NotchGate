@@ -19,13 +19,14 @@ enum QuestionMode: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var detail: String {
-        switch self {
-        case .notch: return "Answer Claude's questions from the notch."
-        case .terminal: return "Answer in the terminal; the notch alerts you."
-        case .off: return "Claude decides for itself and keeps going."
-        }
-    }
+    /// Every mode at once, for the setting's ⓘ.
+    static let explanation = """
+    How Claude's multiple-choice questions reach you.
+
+    **Notch**: answer from the notch card.
+    **Terminal**: answer in Claude Code; the notch only alerts you.
+    **Don't ask**: Claude picks the most sensible option and keeps going.
+    """
 
     /// What Claude is told when questions are turned off.
     static let declineMessage = """

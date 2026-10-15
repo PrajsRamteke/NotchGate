@@ -11,64 +11,71 @@ struct ExtrasSection: View {
     static let snoozeOptions = [5, 10, 15, 30]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        SettingsGroup {
             SettingRow(
                 "Water reminder",
-                detail: "A little bot or Spidey drops from the notch with a bottle",
+                info: "A little bot or Spidey drops from the notch with a bottle to remind you to drink.\n\nThe timer waits while you're away from your Mac.",
                 isOn: Binding(get: { settings.waterReminder }, set: { [water] in water.setEnabled($0) })
             )
 
             if settings.waterReminder {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Buddy").font(.callout)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 8) {
+                        SettingLabel(title: "Buddy", info: "Who brings the bottle. **Random** picks one each time.")
                         Spacer(minLength: 8)
                         Picker("Buddy", selection: $settings.waterTheme) {
                             ForEach(WaterTheme.allCases) { Text($0.title).tag($0) }
                         }
-                        .pickerStyle(.segmented)
+                        .pickerStyle(.menu)
                         .labelsHidden()
+                        .controlSize(.small)
                         .fixedSize()
-                        .help("Who brings the bottle. Random picks one each time.")
                     }
+                    .settingRowPadding(isIndented: true)
                     Stepper(value: intervalBinding, in: Self.intervals, step: 5) {
                         labeled("Remind every", WaterReminder.format(minutes: settings.waterReminderMinutes))
                     }
+                    .controlSize(.small)
+                    .settingRowPadding(isIndented: true)
                     Stepper(value: $settings.waterDailyGoal, in: 1...20) {
                         labeled("Daily goal", "\(settings.waterDailyGoal) glasses")
                     }
-                    HStack {
-                        Text("Snooze for").font(.callout)
+                    .controlSize(.small)
+                    .settingRowPadding(isIndented: true)
+                    HStack(spacing: 8) {
+                        SettingLabel(title: "Snooze for", info: "How long **Snooze** on a reminder waits before asking again.")
                         Spacer(minLength: 8)
                         Picker("Snooze for", selection: $settings.waterSnoozeMinutes) {
-                            ForEach(Self.snoozeOptions, id: \.self) { Text("\($0)m").tag($0) }
+                            ForEach(Self.snoozeOptions, id: \.self) { Text(WaterReminder.format(minutes: $0)).tag($0) }
                         }
-                        .pickerStyle(.segmented)
+                        .pickerStyle(.menu)
                         .labelsHidden()
+                        .controlSize(.small)
                         .fixedSize()
                     }
-                    SettingNote(status)
+                    .settingRowPadding(isIndented: true)
+                    SettingStatus(status, isIndented: true)
                 }
-                .padding(.leading, 16)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
+            GroupDivider()
             SettingRow(
                 "Now playing",
-                detail: "Artwork and controls for Music, Spotify or a browser tab",
+                info: "Album art and playback controls for Music, Spotify or a browser tab, in the notch's hover panel.",
                 isOn: Binding(get: { settings.nowPlaying }, set: { [nowPlaying] in nowPlaying.setEnabled($0) })
             )
 
             if settings.nowPlaying {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
                     SettingRow(
                         "Show while closed",
-                        detail: "Artwork and a live equalizer beside the notch while music plays",
-                        isOn: $settings.nowPlayingInClosedNotch
+                        info: "Artwork and a live equalizer beside the closed notch while music plays.",
+                        isOn: $settings.nowPlayingInClosedNotch,
+                        isIndented: true
                     )
-                    SettingNote(nowPlayingStatus)
+                    SettingStatus(nowPlayingStatus.text, tone: nowPlayingStatus.tone, isIndented: true)
                 }
-                .padding(.leading, 16)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
@@ -76,13 +83,11 @@ struct ExtrasSection: View {
         .animation(.snappy(duration: 0.25), value: settings.nowPlaying)
     }
 
-    private var nowPlayingStatus: String {
-        if let error = nowPlaying.setupError { return error }
-        guard let track = nowPlaying.track else {
-            return "Nothing playing. Hover the notch to see the player."
-        }
-        let source = track.appName.map { " in \($0)" } ?? ""
-        return "\(track.isPlaying ? "Playing" : "Paused"): \(track.title)\(source). Hover the notch to control it."
+    private var nowPlayingStatus: (text: String, tone: SettingStatus.Tone) {
+        if let error = nowPlaying.setupError { return (error, .error) }
+        guard let track = nowPlaying.track else { return ("Nothing playing", .normal) }
+        let source = track.appName.map { " · \($0)" } ?? ""
+        return ("\(track.isPlaying ? "Playing" : "Paused"): \(track.title)\(source)", .normal)
     }
 
     private var intervalBinding: Binding<Int> {
@@ -100,7 +105,7 @@ struct ExtrasSection: View {
     private var status: String {
         let today = "\(water.glassesToday) of \(settings.waterDailyGoal) glasses today"
         guard let next = water.nextReminder, water.state == .away else { return today }
-        return "\(today) · next at \(next.formatted(date: .omitted, time: .shortened)). Waits while you're away from the Mac."
+        return "\(today) · next at \(next.formatted(date: .omitted, time: .shortened))"
     }
 }
 

@@ -37,6 +37,10 @@ enum SnapshotRenderer {
             model.prompts.texts.set("Also add a test for the timeout path", for: "demo-docs")
             model.showActivityNow()
         }
+        render(to: directory.appendingPathComponent("activity-quick-settings-info.png"), infoTip: "Claude's questions") { model in
+            model.activity.load(DemoActivity.sessions())
+            model.showActivityNow()
+        }
         render(to: directory.appendingPathComponent("activity-drop.png")) { model in
             model.activity.load(DemoActivity.sessions())
             model.setDraggingImages(true)
@@ -177,6 +181,17 @@ enum SnapshotRenderer {
             UpdateCommit(sha: "def5678", title: "Keep the island open after clicking buttons"),
         ], aheadBy: 2))
         renderMenu(MenuBarContentView(coordinator: coordinator), to: directory.appendingPathComponent("menu.png"))
+        renderMenu(
+            MenuBarContentView(coordinator: coordinator, sectionsMaxHeight: .infinity).environment(\.expandsAllMenuSections, true),
+            to: directory.appendingPathComponent("menu-expanded.png")
+        )
+        // An ⓘ bubble open, as when hovering it.
+        renderMenu(
+            MenuBarContentView(coordinator: coordinator)
+                .environment(\.expandsAllMenuSections, true)
+                .environment(\.infoTipPreview, "Auto-allow permissions"),
+            to: directory.appendingPathComponent("menu-info.png")
+        )
         return true
     }
 
@@ -268,7 +283,7 @@ enum SnapshotRenderer {
     }
 
     /// One island state under a menu bar, cropped tight around the island.
-    private static func render(to url: URL, configure: (IslandViewModel) -> Void) {
+    private static func render(to url: URL, infoTip: String? = nil, configure: (IslandViewModel) -> Void) {
         // Each render starts from the default settings; one that changes them doesn't leak into the next.
         let defaults = UserDefaults(suiteName: "snapshot") ?? .standard
         defaults.removePersistentDomain(forName: "snapshot")
@@ -287,7 +302,7 @@ enum SnapshotRenderer {
         configure(model)
 
         SnapshotExport.write(
-            SnapshotBackdrop { IslandRootView(model: model) },
+            SnapshotBackdrop { IslandRootView(model: model).environment(\.infoTipPreview, infoTip) },
             canvas: Theme.Metrics.canvasSize, to: url
         ) {
             var island = model.islandFrame

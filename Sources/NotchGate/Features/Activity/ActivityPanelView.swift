@@ -100,6 +100,8 @@ struct ActivityPanelView: View {
                 }
             }
         }
+        // Above the scroll area, so the quick settings' ⓘ bubbles aren't clipped by it.
+        .infoTipHost(.island)
         .animation(Theme.Motion.content, value: settings.showQuickSettingsInNotch)
         .animation(Theme.Motion.content, value: settings.nowPlaying)
         .animation(Theme.Motion.content, value: settings.nowPlayingCardShown)

@@ -3,6 +3,8 @@ import SwiftUI
 /// The menu-bar popover: status, Claude Code integration, preferences.
 struct MenuBarContentView: View {
     let coordinator: AppCoordinator
+    /// Overrides the screen-based cap on the scrolling middle (snapshots show it whole).
+    var sectionsMaxHeight: CGFloat?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -10,28 +12,27 @@ struct MenuBarContentView: View {
             UpdateBanner(updates: coordinator.updates)
             Divider().padding(.vertical, 10)
             // Header and footer stay put; with every section open the middle scrolls instead of running off screen.
-            CappedScroll(maxHeight: sectionsMaxHeight, showsIndicators: true) {
-                VStack(alignment: .leading, spacing: 0) {
-                    CollapsibleSection("Claude Code", id: "claudeCode", summary: integration.summary) { integration }
-                    Divider().padding(.vertical, 10)
-                    CollapsibleSection("Show in notch", id: "showInNotch", expandedByDefault: true, summary: features.summary) { features }
-                    Divider().padding(.vertical, 10)
-                    CollapsibleSection("Permissions & questions", id: "permissions", summary: permissions.summary) { permissions }
-                    Divider().padding(.vertical, 10)
-                    CollapsibleSection("Widgets", id: "widgets", summary: widgets.summary) { widgets }
-                    Divider().padding(.vertical, 10)
-                    CollapsibleSection("Extras", id: "extras", summary: extras.summary) { extras }
-                    Divider().padding(.vertical, 10)
-                    CollapsibleSection("Behavior", id: "behavior") { PreferencesSection(settings: coordinator.settings) }
-                    Divider().padding(.vertical, 10)
-                    CollapsibleSection("Shortcuts", id: "shortcuts", summary: "⌃⌥⏎ · ⌃⌥⌫ · ⌃⌥Space") { ShortcutsSection() }
+            CappedScroll(maxHeight: sectionsMaxHeight ?? screenSectionsMaxHeight, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 4) {
+                    CollapsibleSection("Claude Code", symbol: "terminal", id: "claudeCode", summary: integration.summary) { integration }
+                    CollapsibleSection("Show in notch", symbol: "bell.badge", id: "showInNotch", expandedByDefault: true, summary: features.summary) { features }
+                    CollapsibleSection("Permissions & questions", symbol: "checkmark.shield", id: "permissions", summary: permissions.summary) { permissions }
+                    CollapsibleSection("Widgets", symbol: "square.grid.2x2", id: "widgets", summary: widgets.summary) { widgets }
+                    CollapsibleSection("Extras", symbol: "sparkles", id: "extras", summary: extras.summary) { extras }
+                    CollapsibleSection("Behavior", symbol: "slider.horizontal.3", id: "behavior", summary: behavior.summary) { behavior }
+                    CollapsibleSection("Shortcuts", symbol: "keyboard", id: "shortcuts", summary: "⌃⌥⏎ · ⌃⌥⌫") { ShortcutsSection() }
                 }
+                // Room inside the scroll view for the headers' hover fill.
+                .padding(.horizontal, 6)
             }
+            .padding(.horizontal, -6)
             Divider().padding(.vertical, 10)
             footer
         }
         .padding(16)
         .frame(width: 320)
+        // Above the scroll area, so ⓘ bubbles aren't clipped by it.
+        .infoTipHost()
         .onAppear {
             coordinator.installer.refresh()
             coordinator.editorHelper.refresh()
@@ -40,7 +41,7 @@ struct MenuBarContentView: View {
 
     /// Room for the sections: the screen's usable height minus the header, a
     /// possible update banner and the footer, capped so the menu stays compact.
-    private var sectionsMaxHeight: CGFloat {
+    private var screenSectionsMaxHeight: CGFloat {
         let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
         return min(560, max(240, screenHeight - 320))
     }
@@ -71,6 +72,10 @@ struct MenuBarContentView: View {
 
     private var integration: IntegrationSection {
         IntegrationSection(installer: coordinator.installer, editorHelper: coordinator.editorHelper)
+    }
+
+    private var behavior: PreferencesSection {
+        PreferencesSection(settings: coordinator.settings)
     }
 
     private var features: NotchFeaturesSection {

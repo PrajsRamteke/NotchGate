@@ -23,6 +23,7 @@ struct QuickSettingsView: View {
                 title: "Auto-allow permissions",
                 caption: settings.askForRiskyCommands ? "Risky commands still ask" : "Everything is approved",
                 symbol: "bolt.fill",
+                info: "Approves Claude's permission prompts instantly, with no card.\n\nRisky commands can still ask: set that in the menu bar settings.",
                 isOn: Binding(get: { settings.autoAllowPermissions }, set: { [onSetAutoAllow] in onSetAutoAllow($0) })
             )
 
@@ -35,10 +36,8 @@ struct QuickSettingsView: View {
                     Text("Claude's questions")
                         .font(Theme.Typeface.caption)
                         .foregroundStyle(Theme.Palette.textPrimary)
-                    Text(settings.questionMode.detail)
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(Theme.Palette.textTertiary)
-                        .lineLimit(1)
+                    InfoButton(text: QuestionMode.explanation, title: "Claude's questions", tint: Theme.Palette.textTertiary)
+                        .padding(.leading, -6)
                 }
                 IslandSegmented(options: QuestionMode.allCases, selection: $settings.questionMode, title: \.title)
                     .padding(.leading, 26)
