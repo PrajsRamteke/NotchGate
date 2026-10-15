@@ -128,7 +128,7 @@ struct UpdateStatusView: View {
 
     private var versionText: String {
         // Dev builds (`swift run`) have no Info.plist; fall back to the release version.
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.6.0"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.7.0"
         return updates.shortInstalledCommit.map { "v\(version) (\($0))" } ?? "v\(version)"
     }
 }
