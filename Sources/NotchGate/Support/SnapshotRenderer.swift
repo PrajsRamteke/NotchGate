@@ -252,7 +252,7 @@ enum SnapshotRenderer {
         NowPlayingTrack(
             title: "Golden Hour Drive (Extended Sunset Mix)", artist: "Lumen & The Tides", album: "Neon Coast",
             appName: "Music", appBundleID: "com.apple.Music", duration: 247, elapsed: 83, sampledAt: Date(),
-            isPlaying: true, shuffleMode: 3, repeatMode: 1, commands: [0, 1, 2, 4, 5, 6, 7, 24, 25, 26]
+            isPlaying: true, shuffleMode: 1, repeatMode: 2, commands: [0, 1, 2, 4, 5, 6, 7, 24, 25, 26]
         )
     }
 

@@ -21,6 +21,15 @@ struct MediaRemoteAPI: @unchecked Sendable {
         var name: String?
     }
 
+    /// What the player takes right now, plus the shuffle and repeat modes its
+    /// commands carry (not every player puts them in the now-playing info).
+    struct Commands {
+        /// Enabled `MediaRemoteCommand` values, as raw numbers.
+        var supported: [Int] = []
+        var shuffleMode: Int?
+        var repeatMode: Int?
+    }
+
     private static let path = "/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote"
 
     private let register: Register
@@ -32,12 +41,18 @@ struct MediaRemoteAPI: @unchecked Sendable {
     private let setRepeat: SetMode?
     /// `MRNowPlayingRequest`, for the player's app and its supported commands.
     private let request: AnyClass?
+    /// Keys in a command's options holding the current modes.
+    private let shuffleModeKey: String?
+    private let repeatModeKey: String?
     let notificationNames: [Notification.Name]
 
     init?() {
         guard let handle = dlopen(Self.path, RTLD_NOW) else { return nil }
         func function<T>(_ name: String, as type: T.Type) -> T? {
             dlsym(handle, name).map { unsafeBitCast($0, to: type) }
+        }
+        func constant(_ name: String) -> String? {
+            dlsym(handle, name).map { $0.assumingMemoryBound(to: CFString.self).pointee as String }
         }
         guard let register = function("MRMediaRemoteRegisterForNowPlayingNotifications", as: Register.self),
               let getInfo = function("MRMediaRemoteGetNowPlayingInfo", as: GetInfo.self),
@@ -53,15 +68,15 @@ struct MediaRemoteAPI: @unchecked Sendable {
         setShuffle = function("MRMediaRemoteSetShuffleMode", as: SetMode.self)
         setRepeat = function("MRMediaRemoteSetRepeatMode", as: SetMode.self)
         request = NSClassFromString("MRNowPlayingRequest")
+        shuffleModeKey = constant("kMRMediaRemoteCommandInfoShuffleMode")
+        repeatModeKey = constant("kMRMediaRemoteCommandInfoRepeatMode")
         let notifications: [String] = [
             "kMRMediaRemoteNowPlayingInfoDidChangeNotification",
             "kMRMediaRemoteNowPlayingApplicationIsPlayingDidChangeNotification",
             "kMRMediaRemoteNowPlayingApplicationDidChangeNotification",
             "kMRMediaRemoteSupportedCommandsDidChangeNotification",
         ]
-        notificationNames = notifications.compactMap { symbol in
-            dlsym(handle, symbol).map { Notification.Name($0.assumingMemoryBound(to: CFString.self).pointee as String) }
-        }
+        notificationNames = notifications.compactMap { constant($0).map { Notification.Name($0) } }
     }
 
     func registerForNotifications(_ queue: DispatchQueue) {
@@ -103,15 +118,26 @@ struct MediaRemoteAPI: @unchecked Sendable {
         )
     }
 
-    /// Enabled `MediaRemoteCommand` values, as raw numbers.
-    func supportedCommands() -> [Int] {
-        guard let list = classCall("localSupportedCommands") as? [NSObject] else { return [] }
-        return list.compactMap { info in
+    func supportedCommands() -> Commands {
+        guard let list = classCall("localSupportedCommands") as? [NSObject] else { return Commands() }
+        var commands = Commands()
+        for info in list {
+            if let options = value("options", of: info) as? [String: Any] {
+                commands.shuffleMode = commands.shuffleMode ?? Self.mode(shuffleModeKey, in: options)
+                commands.repeatMode = commands.repeatMode ?? Self.mode(repeatModeKey, in: options)
+            }
             guard (value("enabled", of: info) as? NSNumber)?.boolValue ?? true,
-                  let command = value("command", of: info) as? NSNumber else { return nil }
-            return command.intValue
+                  let command = value("command", of: info) as? NSNumber else { continue }
+            commands.supported.append(command.intValue)
         }
-        .sorted()
+        commands.supported.sort()
+        return commands
+    }
+
+    /// A shuffle or repeat mode; 0 means the player doesn't know.
+    static func mode(_ key: String?, in dictionary: [String: Any]) -> Int? {
+        guard let key, let mode = (dictionary[key] as? NSNumber)?.intValue, mode > 0 else { return nil }
+        return mode
     }
 
     // MARK: Objective-C plumbing (every selector is checked first: a wrong guess must not crash)

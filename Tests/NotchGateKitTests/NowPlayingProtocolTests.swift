@@ -6,7 +6,7 @@ import Testing
 struct NowPlayingProtocolTests {
     @Test(arguments: [
         NowPlayingCommand.play, .pause, .togglePlayPause, .nextTrack, .previousTrack,
-        .seek(to: 83.5), .setShuffleMode(3), .setRepeatMode(2), .refresh,
+        .seek(to: 83.5), .setShuffleMode(3), .setRepeatMode(2), .advanceShuffleMode, .advanceRepeatMode, .refresh,
     ])
     func commandsSurviveTheTripThroughALine(_ command: NowPlayingCommand) {
         #expect(NowPlayingCommand(line: command.line) == command)

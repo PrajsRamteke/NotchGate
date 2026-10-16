@@ -79,15 +79,45 @@ struct NowPlayingTests {
         #expect(!quiet.canSeek)
     }
 
-    @Test func shuffleAndRepeatNeedAKnownMode() throws {
+    @Test func shuffleAndRepeatShowOnlyForPlayersThatTakeThem() throws {
+        // A browser tab: play, pause, skip, seek.
+        let browser = try #require(NowPlayingTrack(message(commands: [0, 1, 2, 3, 4, 5, 24])))
+        #expect(!browser.canShuffle)
+        #expect(!browser.canRepeat)
+
+        // Takes them without saying which mode it's in: offered, reading as off.
         var track = try #require(NowPlayingTrack(message(commands: [2, 6, 7])))
-        #expect(!track.canShuffle)
+        #expect(track.canShuffle)
+        #expect(!track.isShuffling)
+        #expect(track.canRepeat)
+        #expect(track.repeating == .off)
         track.shuffleMode = 3
         track.repeatMode = 2
-        #expect(track.canShuffle)
         #expect(track.isShuffling)
-        #expect(track.canRepeat)
         #expect(track.repeating == .one)
+
+        let music = try #require(NowPlayingTrack(message(commands: [0, 1, 2, 25, 26])))
+        #expect(music.canShuffle)
+        #expect(music.canRepeat)
+    }
+
+    @Test func aModeTheCardSetSurvivesAPlayerThatNeverReportsOne() throws {
+        var set = try #require(NowPlayingTrack(message(commands: [2, 25, 26])))
+        set.shuffleMode = 3
+        set.repeatMode = 2
+        let report = try #require(NowPlayingTrack(message(commands: [2, 25, 26])))
+        #expect(report.keepingModes(of: set).isShuffling)
+        #expect(report.keepingModes(of: set).repeating == .one)
+
+        // What the player does report wins.
+        var reported = report
+        reported.shuffleMode = 1
+        #expect(!reported.keepingModes(of: set).isShuffling)
+
+        // A different player starts fresh.
+        var other = report
+        other.appBundleID = "com.apple.Music"
+        #expect(!other.keepingModes(of: set).isShuffling)
     }
 
     @Test func clockFormatsMinutesAndHours() {

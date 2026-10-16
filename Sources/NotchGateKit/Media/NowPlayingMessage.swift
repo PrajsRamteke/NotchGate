@@ -84,6 +84,9 @@ public enum NowPlayingCommand: Equatable, Sendable {
     case seek(to: Double)
     case setShuffleMode(Int)
     case setRepeatMode(Int)
+    /// Step to the player's next shuffle / repeat mode, for players that only take that.
+    case advanceShuffleMode
+    case advanceRepeatMode
     /// Report the current state again, artwork included.
     case refresh
 
@@ -97,6 +100,8 @@ public enum NowPlayingCommand: Equatable, Sendable {
         case .seek(let seconds): return "seek \(seconds)"
         case .setShuffleMode(let mode): return "shuffle \(mode)"
         case .setRepeatMode(let mode): return "repeat \(mode)"
+        case .advanceShuffleMode: return "shuffle-next"
+        case .advanceRepeatMode: return "repeat-next"
         case .refresh: return "refresh"
         }
     }
@@ -112,6 +117,8 @@ public enum NowPlayingCommand: Equatable, Sendable {
         case "next": self = .nextTrack
         case "previous": self = .previousTrack
         case "refresh": self = .refresh
+        case "shuffle-next": self = .advanceShuffleMode
+        case "repeat-next": self = .advanceRepeatMode
         case "seek":
             guard let seconds = argument.flatMap(Double.init), seconds.isFinite else { return nil }
             self = .seek(to: max(0, seconds))

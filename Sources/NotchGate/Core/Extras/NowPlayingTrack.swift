@@ -84,6 +84,16 @@ struct NowPlayingTrack: Equatable {
 
     static let driftTolerance: TimeInterval = 1.5
 
+    /// A player that takes shuffle / repeat but never says which mode it's in
+    /// keeps the one the card last set, so the button doesn't flick back off.
+    func keepingModes(of previous: NowPlayingTrack?) -> NowPlayingTrack {
+        guard let previous, previous.appBundleID == appBundleID else { return self }
+        var kept = self
+        kept.shuffleMode = shuffleMode ?? previous.shuffleMode
+        kept.repeatMode = repeatMode ?? previous.repeatMode
+        return kept
+    }
+
     func progress(at now: Date) -> Double? {
         guard let duration, let position = position(at: now) else { return nil }
         return position / duration
@@ -100,9 +110,9 @@ struct NowPlayingTrack: Equatable {
     var canSeek: Bool { duration != nil && elapsed != nil && supports(.seekToPlaybackPosition) }
     var canGoNext: Bool { supports(.nextTrack) }
     var canGoPrevious: Bool { supports(.previousTrack) }
-    /// Only offered when the player says which mode it's in, so the button can show it.
-    var canShuffle: Bool { shuffleMode != nil && (supports(.advanceShuffleMode) || supports(.changeShuffleMode)) }
-    var canRepeat: Bool { repeatMode != nil && (supports(.advanceRepeatMode) || supports(.changeRepeatMode)) }
+    /// Offered whenever the player takes the command; a mode it never reports reads as off.
+    var canShuffle: Bool { supports(.changeShuffleMode) || supports(.advanceShuffleMode) }
+    var canRepeat: Bool { supports(.changeRepeatMode) || supports(.advanceRepeatMode) }
 
     var isShuffling: Bool { (shuffleMode ?? 1) > 1 }
 

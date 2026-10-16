@@ -137,10 +137,11 @@ final class NowPlayingMonitor {
         guard let track else { return }
         let mode = track.isShuffling ? 1 : 3
         update { $0.shuffleMode = mode }
-        send(.setShuffleMode(mode))
+        send(track.supports(.changeShuffleMode) ? .setShuffleMode(mode) : .advanceShuffleMode)
     }
 
-    /// Off → all → one → off, like Music.
+    /// Off → all → one → off, like Music. Players that only step through their
+    /// own modes report back where they landed.
     func cycleRepeat() {
         guard let track else { return }
         let mode: Int
@@ -150,7 +151,7 @@ final class NowPlayingMonitor {
         case .one: mode = 1
         }
         update { $0.repeatMode = mode }
-        send(.setRepeatMode(mode))
+        send(track.supports(.changeRepeatMode) ? .setRepeatMode(mode) : .advanceRepeatMode)
     }
 
     /// Brings the player (or the browser playing it) to the front.
@@ -241,7 +242,7 @@ final class NowPlayingMonitor {
 
     private func receive(_ message: NowPlayingMessage, artwork data: Data?) {
         guard helper != nil else { return }
-        let next = NowPlayingTrack(message).map { $0.keepingPlayhead(of: track, at: Date()) }
+        let next = NowPlayingTrack(message).map { $0.keepingPlayhead(of: track, at: Date()).keepingModes(of: track) }
         if next != track { track = next }
         loadIcon(for: next?.appBundleID)
         guard next != nil, let key = message.artworkKey else {

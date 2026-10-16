@@ -11,6 +11,10 @@ limits and send the next prompt without switching back to the terminal.
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black?logo=apple)
 ![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-hooks-D97757)
+[![Live demo](https://img.shields.io/badge/Live%20demo-notchgate.netlify.app-00C7B7?logo=netlify&logoColor=white)](https://notchgate.netlify.app)
+
+**[▶ Try the live demo](https://notchgate.netlify.app)**: see NotchGate in your
+browser before you install it.
 
 </div>
 

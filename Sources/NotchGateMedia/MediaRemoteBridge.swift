@@ -70,6 +70,8 @@ final class MediaRemoteBridge: @unchecked Sendable {
             case .seek(let seconds): api.setElapsedTime(seconds)
             case .setShuffleMode(let mode): api.setShuffleMode(mode)
             case .setRepeatMode(let mode): api.setRepeatMode(mode)
+            case .advanceShuffleMode: _ = api.send(.advanceShuffleMode)
+            case .advanceRepeatMode: _ = api.send(.advanceRepeatMode)
             case .refresh:
                 lastSent = nil
                 sentArtworkKey = nil
@@ -101,6 +103,7 @@ final class MediaRemoteBridge: @unchecked Sendable {
 
     private func publish(info: [String: Any], isPlaying: Bool) {
         let client = api.client()
+        let commands = api.supportedCommands()
         let artworkData = info[Key.artworkData] as? Data
         let artworkKey = artworkData.flatMap { data in
             data.isEmpty ? nil : (info[Key.artworkIdentifier] as? String) ?? "\(data.count)-\(data.hashValue)"
@@ -117,9 +120,10 @@ final class MediaRemoteBridge: @unchecked Sendable {
             timestamp: (info[Key.timestamp] as? Date)?.timeIntervalSince1970,
             rate: (info[Key.rate] as? NSNumber)?.doubleValue,
             isPlaying: isPlaying,
-            shuffleMode: (info[Key.shuffleMode] as? NSNumber)?.intValue,
-            repeatMode: (info[Key.repeatMode] as? NSNumber)?.intValue,
-            commands: api.supportedCommands(),
+            // The mode the shuffle / repeat commands carry first, then the now-playing info's.
+            shuffleMode: commands.shuffleMode ?? MediaRemoteAPI.mode(Key.shuffleMode, in: info),
+            repeatMode: commands.repeatMode ?? MediaRemoteAPI.mode(Key.repeatMode, in: info),
+            commands: commands.supported,
             artworkKey: artworkKey
         )
         guard message != lastSent else { return }

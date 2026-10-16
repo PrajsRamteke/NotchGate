@@ -228,6 +228,8 @@ struct TransportButton: View {
     var size: CGFloat = 14
     var isActive = false
     var tint: Color = Theme.Palette.clay
+    /// A tiny superscript on the glyph, like the "1" of repeat one.
+    var badge: String?
     let action: () -> Void
 
     @Environment(\.isEnabled) private var isEnabled
@@ -242,6 +244,15 @@ struct TransportButton: View {
             Image(systemName: systemName)
                 .font(.system(size: size, weight: .semibold))
                 .symbolEffect(.bounce.down, value: taps)
+                .overlay(alignment: .topTrailing) {
+                    if let badge {
+                        Text(badge)
+                            .font(.system(size: size * 0.62, weight: .heavy, design: .rounded))
+                            .fixedSize()
+                            .offset(x: size * 0.3, y: -size * 0.4)
+                            .transition(.scale(scale: 0.4).combined(with: .opacity))
+                    }
+                }
                 .foregroundStyle(isActive ? tint : (isHovered ? Theme.Palette.textPrimary : Theme.Palette.textSecondary))
                 .frame(width: 32, height: 32)
                 .background(Circle().fill(Color.white.opacity(isHovered ? 0.1 : 0)))
@@ -257,6 +268,7 @@ struct TransportButton: View {
         .onHover { isHovered = $0 && isEnabled }
         .animation(.easeOut(duration: 0.15), value: isHovered)
         .animation(.easeOut(duration: 0.2), value: isActive)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: badge)
         .help(help)
         .accessibilityLabel(help)
     }

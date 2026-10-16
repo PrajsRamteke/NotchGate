@@ -125,7 +125,7 @@ enum CommandLineActions {
                 let position = track.position(at: Date()).map(NowPlayingTrack.clock) ?? "–"
                 let duration = track.duration.map(NowPlayingTrack.clock) ?? "live"
                 let artwork = monitor.artwork.map { "artwork \(Int($0.size.width))×\(Int($0.size.height))" } ?? "no artwork"
-                return "\(track.isPlaying ? "▶" : "⏸") \(track.title) · \(track.subtitle ?? "–") · \(track.appName ?? "?") · \(position)/\(duration) · \(artwork) · commands \(track.commands.sorted())"
+                return "\(track.isPlaying ? "▶" : "⏸") \(track.title) · \(track.subtitle ?? "–") · \(track.appName ?? "?") · \(position)/\(duration) · \(artwork) · shuffle \(track.shuffleMode.map(String.init) ?? "–") · repeat \(track.repeatMode.map(String.init) ?? "–") · commands \(track.commands.sorted())"
             } ?? "Nothing playing"
             if line != last { report(line) }
             last = line

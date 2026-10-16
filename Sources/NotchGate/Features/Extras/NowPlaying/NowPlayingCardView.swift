@@ -237,40 +237,54 @@ private struct PlayheadView: View {
     }
 }
 
-/// Shuffle, ±15 s, previous, play / pause, next, repeat: only what the player supports.
+/// Shuffle, ±15 s, previous, play / pause, next, repeat, spread across the card:
+/// only what the player supports (a browser tab can't shuffle or repeat).
 private struct TransportRow: View {
     let track: NowPlayingTrack
     let accent: Color
     let monitor: NowPlayingMonitor
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 0) {
             if track.canShuffle {
                 TransportButton(
                     systemName: "shuffle", help: track.isShuffling ? "Shuffle off" : "Shuffle",
                     size: 12.5, isActive: track.isShuffling, tint: accent, action: monitor.toggleShuffle
                 )
+                gap
             }
             if track.canSeek {
                 TransportButton(systemName: "gobackward.15", help: "Back 15 seconds", size: 14) { monitor.skip(by: -15) }
+                gap
             }
             TransportButton(systemName: "backward.fill", help: "Previous", size: 16, action: monitor.previousTrack)
                 .disabled(!track.canGoPrevious)
+            gap
             PlayPauseButton(isPlaying: track.isPlaying, accent: accent, action: monitor.togglePlayPause)
-                .padding(.horizontal, 4)
+            gap
             TransportButton(systemName: "forward.fill", help: "Next", size: 16, action: monitor.nextTrack)
                 .disabled(!track.canGoNext)
             if track.canSeek {
+                gap
                 TransportButton(systemName: "goforward.15", help: "Forward 15 seconds", size: 14) { monitor.skip(by: 15) }
             }
             if track.canRepeat {
+                gap
                 TransportButton(
-                    systemName: track.repeating == .one ? "repeat.1" : "repeat", help: repeatHelp,
-                    size: 12.5, isActive: track.repeating != .off, tint: accent, action: monitor.cycleRepeat
+                    systemName: "repeat", help: repeatHelp, size: 12.5,
+                    isActive: track.repeating != .off, tint: accent,
+                    badge: track.repeating == .one ? "1" : nil, action: monitor.cycleRepeat
                 )
             }
         }
+        .padding(.horizontal, 4)
         .frame(maxWidth: .infinity)
+    }
+
+    /// Stretches to fill the card with the full row, but keeps a short row
+    /// (no shuffle or repeat) together in the middle.
+    private var gap: some View {
+        Spacer(minLength: 2).frame(maxWidth: 30)
     }
 
     private var repeatHelp: String {
