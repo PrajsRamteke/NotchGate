@@ -13,6 +13,7 @@ final class AppSettings {
         static let showNotices = "showNotices"
         static let replyFromNotch = "replyFromNotch"
         static let activityOnHover = "showActivityOnHover"
+        static let liveInClosedNotch = "liveInClosedNotch"
         static let autoAllow = "autoAllowPermissions"
         static let askForRisky = "askForRiskyCommands"
         static let questionMode = "questionMode"
@@ -66,6 +67,9 @@ final class AppSettings {
     /// Hovering the idle notch reveals live progress for every session.
     var showActivityOnHover: Bool { didSet { defaults.set(showActivityOnHover, forKey: Key.activityOnHover) } }
 
+    /// While a session works, the closed notch widens a little to show a moving waveform on its right.
+    var liveInClosedNotch: Bool { didSet { defaults.set(liveInClosedNotch, forKey: Key.liveInClosedNotch) } }
+
     // MARK: What the notch handles (off = leave it to the terminal)
 
     /// Tool permission prompts (commands, web, MCP…), except file edits.
@@ -109,7 +113,7 @@ final class AppSettings {
     /// Glasses to drink per day.
     var waterDailyGoal: Int { didSet { defaults.set(waterDailyGoal, forKey: Key.waterDailyGoal) } }
 
-    /// Who brings the bottle: the robot, Spidey, Batman, or any of them at random.
+    /// Who brings the bottle: the robot, Spidey, Batman, the dev, or any of them at random.
     var waterTheme: WaterTheme { didSet { defaults.set(waterTheme.rawValue, forKey: Key.waterTheme) } }
 
     /// What's playing on the Mac (Music, Spotify, a browser tab…) with its controls (see `NowPlayingMonitor`).
@@ -169,6 +173,7 @@ final class AppSettings {
             Key.showNotices: false,
             Key.replyFromNotch: false,
             Key.activityOnHover: true,
+            Key.liveInClosedNotch: true,
             Key.autoAllow: false,
             Key.askForRisky: true,
             Key.questionMode: QuestionMode.terminal.rawValue,
@@ -203,6 +208,7 @@ final class AppSettings {
         showNotices = defaults.bool(forKey: Key.showNotices)
         replyFromNotch = defaults.bool(forKey: Key.replyFromNotch)
         showActivityOnHover = defaults.bool(forKey: Key.activityOnHover)
+        liveInClosedNotch = defaults.bool(forKey: Key.liveInClosedNotch)
         autoAllowPermissions = defaults.bool(forKey: Key.autoAllow)
         askForRiskyCommands = defaults.bool(forKey: Key.askForRisky)
         showQuickSettingsInNotch = defaults.bool(forKey: Key.quickSettingsInNotch)

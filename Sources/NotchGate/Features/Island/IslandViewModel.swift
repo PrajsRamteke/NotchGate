@@ -120,7 +120,19 @@ final class IslandViewModel {
             return engaged || (notice.blocksClaude && !isCollapsedByUser) ? .expanded : .peek
         }
         if engaged && settings.showActivityOnHover { return .expanded }
-        return showsNowPlayingPeek ? .peek : .hidden
+        return showsNowPlayingPeek || showsLivePeek ? .peek : .hidden
+    }
+
+    /// A session is working and Claude needs nothing: the closed notch widens
+    /// a little to show a moving waveform on its right, so you know it's still running.
+    var showsLivePeek: Bool {
+        settings.liveInClosedNotch && activity.workingCount > 0
+            && store.current == nil && store.notice == nil && !isAcceptingDrop
+    }
+
+    /// The closed notch is only showing music or the Live badge: nothing needs you.
+    var isIdlePeek: Bool {
+        presentation == .peek && (showsNowPlayingPeek || showsLivePeek)
     }
 
     /// Music is playing and Claude needs nothing: the closed notch widens a
@@ -279,8 +291,9 @@ final class IslandViewModel {
         guard hovering != isHovering else { return }
 
         // An idle notch waits for a deliberate hover (even while it shows what's
-        // playing); anything that needs you (peek, notice) responds instantly.
-        let isIdle = presentation == .hidden || (presentation == .peek && showsNowPlayingPeek)
+        // playing, or that a session is live); anything that needs you (peek,
+        // notice) responds instantly.
+        let isIdle = presentation == .hidden || isIdlePeek
         guard hovering, isIdle else { return applyHover(hovering) }
         hoverIntent = Task { [weak self] in
             try? await Task.sleep(for: Self.hoverIntentDelay)

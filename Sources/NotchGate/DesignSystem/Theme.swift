@@ -47,7 +47,8 @@ enum Theme {
         static let expandedWithUpdateWidth: CGFloat = 580
         static let expandedMaxContentHeight: CGFloat = 400
         static let peekWingWidth: CGFloat = 92
-        /// The closed notch while music plays: just room for the artwork and equalizer, hugging the camera.
+        /// The closed notch while music plays or a session works: just room for the
+        /// artwork, equalizer or Live waveform, hugging the camera.
         static let musicWingWidth: CGFloat = 34
         static let contentPadding: CGFloat = 18
         static let expandedCornerRadius: CGFloat = 30

@@ -10,6 +10,9 @@ struct IslandStatusBar: View {
     /// The closed notch is showing what's playing rather than Claude.
     private var showsMusic: Bool { presentation == .peek && model.showsNowPlayingPeek }
 
+    /// The closed notch is showing that a session is working.
+    private var showsLive: Bool { presentation == .peek && model.showsLivePeek }
+
     private var musicAccent: Color { model.nowPlaying.accent.map { Color(nsColor: $0) } ?? Theme.Palette.clay }
 
     var body: some View {
@@ -18,7 +21,7 @@ struct IslandStatusBar: View {
             Spacer(minLength: model.notch.notchSize.width)
             trailingWing
         }
-        .padding(.horizontal, showsMusic ? 6 : 12)
+        .padding(.horizontal, showsLive || showsMusic ? 6 : 12)
         .opacity(presentation == .hidden ? 0 : 1)
         .contentShape(Rectangle())
         .onTapGesture { if presentation == .peek || model.isRequestMinimized { model.expand() } }
@@ -29,7 +32,8 @@ struct IslandStatusBar: View {
             if showsMusic {
                 NowPlayingArtwork(image: model.nowPlaying.artwork, accent: musicAccent, isPlaying: true, size: 20, cornerRadius: 5)
                     .transition(.scale(scale: 0.5).combined(with: .opacity))
-            } else {
+            } else if !showsLive {
+                // The Live badge stands alone on the right; no spark beside it.
                 ClaudeSpark(size: 14, isActive: model.store.hasPending || model.activity.workingCount > 0, color: sparkColor)
             }
             if presentation == .expanded, let title = leadingTitle {
@@ -56,6 +60,9 @@ struct IslandStatusBar: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(notice.tone.color)
                 .symbolEffect(.bounce, value: notice.id)
+        } else if showsLive {
+            LiveWaveform()
+                .transition(.scale(scale: 0.5).combined(with: .opacity))
         } else if showsMusic {
             EqualizerBars(isPlaying: true, color: musicAccent, height: 12)
                 .transition(.scale(scale: 0.5).combined(with: .opacity))
@@ -91,6 +98,17 @@ private struct ActivityPill: View {
         .padding(.vertical, 4)
         .background(Capsule().fill(Theme.Palette.clay.opacity(0.12)))
         .accessibilityLabel(title)
+    }
+}
+
+/// The closed notch's sign that a session is working: just a moving waveform, no words.
+private struct LiveWaveform: View {
+    var body: some View {
+        Image(systemName: "waveform")
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Theme.Palette.clay)
+            .symbolEffect(.variableColor.iterative, options: .repeating)
+            .accessibilityLabel("Claude is working")
     }
 }
 

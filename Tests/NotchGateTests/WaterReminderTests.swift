@@ -124,6 +124,11 @@ struct WaterReminderTests {
         #expect(water.character == .batman)
 
         water.skip()
+        water.settings.waterTheme = .developer
+        water.remind()
+        #expect(water.character == .developer)
+
+        water.skip()
         water.settings.waterTheme = .robot
         water.remind()
         #expect(water.character == .robot)

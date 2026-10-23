@@ -8,6 +8,8 @@ enum WaterCharacter: String, CaseIterable, Sendable {
     case spidey
     /// The caped crusader, lowering himself on his grapnel line.
     case batman
+    /// A tired developer dangling by his headphone cable, laptop in hand.
+    case developer
 }
 
 /// The character picked in Extras: one of them every time, or a surprise.
@@ -15,6 +17,7 @@ enum WaterTheme: String, CaseIterable, Identifiable, Sendable {
     case robot
     case spidey
     case batman
+    case developer
     /// A different character may drop in each time.
     case random
 
@@ -25,6 +28,7 @@ enum WaterTheme: String, CaseIterable, Identifiable, Sendable {
         case .robot: return "Robot"
         case .spidey: return "Spidey"
         case .batman: return "Batman"
+        case .developer: return "Dev"
         case .random: return "Random"
         }
     }
@@ -35,6 +39,7 @@ enum WaterTheme: String, CaseIterable, Identifiable, Sendable {
         case .robot: return .robot
         case .spidey: return .spidey
         case .batman: return .batman
+        case .developer: return .developer
         case .random: return WaterCharacter.allCases.randomElement(using: &generator) ?? .robot
         }
     }

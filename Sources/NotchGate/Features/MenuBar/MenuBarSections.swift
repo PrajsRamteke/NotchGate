@@ -155,6 +155,11 @@ struct PreferencesSection: View {
                 isIndented: true,
                 isDisabled: !settings.showActivityOnHover
             )
+            SettingRow(
+                "Live badge while closed",
+                info: "While a Claude session is working, a moving waveform sits on the right of the closed notch, so you know it's still running.",
+                isOn: $settings.liveInClosedNotch
+            )
             GroupDivider()
             SettingRow(
                 "Sounds",

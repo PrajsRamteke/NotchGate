@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The drawing kit the water buddies share, so the robot, Spidey and Batman
-/// read as one illustrated set: one ink weight, cel shading lit from the top
+/// The drawing kit the water buddies share, so the robot, Spidey, Batman and
+/// the dev read as one illustrated set: one ink weight, cel shading lit from the top
 /// left, tapered limbs, mitten hands and the same bottle.
 struct Ink {
     /// Outline color.

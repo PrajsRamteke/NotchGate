@@ -189,7 +189,9 @@ Also available: **Widgets** (see above), **Auto-allow permissions** (risky comma
 and `git push --force` still ask), **Claude's questions** (Notch / Terminal /
 Don't ask), live activity on hover, sounds and launch at login. Under **Behavior → Sounds**, pick the
 sound for **Claude needs you** and **Claude finished** from macOS's built-in sounds (or None), and press
-**▶** to listen; turn **Sounds** off for silence.
+**▶** to listen; turn **Sounds** off for silence. While a Claude session is working, the closed notch
+shows a moving waveform on its right, so you can tell it's still running without
+opening it; turn it off with **Behavior → Live badge while closed**.
 
 ### Extras
 
@@ -207,7 +209,10 @@ Optional notch features unrelated to Claude. Turn them on or off under **✦ →
 - **Pick your buddy**: the robot (clipped to its rope by the ring on its
   antenna), **Spidey** (who hangs upside down from a web tied round his ankle
   and rolls his mask up to drink), **Batman** (who lowers himself on his
-  grapnel line, cape and all), or **Random** for a different one on each
+  grapnel line, cape and all), the **Dev** (who dangles from the notch by
+  his coiled headphone cable, laptop in hand; his screen types code, sticks at
+  99% when he's pleading, shows a 404 when he's parched, glitches when you poke
+  him and turns `200 OK` when you drink), or **Random** for a different one on each
   reminder. Set it under **Extras → Buddy**, and press **▶** on the Water
   reminder row to watch your buddy drop in right away (a preview doesn't count
   a glass or move the next reminder).
@@ -230,6 +235,14 @@ Optional notch features unrelated to Claude. Turn them on or off under **✦ →
 
 <p align="center">
   <img src="assets/water-batman-moods.png" alt="Every mood of Batman: cheerful, excited, pleading, thirsty, delighted, sleepy, tickled" width="720">
+</p>
+
+<p align="center">
+  <img src="assets/water-dev-hover.png" alt="The dev hanging from the notch by his headphone cable, holding his laptop and a bottle" width="420">
+</p>
+
+<p align="center">
+  <img src="assets/water-dev-moods.png" alt="Every mood of the dev: cheerful, excited, pleading, thirsty, delighted, sleepy, tickled" width="720">
 </p>
 
 - **Now playing** (off by default): whatever's playing on your Mac (Music,

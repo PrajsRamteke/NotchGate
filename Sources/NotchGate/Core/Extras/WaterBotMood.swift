@@ -44,6 +44,7 @@ enum WaterBotMood: CaseIterable, Equatable {
         case .robot: lines = robotLines
         case .spidey: lines = spideyLines
         case .batman: lines = batmanLines
+        case .developer: lines = developerLines
         }
         return lines[abs(variant) % lines.count]
     }
@@ -83,6 +84,18 @@ enum WaterBotMood: CaseIterable, Equatable {
         case .delighted: return ["Justice… and hydration!", "Mission accomplished.", "Alfred would be proud."]
         case .sleepy: return ["Zzz… on patrol"]
         case .tickled: return ["Hey! Not the cape!", "Batman doesn't giggle.", "That's classified!"]
+        }
+    }
+
+    private var developerLines: [String] {
+        switch self {
+        case .cheerful: return ["Coffee isn't water. Sadly.", "Sip break, then ship.", "Hydrate before you deploy.", "git commit -m \"drink\""]
+        case .excited: return ["sudo drink water", "Oh hi! Water break?", "Yes! Merge that sip!"]
+        case .pleading: return ["Stuck at 99%… need water.", "One sip? I'll fix the bug after.", "Hydrated devs ship faster."]
+        case .thirsty: return ["Error 404: water not found", "Running on coffee fumes…", "My brain is buffering…"]
+        case .delighted: return ["200 OK!", "Build passed. Hydrated.", "Rebooted and refreshed!"]
+        case .sleepy: return ["Zzz… compiling"]
+        case .tickled: return ["Hey! I'm not a bug!", "Hehe, it's a feature!", "Ctrl+Z! Ctrl+Z!"]
         }
     }
 }

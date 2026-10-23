@@ -52,7 +52,7 @@ struct IslandRootView: View {
         switch presentation {
         case .hidden: return notchWidth
         case .peek:
-            let wing = model.showsNowPlayingPeek ? Theme.Metrics.musicWingWidth : Theme.Metrics.peekWingWidth
+            let wing = model.showsLivePeek || model.showsNowPlayingPeek ? Theme.Metrics.musicWingWidth : Theme.Metrics.peekWingWidth
             return notchWidth + wing * 2
         case .expanded:
             // Wider only while the "Update" pill is in the header; back to normal once updated.

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The water bot (or Spidey, or Batman; see `WaterCharacter`) hanging from the notch with
+/// The water bot (or Spidey, Batman or the dev; see `WaterCharacter`) hanging from the notch with
 /// its speech bubble. Hover it to reveal Drank it / Snooze; click it and it
 /// giggles. It sips, celebrates and climbs back up when you drink.
 struct WaterBotView: View {
@@ -91,15 +91,18 @@ struct WaterBotView: View {
             SpideyFigure(mood: mood, time: time, sip: Self.sip(at: sipTime), waterLevel: Self.waterLevel(at: sipTime))
         case .batman:
             BatFigure(mood: mood, time: time, sip: Self.sip(at: sipTime), waterLevel: Self.waterLevel(at: sipTime))
+        case .developer:
+            DevFigure(mood: mood, time: time, sip: Self.sip(at: sipTime), waterLevel: Self.waterLevel(at: sipTime))
         }
     }
 
-    /// Where the rope (web, grapnel line) leaves the notch; the figure twirls around it.
+    /// Where the rope (web, grapnel line, headphone cable) leaves the notch; the figure twirls around it.
     private var ropeAnchor: CGPoint {
         switch water.character {
         case .robot: return WaterBotFigure.ropeAnchor
         case .spidey: return SpideyFigure.ropeAnchor
         case .batman: return BatFigure.ropeAnchor
+        case .developer: return DevFigure.ropeAnchor
         }
     }
 
@@ -109,6 +112,7 @@ struct WaterBotView: View {
         case .robot: return WaterBotFigure.mouth + Self.figureOrigin
         case .spidey: return SpideyFigure.mouth + Self.figureOrigin
         case .batman: return BatFigure.mouth + Self.figureOrigin
+        case .developer: return DevFigure.mouth + Self.figureOrigin
         }
     }
 
