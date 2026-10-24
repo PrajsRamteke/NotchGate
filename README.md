@@ -173,6 +173,41 @@ own status line keeps showing exactly as before.
 
 ---
 
+## Notch Voice
+
+<p align="center">
+  <img src="assets/voice-pill.png" alt="The Notch Voice pill: a live waveform while you talk, then transcribing, polishing with Claude and inserted" width="420">
+</p>
+
+Dictate into any app: hold a key, say what you want, let go. Your words are typed
+where the cursor is: Claude Code's prompt, a browser's search box, Slack, a commit
+message.
+
+- **Turn it on** under **✦ → Notch Voice** (it's off by default). macOS asks for the
+  **Microphone** and **Accessibility** (so NotchGate can notice the key in other apps
+  and type for you); anything still missing shows there with an **Allow** button.
+- **Hold to talk**: Right ⌥ by default. Click the keycap and press the key, or two keys,
+  you'd rather use (⌃ ⌥ ⇧ ⌘ fn; left and right count separately). A quick ⌥← or ⌥-click
+  is never mistaken for dictation, and pressing any other key while talking throws the
+  recording away.
+- **The pill** at the bottom of the screen shows a live waveform while you talk, then
+  **Inserted**: the words are typed straight into the focused field. Only in a password
+  field (or without Accessibility) do they go on the clipboard instead, for ⌘V. Whatever
+  you had copied is put back after typing.
+- **Accuracy**: Apple's newest on-device speech model does the listening (macOS 26 and
+  later; macOS 14–15 use the older recognizer). Pick the **Language** that matches your
+  accent, e.g. English (India); **Automatic** follows your Mac's region.
+- **Live words**: with **AI clean-up** off, your words appear in the pill as you speak.
+  When you let go, a more accurate pass of the same recording is typed.
+- **AI clean-up** (optional, switch it on or off any time): a model fixes punctuation,
+  drops the "um"s and corrects misheard code terms ("us in Kuwait" → "async await")
+  before typing. Pick **OpenRouter (free)**, which uses OpenRouter's free models with a
+  free [OpenRouter key](https://openrouter.ai/keys) (50 clean-ups a day, 1,000 after a
+  one-time $10 credit purchase), or **Claude Haiku** with your own Anthropic API key. Keys
+  stay in your keychain while the switch is off; your Claude subscription login is never
+  used. Only the text is sent, and if a clean-up fails or doesn't match what you said,
+  Apple's text is typed instead.
+
 ## Settings
 
 Open the ✦ menu. Every section folds open or closed.
@@ -296,6 +331,11 @@ Everything stays on your Mac. NotchGate talks to Claude Code through a private
 local socket that only your user can access, and contacts the network only to
 check GitHub for updates.
 
+Notch Voice recognizes speech on your Mac, so your audio never leaves it (macOS
+downloads its speech model from Apple once). Only with **AI clean-up** on is the
+transcribed text sent: to Anthropic, or to OpenRouter and the free model's provider,
+which may keep or learn from it.
+
 ## Troubleshooting
 
 <details>
@@ -320,6 +360,16 @@ Allow it in **System Settings → Privacy & Security → Automation → NotchGat
 </details>
 
 <details>
+<summary>Notch Voice doesn't start or type anything</summary>
+
+Open **✦ → Notch Voice**: it lists any permission still missing. If Accessibility is
+already on for NotchGate but still shows as missing (macOS can forget it after an
+update), remove NotchGate from **System Settings → Privacy & Security → Accessibility**
+with **−** and add it again. To test speech recognition on its own, run
+`/Applications/NotchGate.app/Contents/MacOS/NotchGate --transcribe recording.m4a`.
+</details>
+
+<details>
 <summary>An update failed</summary>
 
 Use **Show log** in the menu (`~/Library/Logs/NotchGate/update.log`), or run the
@@ -332,8 +382,12 @@ install command again.
 
 ```bash
 make test   # run the test suite
-make run    # run from source
+make run    # run from source as "NotchGate Dev.app" (Ctrl-C quits)
 make app    # build dist/NotchGate.app
 ```
+
+`make run` signs the dev app with a local "NotchGate Dev" identity, created once in its
+own keychain, so macOS keeps its Accessibility and microphone permission across
+rebuilds. `Scripts/dev-identity.sh --remove` deletes it.
 
 <sub>NotchGate is an independent project and is not affiliated with Anthropic.</sub>

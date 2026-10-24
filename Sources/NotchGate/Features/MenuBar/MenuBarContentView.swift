@@ -18,6 +18,7 @@ struct MenuBarContentView: View {
                     CollapsibleSection("Show in notch", symbol: "bell.badge", id: "showInNotch", expandedByDefault: true, summary: features.summary) { features }
                     CollapsibleSection("Permissions & questions", symbol: "checkmark.shield", id: "permissions", summary: permissions.summary) { permissions }
                     CollapsibleSection("Widgets", symbol: "square.grid.2x2", id: "widgets", summary: widgets.summary) { widgets }
+                    CollapsibleSection("Notch Voice", symbol: "waveform", id: "voice", summary: voice.summary) { voice }
                     CollapsibleSection("Extras", symbol: "sparkles", id: "extras", summary: extras.summary) { extras }
                     CollapsibleSection("Behavior", symbol: "slider.horizontal.3", id: "behavior", summary: behavior.summary) { behavior }
                     CollapsibleSection("Shortcuts", symbol: "keyboard", id: "shortcuts", summary: "⌃⌥⏎ · ⌃⌥⌫") { ShortcutsSection() }
@@ -99,6 +100,10 @@ struct MenuBarContentView: View {
             resume: coordinator.island.resume,
             insights: coordinator.island.insights
         )
+    }
+
+    private var voice: VoiceSection {
+        VoiceSection(settings: coordinator.settings, voice: coordinator.voice)
     }
 
     private var extras: ExtrasSection {

@@ -1,0 +1,20 @@
+Can you refactor this function so it returns early when the user is not logged in?
+Add a unit test for the water reminder that checks the snooze timer.
+Open a pull request with a short description of the changes.
+Why is the build failing after I updated the Swift package?
+Rename the variable count to retry count everywhere in this file.
+Please summarize the last three commits in plain English.
+Move the settings section above the widgets section in the menu.
+Fix the bug where the notch stays open after the card is dismissed.
+Write a bash script that deletes log files older than seven days.
+Use async await instead of completion handlers in the network layer.
+Check whether the API returns a 404 when the session has expired.
+Make the button blue and add a little more padding on the left.
+Send an email to the team saying the release is delayed until Friday.
+What's the difference between a struct and a class in Swift?
+Install the dependencies and run the test suite again.
+Search the codebase for every place we call user defaults directly.
+Add a dark mode color for the background and the border.
+Explain this error message and suggest two possible fixes.
+Book a meeting with the design team tomorrow at four in the afternoon.
+Convert this JSON response into a Swift codable model.

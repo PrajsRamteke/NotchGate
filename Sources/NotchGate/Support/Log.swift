@@ -9,4 +9,5 @@ enum Log {
     static let bridge = Logger(subsystem: subsystem, category: "bridge")
     static let hooks = Logger(subsystem: subsystem, category: "hooks")
     static let window = Logger(subsystem: subsystem, category: "window")
+    static let voice = Logger(subsystem: subsystem, category: "voice")
 }

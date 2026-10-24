@@ -366,7 +366,7 @@ struct ShortcutsSection: View {
 }
 
 /// A keycap in the system-themed menu (the island's `KeyHint` is dark-only).
-private struct MenuKeycap: View {
+struct MenuKeycap: View {
     let key: String
     init(_ key: String) { self.key = key }
 

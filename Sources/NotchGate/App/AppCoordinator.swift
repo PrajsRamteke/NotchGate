@@ -13,6 +13,7 @@ final class AppCoordinator {
     let updates: UpdateChecker
     let activity = ActivityTracker()
     let island: IslandViewModel
+    let voice: VoiceDictation
 
     private(set) var serverError: String?
 
@@ -24,6 +25,7 @@ final class AppCoordinator {
         let updates = UpdateChecker(settings: settings)
         self.updates = updates
         island = IslandViewModel(store: store, settings: settings, activity: activity, updates: updates)
+        voice = VoiceDictation(settings: settings)
     }
 
     func start() {
@@ -41,6 +43,7 @@ final class AppCoordinator {
         island.nowPlaying.start()
         island.usage.start()
         island.session.start()
+        voice.start()
         ImageIntake.purgeOld()
 
         let window = NotchWindowController(viewModel: island)
@@ -57,6 +60,7 @@ final class AppCoordinator {
         island.nowPlaying.stop()
         island.usage.stop()
         island.session.stop()
+        voice.stop()
         window?.tearDown()
     }
 

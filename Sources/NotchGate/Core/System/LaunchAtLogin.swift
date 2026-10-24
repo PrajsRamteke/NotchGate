@@ -10,7 +10,9 @@ enum LaunchAtLogin {
     private static let choiceKey = "launchAtLoginChoiceMade"
 
     static var isAvailable: Bool {
+        // `make run`'s dev bundle lives in .build and must never become a login item.
         Bundle.main.bundleURL.pathExtension == "app"
+            && Bundle.main.object(forInfoDictionaryKey: "NotchGateDevBuild") == nil
     }
 
     static var isEnabled: Bool {

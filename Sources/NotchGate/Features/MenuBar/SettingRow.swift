@@ -108,7 +108,7 @@ struct SettingStatus: View {
                 Image(systemName: symbol).font(.system(size: 9.5, weight: .semibold))
             }
             Text(text)
-                .lineLimit(2)
+                .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .font(.caption)

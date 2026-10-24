@@ -19,7 +19,7 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.16.2</string>
+    <string>2.19.0</string>
     <key>CFBundleVersion</key>
     <string>2</string>
     <key>LSApplicationCategoryType</key>
@@ -28,6 +28,10 @@
     <string>14.0</string>
     <key>LSUIElement</key>
     <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Notch Voice listens while you hold its shortcut, so it can type what you say. Speech is recognized on this Mac.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Notch Voice turns what you say into text on this Mac.</string>
     <key>NSAppleEventsUsageDescription</key>
     <string>NotchGate types the prompts you write in the notch into the terminal running Claude Code.</string>
     <key>NSHighResolutionCapable</key>

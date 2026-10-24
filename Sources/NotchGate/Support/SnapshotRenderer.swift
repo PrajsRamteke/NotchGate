@@ -249,6 +249,17 @@ enum SnapshotRenderer {
         renderWaterBotMoods(of: .spidey, to: directory.appendingPathComponent("water-spidey-moods.png"))
         renderWaterBotMoods(of: .batman, to: directory.appendingPathComponent("water-batman-moods.png"))
         renderWaterBotMoods(of: .developer, to: directory.appendingPathComponent("water-dev-moods.png"))
+        renderVoicePills(to: directory.appendingPathComponent("voice-pill.png"))
+        // Notch Voice switched on, on its own settings so the user's stay untouched.
+        let voiceDefaults = UserDefaults(suiteName: "snapshot-voice") ?? .standard
+        voiceDefaults.removePersistentDomain(forName: "snapshot-voice")
+        let voiceSettings = AppSettings(defaults: voiceDefaults)
+        voiceSettings.voiceEnabled = true
+        voiceSettings.voiceCleanup = .openRouter
+        renderMenu(
+            VoiceSection(settings: voiceSettings, voice: VoiceDictation(settings: voiceSettings)).padding(16),
+            to: directory.appendingPathComponent("menu-voice.png")
+        )
         let coordinator = AppCoordinator()
         coordinator.updates.showPreview(UpdateInfo(latestSHA: "abc1234", commits: [
             UpdateCommit(sha: "abc1234", title: "Type notch prompts into Claude Code as real user prompts"),
@@ -329,6 +340,38 @@ enum SnapshotRenderer {
         SnapshotExport.write(
             SnapshotBackdrop(showsMenuBar: false) { panel.frame(maxWidth: .infinity, maxHeight: .infinity) },
             canvas: canvas, to: url, settle: 0.8
+        )
+    }
+
+    /// Every state of the Notch Voice pill, top to bottom.
+    private static func renderVoicePills(to url: URL) {
+        let bars = Double(VoiceDictation.waveformBars)
+        let speech = (0..<VoiceDictation.waveformBars).map { index -> Float in
+            let position = Double(index)
+            let swell: Double = abs(sin(position / 2.4))
+            let rise: Double = 0.5 + 0.5 * position / bars
+            return Float(0.2 + 0.6 * swell * rise)
+        }
+        let listening = VoiceDictation.Phase.listening(since: Date().addingTimeInterval(-4))
+        let pills: [(VoiceDictation.Phase, String)] = [
+            (listening, ""),
+            // AI clean-up off: the words as they're heard, short and long.
+            (listening, "Can you refactor this function"),
+            (listening, "Can you refactor this function so it returns early when the user is not logged in and then add a test"),
+            (.transcribing, ""), (.cleaningUp(.openRouter), ""), (.cleaningUp(.claude), ""), (.inserted(words: 12), ""),
+            (.copied(.accessibilityOff), ""), (.nothingHeard, ""), (.failed(.microphoneDenied), ""),
+        ]
+        let canvas = CGSize(width: 600, height: CGFloat(pills.count) * 56 + 56)
+        SnapshotExport.write(
+            SnapshotBackdrop(showsMenuBar: false) {
+                VStack(spacing: 18) {
+                    ForEach(Array(pills.enumerated()), id: \.offset) { _, pill in
+                        VoicePill(phase: pill.0, levels: speech, liveText: pill.1)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            },
+            canvas: canvas, to: url, settle: 0.6
         )
     }
 

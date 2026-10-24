@@ -1,4 +1,5 @@
 import AppKit
+@preconcurrency import AVFoundation
 import Foundation
 
 /// Headless entry points so setup can be scripted:
@@ -8,6 +9,8 @@ import Foundation
 ///     NotchGate --send-prompt PID TEXT    type a prompt into a Claude session (diagnostics)
 ///     NotchGate --focus-session PID DIR   bring a Claude session's own window/tab forward (diagnostics)
 ///     NotchGate --now-playing             print what the Now Playing helper reports for 5 s (diagnostics)
+///     NotchGate --transcribe FILE [--live] run an audio file through Notch Voice's recognizer (diagnostics);
+///                                         --live plays it at speaking pace and prints the live words too
 ///     NotchGate --snapshot DIR            render every card to PNG
 @MainActor
 enum CommandLineActions {
@@ -19,6 +22,11 @@ enum CommandLineActions {
         if arguments.contains("--setup") { return runAsync(setUp) }
         if arguments.contains("--uninstall") { return finish(tearDown()) }
         if arguments.contains("--now-playing") { return runAsync(watchNowPlaying) }
+        if let flag = arguments.firstIndex(of: "--transcribe"), arguments.count > flag + 1 {
+            let path = arguments[flag + 1]
+            let live = arguments.contains("--live")
+            return runAsync { await transcribe(path, live: live) }
+        }
         if let flag = arguments.firstIndex(of: "--focus-session"), arguments.count > flag + 2,
            let pid = Int32(arguments[flag + 1]) {
             let directory = arguments[flag + 2]
@@ -132,6 +140,46 @@ enum CommandLineActions {
         }
         monitor.stop()
         return monitor.setupError == nil
+    }
+
+    /// Streams an audio file through Notch Voice's recognizer in microphone-sized
+    /// buffers, the same path a held shortcut takes (without the microphone or typing).
+    private static func transcribe(_ path: String, live: Bool) async -> Bool {
+        let provider = SpeechRecognizerProvider()
+        let locale = VoiceLanguage.locale(for: AppSettings().voiceLanguage)
+        do {
+            let kind = try await provider.prepare(for: locale) { report("• Downloading the speech model… \(Int($0 * 100))%") }
+            report("• Recognizer: \(kind), \(provider.locale?.identifier ?? locale.identifier)")
+            let file = try AVAudioFile(forReading: URL(fileURLWithPath: path))
+            report("• Audio: \(Int(file.processingFormat.sampleRate)) Hz, \(file.processingFormat.channelCount) channel(s)")
+            let started = Date()
+            var onLiveText: (@Sendable (String) -> Void)?
+            if live {
+                // Called off the main actor: write straight to stdout.
+                onLiveText = { text in
+                    let line = String(format: "  %5.2f s  live: ", Date().timeIntervalSince(started)) + text + "\n"
+                    FileHandle.standardOutput.write(Data(line.utf8))
+                }
+            }
+            let session = try provider.makeSession(onLiveText: onLiveText)
+            // 100 ms buffers; with --live, at the pace a microphone delivers them.
+            let frames = AVAudioFrameCount(file.processingFormat.sampleRate / 10)
+            while file.framePosition < file.length {
+                guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames) else { break }
+                try file.read(into: buffer, frameCount: frames)
+                if buffer.frameLength == 0 { break }
+                session.append(buffer)
+                if live { try await Task.sleep(for: .milliseconds(100)) }
+            }
+            let released = Date()
+            let text = try await session.finish()
+            report("✓ \(text.isEmpty ? "(nothing heard)" : text)")
+            report("• Ready \(String(format: "%.2f", Date().timeIntervalSince(released))) s after the audio ended")
+            return true
+        } catch {
+            report("✗ \((error as? VoiceError)?.detail ?? error.localizedDescription)")
+            return false
+        }
     }
 
     // MARK: Plumbing

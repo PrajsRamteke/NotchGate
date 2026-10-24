@@ -6,11 +6,10 @@ build:
 test:
 	swift test
 
-# Run from source (the hook binary is built alongside, so "Install hooks" works).
-run: build
-	swift build --product notchgate-hook
-	swift build --product NotchGateMedia
-	.build/debug/NotchGate
+# Run from source as "NotchGate Dev.app": macOS grants the microphone (Notch Voice) and
+# Accessibility only to apps, not to bare binaries. Its log streams here; Ctrl-C quits it.
+run:
+	Scripts/run-dev.sh
 
 app:
 	Scripts/bundle.sh

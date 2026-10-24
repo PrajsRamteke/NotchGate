@@ -3,6 +3,7 @@
 #
 #   Scripts/bundle.sh            # build dist/NotchGate.app
 #   Scripts/bundle.sh --install  # …and copy it to /Applications
+#   Scripts/bundle.sh --dev      # debug build as "dist/NotchGate Dev.app" (see make run)
 #
 # NOTCHGATE_UNIVERSAL=1 builds for Apple silicon and Intel (needs Xcode); the
 # release workflow uses it for the prebuilt download.
@@ -12,6 +13,14 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist"
 APP="$DIST/NotchGate.app"
 CONFIG="release"
+# The dev bundle has its own bundle ID, so its settings and macOS permissions stay
+# apart from the installed app's, and it never offers updates or joins login items.
+DEV=""
+if [[ "${1:-}" == "--dev" ]]; then
+    DEV=1
+    CONFIG="debug"
+    APP="$DIST/NotchGate Dev.app"
+fi
 BUILD_FLAGS=(-c "$CONFIG")
 [[ "${NOTCHGATE_UNIVERSAL:-}" == "1" ]] && BUILD_FLAGS+=(--arch arm64 --arch x86_64)
 
@@ -31,15 +40,32 @@ cp "$BIN/notchgate-hook" "$APP/Contents/MacOS/notchgate-hook"
 cp "$BIN/libNotchGateMedia.dylib" "$APP/Contents/MacOS/libNotchGateMedia.dylib"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
-# Record the source commit so the app can tell when GitHub has something newer.
-COMMIT="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
-/usr/libexec/PlistBuddy -c "Add :NotchGateCommit string $COMMIT" "$APP/Contents/Info.plist"
-"$ROOT/Scripts/build-vsix.sh" "$APP/Contents/Resources/notchgate-bridge.vsix" >/dev/null
+if [[ -n "$DEV" ]]; then
+    for entry in "Set :CFBundleIdentifier app.notchgate.NotchGate.dev" \
+                 "Set :CFBundleName NotchGate Dev" \
+                 "Set :CFBundleDisplayName NotchGate Dev" \
+                 "Add :NotchGateDevBuild bool true"; do
+        /usr/libexec/PlistBuddy -c "$entry" "$APP/Contents/Info.plist"
+    done
+else
+    # Record the source commit so the app can tell when GitHub has something newer.
+    COMMIT="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
+    /usr/libexec/PlistBuddy -c "Add :NotchGateCommit string $COMMIT" "$APP/Contents/Info.plist"
+    "$ROOT/Scripts/build-vsix.sh" "$APP/Contents/Resources/notchgate-bridge.vsix" >/dev/null
+fi
 
-echo "→ Signing (ad-hoc)"
-codesign --force --sign - "$APP/Contents/MacOS/notchgate-hook" 2>/dev/null
-codesign --force --sign - "$APP/Contents/MacOS/libNotchGateMedia.dylib" 2>/dev/null
-codesign --force --sign - "$APP" 2>/dev/null
+# The dev build signs with a fixed local identity, so macOS keeps its Accessibility and
+# microphone permission across rebuilds (an ad-hoc signature changes with every build).
+SIGN=(--sign -)
+if [[ -n "$DEV" ]] && KEYCHAIN="$("$ROOT/Scripts/dev-identity.sh")"; then
+    SIGN=(--sign "NotchGate Dev" --keychain "$KEYCHAIN")
+    echo "→ Signing (NotchGate Dev identity)"
+else
+    echo "→ Signing (ad-hoc)"
+fi
+codesign --force "${SIGN[@]}" "$APP/Contents/MacOS/notchgate-hook" 2>/dev/null
+codesign --force "${SIGN[@]}" "$APP/Contents/MacOS/libNotchGateMedia.dylib" 2>/dev/null
+codesign --force "${SIGN[@]}" "$APP" 2>/dev/null
 
 if [[ "${1:-}" == "--install" ]]; then
     # /Applications needs admin rights on some Macs; fall back to ~/Applications.

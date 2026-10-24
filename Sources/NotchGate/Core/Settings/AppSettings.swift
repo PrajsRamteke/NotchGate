@@ -41,6 +41,13 @@ final class AppSettings {
         static let insightsWidget = "widgetInsights"
         static let insightsCardShown = "insightsCardShown"
         static let insightsRange = "insightsRange"
+        static let voiceEnabled = "voiceEnabled"
+        static let voiceShortcut = "voiceShortcut"
+        static let voiceLanguage = "voiceLanguage"
+        static let voiceCleanupEnabled = "voiceCleanupEnabled"
+        static let voiceCleanup = "voiceCleanup"
+        /// Before the clean-up picker: a Claude on/off switch.
+        static let legacyVoicePolish = "voicePolish"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -127,6 +134,23 @@ final class AppSettings {
         didSet { defaults.set(nowPlayingInClosedNotch, forKey: Key.nowPlayingInClosedNotch) }
     }
 
+    // MARK: Notch Voice (hold a key, talk, and the words are typed)
+
+    /// Hold-to-talk dictation into any app (see `VoiceDictation`). Off until switched on.
+    var voiceEnabled: Bool { didSet { defaults.set(voiceEnabled, forKey: Key.voiceEnabled) } }
+
+    /// The key, or two keys, held down to talk.
+    var voiceShortcut: VoiceShortcut { didSet { defaults.set(voiceShortcut.storageValue, forKey: Key.voiceShortcut) } }
+
+    /// The language to recognize, as a locale identifier (see `VoiceLanguage`); empty means automatic.
+    var voiceLanguage: String { didSet { defaults.set(voiceLanguage, forKey: Key.voiceLanguage) } }
+
+    /// AI clean-up before typing. Off, the words show live in the pill while you talk instead.
+    var voiceCleanupEnabled: Bool { didSet { defaults.set(voiceCleanupEnabled, forKey: Key.voiceCleanupEnabled) } }
+
+    /// Who does the clean-up (see `CleanupService`), kept while it's switched off. Needs the user's own API key.
+    var voiceCleanup: CleanupService { didSet { defaults.set(voiceCleanup.rawValue, forKey: Key.voiceCleanup) } }
+
     // MARK: Widgets (glanceable info in the hover panel)
 
     /// Plan limits (5-hour and weekly) in the notch (see `UsageMonitor`).
@@ -200,6 +224,9 @@ final class AppSettings {
             Key.resumeCardShown: true,
             Key.insightsWidget: true,
             Key.insightsCardShown: false,
+            Key.voiceEnabled: false,
+            Key.voiceShortcut: VoiceShortcut.default.storageValue,
+            Key.voiceLanguage: VoiceLanguage.automatic,
         ])
         playSound = defaults.bool(forKey: Key.playSound)
         attentionSound = AlertSound(rawValue: defaults.string(forKey: Key.attentionSound) ?? "") ?? .tink
@@ -236,6 +263,15 @@ final class AppSettings {
         insightsWidget = defaults.bool(forKey: Key.insightsWidget)
         insightsCardShown = defaults.bool(forKey: Key.insightsCardShown)
         insightsRange = InsightsRange(rawValue: defaults.string(forKey: Key.insightsRange) ?? "") ?? .day
+        voiceEnabled = defaults.bool(forKey: Key.voiceEnabled)
+        voiceShortcut = VoiceShortcut(storageValue: defaults.string(forKey: Key.voiceShortcut) ?? "") ?? .default
+        voiceLanguage = defaults.string(forKey: Key.voiceLanguage) ?? VoiceLanguage.automatic
+        // Earlier builds stored "off" as a service, and before that a Claude on/off switch.
+        let savedService = defaults.string(forKey: Key.voiceCleanup)
+        let legacyClaude = defaults.bool(forKey: Key.legacyVoicePolish)
+        voiceCleanup = CleanupService(rawValue: savedService ?? "") ?? (legacyClaude ? .claude : .openRouter)
+        voiceCleanupEnabled = defaults.object(forKey: Key.voiceCleanupEnabled) as? Bool
+            ?? (CleanupService(rawValue: savedService ?? "") != nil || legacyClaude)
     }
 
     var routerOptions: RequestRouter.Options {

@@ -1,0 +1,8 @@
+NotchGate
+SwiftUI
+Codable
+UserDefaults
+async await
+pull request
+JSON
+API
