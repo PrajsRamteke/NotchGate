@@ -8,7 +8,7 @@ struct VoicePill: View {
 
     let phase: VoiceDictation.Phase
     let levels: [Float]
-    /// The words heard so far (AI clean-up off), shown while listening.
+    /// The words heard so far, shown while listening.
     var liveText = ""
 
     var body: some View {
@@ -64,14 +64,6 @@ struct VoicePill: View {
         case .transcribing:
             ThinkingWave()
             Text("Transcribing")
-        case .cleaningUp(let service):
-            if service == .claude {
-                ClaudeSpark(size: 15, isActive: true)
-            } else {
-                symbol("sparkles", color: Theme.Palette.clayGlow)
-                    .symbolEffect(.pulse)
-            }
-            Text(service.workingTitle)
         case .inserted(let words):
             symbol("checkmark.circle.fill", color: Theme.Palette.success)
             Text("Inserted")
@@ -111,11 +103,10 @@ struct VoicePill: View {
         case .idle: return 0
         case .listening: return 1
         case .transcribing: return 2
-        case .cleaningUp: return 3
-        case .inserted: return 4
-        case .copied: return 5
-        case .nothingHeard: return 6
-        case .failed: return 7
+        case .inserted: return 3
+        case .copied: return 4
+        case .nothingHeard: return 5
+        case .failed: return 6
         }
     }
 }

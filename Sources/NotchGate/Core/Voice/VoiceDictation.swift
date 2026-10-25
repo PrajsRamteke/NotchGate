@@ -2,9 +2,9 @@ import AppKit
 import Observation
 
 /// Notch Voice: hold the shortcut in any app, speak, let go, and the words are typed
-/// where the cursor is. Apple's on-device recognizer does the listening, so audio never
-/// leaves the Mac; optionally a model tidies the text first (OpenRouter's free models or
-/// Claude Haiku), with the user's own API key.
+/// where the cursor is. The speech model listens on this Mac, so audio never leaves it:
+/// Apple's recognizer, or a free open-source model the user downloads (see `SpeechModel`).
+/// Its text is typed as is, with no account or API key involved.
 @MainActor
 @Observable
 final class VoiceDictation {
@@ -13,7 +13,6 @@ final class VoiceDictation {
         case idle
         case listening(since: Date)
         case transcribing
-        case cleaningUp(CleanupService)
         case inserted(words: Int)
         case copied(TextInserter.CopyReason)
         case nothingHeard
@@ -45,20 +44,19 @@ final class VoiceDictation {
 
     let settings: AppSettings
     let permissions: VoicePermissions
+    /// The downloaded open-source speech models.
+    let models: SpeechModelStore
 
     private(set) var phase: Phase = .idle
     private(set) var model: ModelState = .unloaded
+    /// A model getting ready while the current one keeps typing: the first load of a
+    /// downloaded model can take minutes.
+    private(set) var switchingTo: SpeechModel?
     /// Loudness history for the waveform, oldest first.
     private(set) var levels = Array(repeating: Float(0), count: waveformBars)
-    /// With AI clean-up off: the words heard so far, shown in the pill while you talk.
+    /// The words heard so far, shown in the pill while you talk.
     private(set) var liveText = ""
     private(set) var lastTranscript: String?
-    /// Why the last clean-up didn't happen, if it didn't.
-    private(set) var cleanupError: String?
-    /// The clean-up services with a key in the keychain.
-    private(set) var savedKeys: Set<CleanupService> = []
-    /// OpenRouter's free requests today, when known.
-    private(set) var freeAllowance: OpenRouterCleaner.Allowance?
 
     @ObservationIgnored private let recognizer = SpeechRecognizerProvider()
     @ObservationIgnored private var monitor: VoiceKeyMonitor!
@@ -66,9 +64,8 @@ final class VoiceDictation {
     @ObservationIgnored private var capture: AudioCapture?
     @ObservationIgnored private var session: DictationSession?
     @ObservationIgnored private var restartsLeft = 0
-    @ObservationIgnored private var targetApp: String?
+    @ObservationIgnored private var preparedModel: String?
     @ObservationIgnored private var preparedLanguage: String?
-    @ObservationIgnored private var cachedKeys: [CleanupService: String] = [:]
     /// Opened System Settings → Accessibility after a dictation couldn't be typed.
     @ObservationIgnored private var showedAccessibilitySettings = false
     @ObservationIgnored private var prepareTask: Task<Void, Never>?
@@ -78,9 +75,10 @@ final class VoiceDictation {
     @ObservationIgnored private var dismissTask: Task<Void, Never>?
     @ObservationIgnored private var previewTask: Task<Void, Never>?
 
-    init(settings: AppSettings, permissions: VoicePermissions = VoicePermissions()) {
+    init(settings: AppSettings, permissions: VoicePermissions = VoicePermissions(), models: SpeechModelStore = SpeechModelStore()) {
         self.settings = settings
         self.permissions = permissions
+        self.models = models
         monitor = VoiceKeyMonitor(shortcut: settings.voiceShortcut) { [weak self] event in self?.handle(event) }
         overlay = VoiceOverlayController(dictation: self)
     }
@@ -116,7 +114,6 @@ final class VoiceDictation {
     // MARK: Lifecycle
 
     func start() {
-        savedKeys = Set(CleanupService.allCases.filter { APIKeyStore.exists(for: $0) })
         if settings.voiceEnabled { activate(asking: false) }
     }
 
@@ -135,9 +132,69 @@ final class VoiceDictation {
         monitor.shortcut = shortcut
     }
 
-    func setLanguage(_ id: String) {
-        settings.voiceLanguage = id
-        if settings.voiceEnabled { prepareModel() }
+    // MARK: Speech models
+
+    /// The model that types: the chosen one once it's downloaded, Apple's until then.
+    var speechModel: SpeechModel {
+        guard let chosen = SpeechModel.withID(settings.voiceModel), models.isDownloaded(chosen), chosen.unsupportedReason == nil else {
+            return .apple
+        }
+        return chosen
+    }
+
+    /// The model whose text is typed right now, for the settings.
+    var typingModelName: String {
+        switch recognizerKind {
+        case .bark, .needle: return preparedModel.flatMap(SpeechModel.withID)?.name ?? "The current model"
+        case .speechTranscriber, .dictationTranscriber, .legacy, nil: return "Apple's recognizer"
+        }
+    }
+
+    /// The language `model` listens for: an English accent for Apple's, the model's own choice for others.
+    func language(for model: SpeechModel) -> String {
+        model.engine == .apple ? settings.voiceLanguage : settings.voiceModelLanguages[model.id] ?? ""
+    }
+
+    func setLanguage(_ id: String, for model: SpeechModel) {
+        if model.engine == .apple {
+            settings.voiceLanguage = id
+        } else {
+            settings.voiceModelLanguages[model.id] = id.isEmpty ? nil : id
+        }
+        if settings.voiceEnabled, model == speechModel { prepareModel() }
+    }
+
+    /// Types with `model` from now on (it must be downloaded).
+    func selectModel(_ model: SpeechModel) {
+        guard models.isDownloaded(model), model.unsupportedReason == nil else { return }
+        settings.voiceModel = model.id
+        guard settings.voiceEnabled, switchingTo != model else { return }
+        if preparedModel != model.id || switchingTo != nil { prepareModel() }
+    }
+
+    /// Downloads `model`, then switches to it.
+    func download(_ model: SpeechModel) {
+        models.download(model) { [weak self] succeeded in
+            if succeeded { self?.selectModel(model) }
+        }
+    }
+
+    func cancelDownload(_ model: SpeechModel) {
+        models.cancelDownload(model)
+    }
+
+    /// Deletes a downloaded model. If it was typing, Apple's takes over.
+    func removeModel(_ model: SpeechModel) {
+        let wasInUse = speechModel == model || switchingTo == model
+        models.remove(model)
+        if settings.voiceModel == model.id { settings.voiceModel = SpeechModel.appleID }
+        if settings.voiceEnabled, wasInUse { prepareModel() }
+    }
+
+    /// Re-reads which models are on disk (the settings call this when they open).
+    func refreshModels() {
+        models.refresh()
+        if settings.voiceEnabled, let preparedModel, preparedModel != speechModel.id, switchingTo == nil { prepareModel() }
     }
 
     /// While the settings record a new shortcut, holding keys mustn't start dictation.
@@ -172,7 +229,10 @@ final class VoiceDictation {
         overlay.prepare()
         refreshPermissions()
         monitor.start()
-        if preparedLanguage != settings.voiceLanguage || recognizerKind == nil { prepareModel() }
+        let speechModel = self.speechModel
+        if preparedModel != speechModel.id || preparedLanguage != language(for: speechModel) || recognizerKind == nil {
+            prepareModel()
+        }
         watchPermissions()
         if asking { Task { await askForMissingPermissions() } }
     }
@@ -183,6 +243,7 @@ final class VoiceDictation {
         prepareTask?.cancel()
         permissionWatch?.cancel()
         previewTask?.cancel()
+        switchingTo = nil
         if case .loading = model { model = .unloaded }
     }
 
@@ -194,16 +255,34 @@ final class VoiceDictation {
 
     private func prepareModel() {
         prepareTask?.cancel()
-        let language = settings.voiceLanguage
-        model = .loading(progress: nil)
+        let speechModel = self.speechModel
+        let language = language(for: speechModel)
+        let folder = models.folder(for: speechModel)
+        let progress: @MainActor (Double) -> Void = { [weak self] fraction in
+            guard let self, case .loading = self.model else { return }
+            self.model = .loading(progress: fraction)
+        }
+        // A new model gets ready while the current one keeps typing. With nothing ready yet
+        // (at launch), Apple's types while a downloaded model is optimized for the first time.
+        let hasRecognizer = recognizerKind != nil && preparedModel != speechModel.id
+        let needsStandIn = recognizerKind == nil && speechModel.engine == .bark && !BarkTranscriber.isOptimized(in: folder)
+        switchingTo = hasRecognizer || needsStandIn ? speechModel : nil
+        if !hasRecognizer { model = .loading(progress: nil) }
+
         prepareTask = Task { [weak self, recognizer] in
             do {
-                let kind = try await recognizer.prepare(for: VoiceLanguage.locale(for: language)) { fraction in
-                    guard let self, case .loading = self.model else { return }
-                    self.model = .loading(progress: fraction)
+                // Best effort: without a stand-in, dictation just waits for the model.
+                if needsStandIn,
+                   let kind = try? await recognizer.prepare(.apple, in: folder, language: self?.settings.voiceLanguage ?? "", progress: progress) {
+                    guard !Task.isCancelled, let self else { return }
+                    self.model = .ready(kind)
+                    self.preparedModel = SpeechModel.appleID
                 }
+                let kind = try await recognizer.prepare(speechModel, in: folder, language: language, progress: progress)
                 guard !Task.isCancelled, let self else { return }
                 self.model = .ready(kind)
+                self.switchingTo = nil
+                self.preparedModel = speechModel.id
                 self.preparedLanguage = language
                 Log.voice.info("Voice ready: \(String(describing: kind), privacy: .public)")
                 if kind.needsSpeechPermission, self.permissions.speechRecognition == .notAsked {
@@ -212,6 +291,8 @@ final class VoiceDictation {
             } catch {
                 guard !Task.isCancelled, let self else { return }
                 let failure = error as? VoiceError ?? .modelDownloadFailed(error.localizedDescription)
+                self.switchingTo = nil
+                self.preparedModel = nil
                 self.model = .failed(failure)
                 Log.voice.error("Voice model failed: \(failure.detail, privacy: .public)")
             }
@@ -243,7 +324,7 @@ final class VoiceDictation {
 
     private var isBusy: Bool {
         switch phase {
-        case .listening, .transcribing, .cleaningUp: return true
+        case .listening, .transcribing: return true
         default: return false
         }
     }
@@ -265,20 +346,15 @@ final class VoiceDictation {
         }
 
         do {
-            // With AI clean-up off, a fast listener shows the words as you speak.
-            var onLiveText: (@Sendable (String) -> Void)?
-            if !settings.voiceCleanupEnabled {
-                onLiveText = { [weak self] text in
-                    Task { @MainActor in self?.showLive(text) }
-                }
+            // A fast listener shows the words as you speak.
+            let session = try recognizer.makeSession { [weak self] text in
+                Task { @MainActor in self?.showLive(text) }
             }
-            let session = try recognizer.makeSession(onLiveText: onLiveText)
             self.session = session
             levels = Array(repeating: 0, count: Self.waveformBars)
             liveText = ""
             restartsLeft = 2
             try startCapture(into: session)
-            targetApp = NSWorkspace.shared.frontmostApplication?.localizedName
             show(.listening(since: Date()))
             limitTask = Task { [weak self] in
                 try? await Task.sleep(for: Self.maximumHold)
@@ -318,9 +394,11 @@ final class VoiceDictation {
         }
 
         show(.transcribing)
+        // Downloaded models may read the whole recording on release: allow for long ones.
+        let limit = Self.transcribeTimeout + .seconds(Date().timeIntervalSince(since) / 2)
         finishTask = Task { [weak self] in
             do {
-                let text = try await Self.withTimeout(Self.transcribeTimeout) { try await session.finish() }
+                let text = try await Self.withTimeout(limit) { try await session.finish() }
                 await self?.deliver(text)
             } catch {
                 let failure = error as? VoiceError ?? .recognitionFailed(error.localizedDescription)
@@ -361,23 +439,8 @@ final class VoiceDictation {
     }
 
     private func deliver(_ transcript: String) async {
-        var text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return show(.nothingHeard) }
-
-        let service = settings.voiceCleanup
-        if settings.voiceCleanupEnabled, let key = await apiKey(for: service) {
-            show(.cleaningUp(service))
-            do {
-                text = try await TranscriptCleanup.clean(text, appName: targetApp, service: service, key: key)
-                cleanupError = nil
-                if service == .openRouter, let allowance = freeAllowance {
-                    freeAllowance = .init(used: allowance.used + 1, limit: allowance.limit)
-                }
-            } catch {
-                cleanupError = (error as? CleanupError)?.message(for: service) ?? error.localizedDescription
-                Log.voice.error("Clean-up skipped: \(self.cleanupError ?? "", privacy: .public)")
-            }
-        }
 
         lastTranscript = text
         switch await TextInserter.insert(text) {
@@ -414,7 +477,7 @@ final class VoiceDictation {
         case .copied: .milliseconds(2800)
         case .nothingHeard: .milliseconds(1600)
         case .failed: .milliseconds(3400)
-        case .idle, .listening, .transcribing, .cleaningUp: nil
+        case .idle, .listening, .transcribing: nil
         }
         guard let linger else { return }
         dismissTask = Task { [weak self] in
@@ -423,77 +486,6 @@ final class VoiceDictation {
             self.phase = .idle
             self.overlay.update()
         }
-    }
-
-    // MARK: Clean-up
-
-    /// The AI clean-up switch. Off, the words show live in the pill while you talk.
-    func setCleanupEnabled(_ enabled: Bool) {
-        settings.voiceCleanupEnabled = enabled
-        cleanupError = nil
-        if enabled, settings.voiceCleanup == .openRouter { refreshFreeAllowance() }
-    }
-
-    func setCleanup(_ service: CleanupService) {
-        settings.voiceCleanup = service
-        cleanupError = nil
-        if service == .openRouter { refreshFreeAllowance() }
-    }
-
-    func hasKey(for service: CleanupService) -> Bool {
-        savedKeys.contains(service)
-    }
-
-    /// Checks the key, then keeps it in the keychain. Returns a problem to show, or nil
-    /// when the key was saved.
-    func saveAPIKey(_ input: String, for service: CleanupService) async -> String? {
-        let key = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard key.hasPrefix(service.keyPrefix) else {
-            return "That isn't an \(service.providerName) API key (they start with \(service.keyPrefix))."
-        }
-        do {
-            switch service {
-            // Free to check: reading the key's info spends no request.
-            case .openRouter: freeAllowance = try await OpenRouterCleaner(apiKey: key).checkKey()
-            case .claude: _ = try await ClaudeCleaner(apiKey: key).clean("testing one two three", appName: nil)
-            }
-        } catch let error as CleanupError where error == .invalidKey || error == .noCredit {
-            return error.message(for: service)
-        } catch {
-            // Offline or busy: the key may still be fine, so keep it.
-        }
-        guard APIKeyStore.save(key, for: service) else { return "Couldn't save the key to the keychain." }
-        cachedKeys[service] = key
-        savedKeys.insert(service)
-        cleanupError = nil
-        return nil
-    }
-
-    func removeAPIKey(for service: CleanupService) {
-        APIKeyStore.delete(for: service)
-        cachedKeys[service] = nil
-        savedKeys.remove(service)
-        if service == .openRouter { freeAllowance = nil }
-        cleanupError = nil
-    }
-
-    /// Reads how many free OpenRouter requests are left today (spends none).
-    func refreshFreeAllowance() {
-        guard hasKey(for: .openRouter) else { return }
-        Task { [weak self] in
-            guard let self, let key = await self.apiKey(for: .openRouter) else { return }
-            if let allowance = try? await OpenRouterCleaner(apiKey: key).checkKey() { self.freeAllowance = allowance }
-        }
-    }
-
-    /// Read off the main thread: after an update macOS may ask for the login password
-    /// before handing the key over, and the pill must keep animating meanwhile.
-    private func apiKey(for service: CleanupService) async -> String? {
-        if let key = cachedKeys[service] { return key }
-        let key = await Task.detached { APIKeyStore.read(for: service) }.value
-        cachedKeys[service] = key
-        if key == nil { savedKeys.remove(service) } else { savedKeys.insert(service) }
-        return key
     }
 
     // MARK: Previews
@@ -514,7 +506,7 @@ final class VoiceDictation {
                 guard !Task.isCancelled, case .listening = self.phase else { return }
                 let speech = 0.35 + 0.3 * sin(Double(step) / 2.3) + Double.random(in: -0.15...0.25)
                 self.levels = Array((self.levels + [Float(max(0.05, min(1, speech)))]).suffix(Self.waveformBars))
-                if !self.settings.voiceCleanupEnabled, step % 5 == 4 {
+                if step % 5 == 4 {
                     self.liveText = words.prefix(step / 5 + 1).joined(separator: " ")
                 }
             }

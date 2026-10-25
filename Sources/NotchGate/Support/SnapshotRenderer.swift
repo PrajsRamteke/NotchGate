@@ -255,11 +255,38 @@ enum SnapshotRenderer {
         voiceDefaults.removePersistentDomain(forName: "snapshot-voice")
         let voiceSettings = AppSettings(defaults: voiceDefaults)
         voiceSettings.voiceEnabled = true
-        voiceSettings.voiceCleanup = .openRouter
+        // An empty models folder, so the snapshot never shows (or touches) the user's downloads.
+        let modelsFolder = FileManager.default.temporaryDirectory.appendingPathComponent("snapshot-speech-models", isDirectory: true)
         renderMenu(
-            VoiceSection(settings: voiceSettings, voice: VoiceDictation(settings: voiceSettings)).padding(16),
+            VoiceSection(settings: voiceSettings, voice: VoiceDictation(settings: voiceSettings, models: SpeechModelStore(folder: modelsFolder))).padding(16),
             to: directory.appendingPathComponent("menu-voice.png")
         )
+        // Whistle downloaded and typing (its files sparse, so nothing is really written),
+        // Underdog Bark part-way through its download.
+        let models = SpeechModelStore(folder: modelsFolder)
+        for file in SpeechModel.whistle.files {
+            let url = models.folder(for: .whistle).appendingPathComponent(file.path)
+            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+            try? FileHandle(forWritingTo: url).truncate(atOffset: UInt64(file.size))
+        }
+        models.refresh()
+        models.showPreview(.downloading(progress: 0.43), for: .underdogBark)
+        voiceSettings.voiceModel = SpeechModel.whistle.id
+        renderMenu(
+            VoiceSection(settings: voiceSettings, voice: VoiceDictation(settings: voiceSettings, models: models)).padding(16),
+            to: directory.appendingPathComponent("menu-voice-models.png")
+        )
+        // The pointer resting on Shruti's row: who it suits.
+        renderMenu(
+            VoiceSection(settings: voiceSettings, voice: VoiceDictation(settings: voiceSettings, models: models))
+                .padding(16)
+                .infoTipHost()
+                .environment(\.infoTipPreview, SpeechModelRow.whyPreview(.shruti)),
+            to: directory.appendingPathComponent("menu-voice-why.png")
+        )
+        voiceSettings.voiceModel = SpeechModel.appleID
+        try? FileManager.default.removeItem(at: modelsFolder)
         let coordinator = AppCoordinator()
         coordinator.updates.showPreview(UpdateInfo(latestSHA: "abc1234", commits: [
             UpdateCommit(sha: "abc1234", title: "Type notch prompts into Claude Code as real user prompts"),
@@ -355,10 +382,10 @@ enum SnapshotRenderer {
         let listening = VoiceDictation.Phase.listening(since: Date().addingTimeInterval(-4))
         let pills: [(VoiceDictation.Phase, String)] = [
             (listening, ""),
-            // AI clean-up off: the words as they're heard, short and long.
+            // The words as they're heard, short and long.
             (listening, "Can you refactor this function"),
             (listening, "Can you refactor this function so it returns early when the user is not logged in and then add a test"),
-            (.transcribing, ""), (.cleaningUp(.openRouter), ""), (.cleaningUp(.claude), ""), (.inserted(words: 12), ""),
+            (.transcribing, ""), (.inserted(words: 12), ""),
             (.copied(.accessibilityOff), ""), (.nothingHeard, ""), (.failed(.microphoneDenied), ""),
         ]
         let canvas = CGSize(width: 600, height: CGFloat(pills.count) * 56 + 56)

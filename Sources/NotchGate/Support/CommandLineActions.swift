@@ -9,8 +9,11 @@ import Foundation
 ///     NotchGate --send-prompt PID TEXT    type a prompt into a Claude session (diagnostics)
 ///     NotchGate --focus-session PID DIR   bring a Claude session's own window/tab forward (diagnostics)
 ///     NotchGate --now-playing             print what the Now Playing helper reports for 5 s (diagnostics)
-///     NotchGate --transcribe FILE [--live] run an audio file through Notch Voice's recognizer (diagnostics);
-///                                         --live plays it at speaking pace and prints the live words too
+///     NotchGate --transcribe FILE [--live] [--model ID]
+///                                         run an audio file through Notch Voice's recognizer (diagnostics);
+///                                         --live plays it at speaking pace and prints the live words too;
+///                                         --model picks a speech model (apple, whistle, shruti, underdog-bark-3.0),
+///                                         downloading it first if needed
 ///     NotchGate --snapshot DIR            render every card to PNG
 @MainActor
 enum CommandLineActions {
@@ -25,7 +28,8 @@ enum CommandLineActions {
         if let flag = arguments.firstIndex(of: "--transcribe"), arguments.count > flag + 1 {
             let path = arguments[flag + 1]
             let live = arguments.contains("--live")
-            return runAsync { await transcribe(path, live: live) }
+            let model = arguments.firstIndex(of: "--model").flatMap { arguments.indices.contains($0 + 1) ? arguments[$0 + 1] : nil }
+            return runAsync { await transcribe(path, live: live, modelID: model) }
         }
         if let flag = arguments.firstIndex(of: "--focus-session"), arguments.count > flag + 2,
            let pid = Int32(arguments[flag + 1]) {
@@ -144,12 +148,28 @@ enum CommandLineActions {
 
     /// Streams an audio file through Notch Voice's recognizer in microphone-sized
     /// buffers, the same path a held shortcut takes (without the microphone or typing).
-    private static func transcribe(_ path: String, live: Bool) async -> Bool {
+    private static func transcribe(_ path: String, live: Bool, modelID: String?) async -> Bool {
+        let settings = AppSettings()
+        guard let model = SpeechModel.withID(modelID ?? settings.voiceModel) else {
+            report("✗ No speech model \"\(modelID ?? "")\". Pick one of: \(SpeechModel.catalog.map(\.id).joined(separator: ", "))")
+            return false
+        }
+        let store = SpeechModelStore()
         let provider = SpeechRecognizerProvider()
-        let locale = VoiceLanguage.locale(for: AppSettings().voiceLanguage)
         do {
-            let kind = try await provider.prepare(for: locale) { report("• Downloading the speech model… \(Int($0 * 100))%") }
-            report("• Recognizer: \(kind), \(provider.locale?.identifier ?? locale.identifier)")
+            if !store.isDownloaded(model) {
+                guard await download(model, into: store) else { return false }
+            }
+            let folder = store.folder(for: model)
+            if model.engine == .bark, !BarkTranscriber.isOptimized(in: folder) {
+                report("• Optimizing \(model.name) for the Neural Engine (once per NotchGate build; a few minutes)…")
+            }
+            let loading = Date()
+            let language = model.engine == .apple ? settings.voiceLanguage : settings.voiceModelLanguages[model.id] ?? ""
+            let kind = try await provider.prepare(model, in: folder, language: language) {
+                report("• Downloading the speech model… \(Int($0 * 100))%")
+            }
+            report("• Recognizer: \(kind), \(provider.locale?.identifier ?? model.languageSummary), ready in \(String(format: "%.1f", Date().timeIntervalSince(loading))) s")
             let file = try AVAudioFile(forReading: URL(fileURLWithPath: path))
             report("• Audio: \(Int(file.processingFormat.sampleRate)) Hz, \(file.processingFormat.channelCount) channel(s)")
             let started = Date()
@@ -180,6 +200,27 @@ enum CommandLineActions {
             report("✗ \((error as? VoiceError)?.detail ?? error.localizedDescription)")
             return false
         }
+    }
+
+    /// Downloads a model the way the settings do, printing its progress.
+    private static func download(_ model: SpeechModel, into store: SpeechModelStore) async -> Bool {
+        report("• Downloading \(model.name) (\(ByteCountFormatter.string(fromByteCount: model.downloadSize, countStyle: .file))) from Hugging Face…")
+        var finished = false
+        store.download(model) { _ in finished = true }
+        var reported = -1
+        while !finished {
+            if case .downloading(let progress) = store.state(of: model), Int(progress * 10) > reported {
+                reported = Int(progress * 10)
+                report("  \(reported * 10)%")
+            }
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+        if case .failed(let reason) = store.state(of: model) {
+            report("✗ \(reason)")
+            return false
+        }
+        report("✓ Downloaded and checked")
+        return true
     }
 
     // MARK: Plumbing

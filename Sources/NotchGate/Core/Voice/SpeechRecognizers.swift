@@ -12,8 +12,8 @@ protocol DictationSession: AnyObject, Sendable {
     func cancel()
 }
 
-/// Which Apple recognizer is listening. Every one of them runs on this Mac: no audio
-/// is ever sent anywhere.
+/// Which recognizer is listening. Every one of them runs on this Mac: no audio is ever
+/// sent anywhere.
 enum RecognizerKind: Equatable, Sendable {
     /// macOS 26+: Apple's newest speech model, the most accurate available.
     case speechTranscriber
@@ -21,22 +21,59 @@ enum RecognizerKind: Equatable, Sendable {
     case dictationTranscriber
     /// macOS 14–15: the older on-device recognizer.
     case legacy
+    /// Underdog Bark, downloaded (see `BarkTranscriber`).
+    case bark
+    /// Whistle or Shruti, downloaded (see `NeedleEngine`).
+    case needle
 
     var needsSpeechPermission: Bool { self == .legacy }
 }
 
-/// Picks the best on-device recognizer for a language, makes sure its model is
-/// downloaded, and starts sessions with it.
+/// Readies the chosen speech model (for Apple's, the best on-device recognizer for the
+/// language, downloading Apple's model if needed) and starts sessions with it. The current
+/// recognizer keeps working until the next one is ready.
 @MainActor
 final class SpeechRecognizerProvider {
     private(set) var kind: RecognizerKind?
     private(set) var locale: Locale?
     /// The audio format the macOS 26 analyzer wants (microphone audio is converted to it).
     private var analyzerFormat: AVAudioFormat?
+    private var bark: BarkTranscriber?
+    /// The needle model file in use, and the language asked of it (nil: detect it).
+    private var needleWeights: URL?
+    private var needleLanguage: String?
 
-    /// Readies a recognizer for `requested`, downloading Apple's model the first time.
+    /// Readies `model`: Apple's in `language` (see `VoiceLanguage`), or a downloaded one from `folder`.
+    func prepare(
+        _ model: SpeechModel, in folder: URL, language: String, progress: @escaping @MainActor (Double) -> Void
+    ) async throws -> RecognizerKind {
+        if let reason = model.unsupportedReason { throw VoiceError.modelUnsupported(reason) }
+        switch model.engine {
+        case .apple:
+            let kind = try await prepare(for: VoiceLanguage.locale(for: language), progress: progress)
+            bark = nil
+            return kind
+        case .bark:
+            let transcriber = try await BarkTranscriber.load(from: folder)
+            // A newer choice was made while this one loaded (the first load takes minutes).
+            try Task.checkCancellation()
+            bark = transcriber
+            kind = .bark
+            return .bark
+        case .needle(let file):
+            let weights = folder.appendingPathComponent(file)
+            try await Task.detached { try NeedleEngine.shared.prepare(weights: weights, in: folder) }.value
+            try Task.checkCancellation()
+            needleWeights = weights
+            needleLanguage = language.isEmpty ? nil : language
+            bark = nil
+            kind = .needle
+            return .needle
+        }
+    }
+
+    /// Readies Apple's recognizer for `requested`, downloading Apple's model the first time.
     func prepare(for requested: Locale, progress: @escaping @MainActor (Double) -> Void) async throws -> RecognizerKind {
-        kind = nil
         if #available(macOS 26, *) {
             if SpeechTranscriber.isAvailable, let locale = await SpeechTranscriber.supportedLocale(equivalentTo: requested) {
                 try await adopt(.speechTranscriber, locale: locale, progress: progress)
@@ -59,14 +96,21 @@ final class SpeechRecognizerProvider {
     /// until the recognizer is up. With `onLiveText`, a fast second listener also reports
     /// what it hears so far, while the accurate one still decides the final text.
     func makeSession(onLiveText: (@Sendable (String) -> Void)? = nil) throws -> DictationSession {
-        guard let kind, let locale else { throw VoiceError.notReady }
+        guard let kind else { throw VoiceError.notReady }
         switch kind {
         case .speechTranscriber, .dictationTranscriber:
-            guard #available(macOS 26, *), let analyzerFormat else { throw VoiceError.notReady }
+            guard #available(macOS 26, *), let analyzerFormat, let locale else { throw VoiceError.notReady }
             return AnalyzerSession(kind: kind, locale: locale, format: analyzerFormat, onLiveText: onLiveText)
         case .legacy:
+            guard let locale else { throw VoiceError.notReady }
             guard SFSpeechRecognizer.authorizationStatus() == .authorized else { throw VoiceError.speechRecognitionDenied }
             return try LegacySession(locale: locale, onLiveText: onLiveText)
+        case .bark:
+            guard let bark else { throw VoiceError.notReady }
+            return BarkSession(transcriber: bark, onLiveText: onLiveText)
+        case .needle:
+            guard let needleWeights else { throw VoiceError.notReady }
+            return NeedleSession(engine: .shared, weights: needleWeights, language: needleLanguage)
         }
     }
 
@@ -87,6 +131,7 @@ final class SpeechRecognizerProvider {
         } catch {
             throw VoiceError.modelDownloadFailed(error.localizedDescription)
         }
+        try Task.checkCancellation()
         guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: modules) else {
             throw VoiceError.languageUnsupported(Self.languageName(locale))
         }
@@ -97,6 +142,7 @@ final class SpeechRecognizerProvider {
             await warmUp.cancelAndFinishNow()
         }
 
+        try Task.checkCancellation()
         analyzerFormat = format
         self.locale = locale
         self.kind = kind
@@ -267,10 +313,13 @@ struct LiveTranscript: Equatable, Sendable {
 /// Used only on the audio thread.
 final class BufferConverter: @unchecked Sendable {
     private let format: AVAudioFormat
+    /// Mixes every input channel into fewer, rather than keeping the first ones.
+    private let downmix: Bool
     private var converter: AVAudioConverter?
 
-    init(to format: AVAudioFormat) {
+    init(to format: AVAudioFormat, downmix: Bool = false) {
         self.format = format
+        self.downmix = downmix
     }
 
     func convert(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
@@ -278,6 +327,7 @@ final class BufferConverter: @unchecked Sendable {
         if converter?.inputFormat != buffer.format {
             converter = AVAudioConverter(from: buffer.format, to: format)
             converter?.primeMethod = .none
+            converter?.downmix = downmix
         }
         guard let converter else { return nil }
         let ratio = format.sampleRate / buffer.format.sampleRate

@@ -87,6 +87,17 @@ extension View {
     }
 }
 
+extension View {
+    /// Shows `text` in the bubble while `isShowing`, under (or above) this whole view: for a
+    /// row that explains itself when the pointer rests on it. An ⓘ inside still wins while
+    /// its own bubble is open.
+    func infoTip(_ text: String, isShowing: Bool) -> some View {
+        transformAnchorPreference(key: InfoTipKey.self, value: .bounds) { tips, anchor in
+            if isShowing { tips.insert(InfoTip(text: text, anchor: anchor), at: 0) }
+        }
+    }
+}
+
 extension EnvironmentValues {
     /// Snapshots: the title of the setting whose bubble is shown open.
     @Entry var infoTipPreview: String?

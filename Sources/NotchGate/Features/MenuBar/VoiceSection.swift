@@ -3,7 +3,7 @@ import Carbon.HIToolbox
 import SwiftUI
 
 /// Notch Voice settings: the switch, the permissions it needs, the hold-to-talk key,
-/// the language, and the optional Claude clean-up.
+/// the speech model and its language.
 struct VoiceSection: View {
     @Bindable var settings: AppSettings
     let voice: VoiceDictation
@@ -12,7 +12,7 @@ struct VoiceSection: View {
         SettingsGroup {
             SettingRow(
                 title: "Notch Voice",
-                info: "Hold your shortcut in any app, say what you want, and let go: your words are typed where the cursor is.\n\nApple's speech recognition runs on this Mac, so your audio never leaves it. Press ▶ to see where the pill appears.",
+                info: "Hold your shortcut in any app, say what you want, and let go: your words are typed where the cursor is.\n\nSpeech is recognized on this Mac, by Apple's recognizer or a free open-source model you download, so your audio never leaves it. Press ▶ to see where the pill appears.",
                 isOn: Binding(get: { settings.voiceEnabled }, set: { [voice] in voice.setEnabled($0) })
             ) {
                 PreviewButton(help: "Preview Notch Voice") { [voice] in voice.preview() }
@@ -34,52 +34,8 @@ struct VoiceSection: View {
                         ShortcutRecorderButton(voice: voice)
                     }
                     .settingRowPadding(isIndented: true)
-                    HStack(spacing: 8) {
-                        SettingLabel(
-                            title: "Language",
-                            info: "Pick the English that matches your accent: it's the biggest accuracy win. **Automatic** uses your Mac's region."
-                        )
-                        Spacer(minLength: 8)
-                        Picker("Language", selection: Binding(get: { settings.voiceLanguage }, set: { [voice] in voice.setLanguage($0) })) {
-                            ForEach(VoiceLanguage.options, id: \.id) { Text($0.title).tag($0.id) }
-                        }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
-                        .controlSize(.small)
-                        .fixedSize()
-                    }
-                    .settingRowPadding(isIndented: true)
-                    SettingRow(
-                        title: "AI clean-up",
-                        info: "**On**: a model tidies your words before they're typed: punctuation, filler words, misheard code terms. Only the text is sent, never audio; if it fails or looks wrong, Apple's text is typed as is.\n\n**Off**: no AI. Your words appear live in the pill as you speak, and Apple's text is typed when you let go.",
-                        isOn: Binding(get: { settings.voiceCleanupEnabled }, set: { [voice] in voice.setCleanupEnabled($0) }),
-                        isIndented: true
-                    ) {
-                        EmptyView()
-                    }
-                    if settings.voiceCleanupEnabled {
-                        VStack(alignment: .leading, spacing: 0) {
-                            HStack(spacing: 8) {
-                                SettingLabel(
-                                    title: "Model",
-                                    info: "**OpenRouter (free)**: OpenRouter's free models, with your free OpenRouter key. 50 clean-ups a day (1,000 after a one-time $10 credit purchase). Free models' providers may keep or learn from the text.\n\n**Claude Haiku**: your Anthropic API key, billed to your account (a fraction of a cent each)."
-                                )
-                                Spacer(minLength: 8)
-                                Picker("Model", selection: Binding(get: { settings.voiceCleanup }, set: { [voice] in voice.setCleanup($0) })) {
-                                    ForEach(CleanupService.allCases) { Text($0.title).tag($0) }
-                                }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-                                .controlSize(.small)
-                                .fixedSize()
-                            }
-                            .settingRowPadding(isIndented: true)
-                            APIKeyRow(voice: voice, service: settings.voiceCleanup)
-                                .id(settings.voiceCleanup)
-                        }
-                        .padding(.leading, 14)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
+                    SpeechModelList(voice: voice)
+                    languageRow
                     statusRow
                     if let last = voice.lastTranscript {
                         LastTranscriptRow(text: last) { [voice] in voice.copyLastTranscript() }
@@ -89,16 +45,40 @@ struct VoiceSection: View {
             }
         }
         .animation(.snappy(duration: 0.25), value: settings.voiceEnabled)
-        .animation(.snappy(duration: 0.25), value: settings.voiceCleanup)
-        .animation(.snappy(duration: 0.25), value: settings.voiceCleanupEnabled)
         .animation(.snappy(duration: 0.25), value: voice.missingPermissions)
+        .animation(.snappy(duration: 0.25), value: voice.speechModel)
         .onAppear(perform: menuOpened)
         .background(WindowKeyObserver(onBecomeKey: menuOpened))
     }
 
     private func menuOpened() {
         voice.refreshPermissions()
-        if settings.voiceEnabled, settings.voiceCleanupEnabled, settings.voiceCleanup == .openRouter { voice.refreshFreeAllowance() }
+        voice.refreshModels()
+    }
+
+    /// The active model's languages, when it offers a choice.
+    @ViewBuilder
+    private var languageRow: some View {
+        let model = voice.speechModel
+        if !model.languages.isEmpty {
+            HStack(spacing: 8) {
+                SettingLabel(
+                    title: "Language",
+                    info: model.engine == .apple
+                        ? "Pick the English that matches your accent: it's the biggest accuracy win. **Automatic** uses your Mac's region."
+                        : "\(model.name) works out the language by itself. Pick one if it guesses wrong."
+                )
+                Spacer(minLength: 8)
+                Picker("Language", selection: Binding(get: { voice.language(for: model) }, set: { [voice] in voice.setLanguage($0, for: model) })) {
+                    ForEach(model.languages, id: \.id) { Text($0.title).tag($0.id) }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .controlSize(.small)
+                .fixedSize()
+            }
+            .settingRowPadding(isIndented: true)
+        }
     }
 
     @ViewBuilder
@@ -106,7 +86,7 @@ struct VoiceSection: View {
         let status = self.status
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             SettingStatus(status.text, tone: status.tone, isIndented: true)
-            if case .failed(.modelDownloadFailed) = voice.readiness {
+            if case .failed(let error) = voice.readiness, error.canRetry {
                 Spacer(minLength: 4)
                 Button("Try again") { voice.retryModel() }
                     .controlSize(.mini)
@@ -130,18 +110,20 @@ struct VoiceSection: View {
         case .failed(let error):
             return (error.detail, .error)
         case .ready:
-            let cleanup = settings.voiceCleanup
-            if settings.voiceCleanupEnabled, !voice.hasKey(for: cleanup) {
-                return ("Add your \(cleanup.providerName) key to clean up; until then Apple's text is typed as is.", .warning)
-            }
-            if settings.voiceCleanupEnabled, let problem = voice.cleanupError {
-                return (problem, .warning)
+            if let next = voice.switchingTo {
+                if next.engine == .bark, !BarkTranscriber.isOptimized(in: voice.models.folder(for: next)) {
+                    return ("Optimizing \(next.name) for this Mac's Neural Engine: a few minutes, just once. \(voice.typingModelName) types until then.", .normal)
+                }
+                return ("Loading \(next.name)… \(voice.typingModelName) types until then.", .normal)
             }
             if settings.voiceShortcut.usesFunctionKeyAlone {
                 return ("Set System Settings → Keyboard → “Press 🌐 key to” → Do Nothing, or fn also opens its own menu.", .warning)
             }
             if voice.recognizerKind == .legacy {
                 return ("Ready: hold \(settings.voiceShortcut.spokenName). macOS 26 or later recognizes speech more accurately.", .normal)
+            }
+            if voice.speechModel.engine != .apple {
+                return ("Ready: hold \(settings.voiceShortcut.spokenName) in any app and speak. \(voice.speechModel.name) types what it hears.", .normal)
             }
             return ("Ready: hold \(settings.voiceShortcut.spokenName) in any app and speak.", .normal)
         }
@@ -151,6 +133,185 @@ struct VoiceSection: View {
 extension VoiceSection {
     var summary: String {
         settings.voiceEnabled ? "Hold \(settings.voiceShortcut.keycaps.joined(separator: " + "))" : "Off"
+    }
+}
+
+// MARK: Speech models
+
+/// Every speech model, one row each: pick a downloaded one to type with, or download one.
+private struct SpeechModelList: View {
+    let voice: VoiceDictation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            SettingLabel(
+                title: "Speech model",
+                info: "Which model turns your speech into text. Every one runs on this Mac, with no account or API key, and your audio never leaves it.\n\n**Apple** is built in. The others are free, open-source models: download one once and its own text is typed, with no Apple step."
+            )
+            .padding(.bottom, 2)
+            ForEach(SpeechModel.catalog) { model in
+                SpeechModelRow(voice: voice, model: model)
+            }
+        }
+        .padding(.vertical, 6)
+        .padding(.leading, 14)
+    }
+}
+
+struct SpeechModelRow: View {
+    let voice: VoiceDictation
+    let model: SpeechModel
+    @State private var confirmingRemoval = false
+    @State private var isHovered = false
+    /// Who the model suits, in a bubble once the pointer rests on the row.
+    @State private var showsWhy = false
+    @State private var pendingWhy: Task<Void, Never>?
+    @Environment(\.infoTipPreview) private var preview
+
+    private var state: SpeechModelStore.State { voice.models.state(of: model) }
+    private var isActive: Bool { voice.speechModel == model }
+    private var canSelect: Bool { state == .downloaded && model.unsupportedReason == nil && !isActive }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            radio
+            VStack(alignment: .leading, spacing: 1) {
+                SettingLabel(title: model.name, info: model.about)
+                Text(subtitle.text)
+                    .font(.caption)
+                    .foregroundStyle(subtitle.isProblem ? AnyShapeStyle(Theme.Palette.danger) : AnyShapeStyle(.secondary))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .opacity(model.unsupportedReason == nil ? 1 : 0.55)
+            // The words take the width they need before the gap does.
+            .layoutPriority(1)
+            Spacer(minLength: 6)
+            accessory
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Color.primary.opacity(isActive ? 0.06 : isHovered && canSelect ? 0.035 : 0))
+        )
+        .contentShape(Rectangle())
+        .onHover(perform: hover)
+        .onTapGesture { if canSelect { voice.selectModel(model) } }
+        .onDisappear { pendingWhy?.cancel() }
+        .infoTip(model.whyPick, isShowing: showsWhy || preview == Self.whyPreview(model))
+        .accessibilityHint(Text(InfoTip.attributed(model.whyPick)))
+        .animation(.snappy(duration: 0.2), value: state)
+    }
+
+    /// Snapshots: shows this row's bubble open.
+    static func whyPreview(_ model: SpeechModel) -> String {
+        "why \(model.id)"
+    }
+
+    /// A longer pause than an ⓘ's, so moving down the list doesn't flash every bubble.
+    private func hover(_ hovering: Bool) {
+        isHovered = hovering
+        pendingWhy?.cancel()
+        guard hovering else {
+            showsWhy = false
+            return
+        }
+        pendingWhy = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(450))
+            guard !Task.isCancelled else { return }
+            showsWhy = true
+        }
+    }
+
+    @ViewBuilder
+    private var radio: some View {
+        if voice.switchingTo == model {
+            ProgressView().controlSize(.mini).frame(width: 14, height: 14)
+        } else {
+            Image(systemName: isActive ? "largecircle.fill.circle" : "circle")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(isActive ? AnyShapeStyle(Theme.Palette.clay) : AnyShapeStyle(.tertiary))
+                .frame(width: 14, height: 14)
+                .opacity(state == .downloaded ? 1 : 0.45)
+        }
+    }
+
+    private var subtitle: (text: String, isProblem: Bool) {
+        if let reason = model.unsupportedReason { return (reason, false) }
+        if case .failed(let reason) = state { return (reason, true) }
+        return ("\(model.summary) · \(model.languageSummary)", false)
+    }
+
+    @ViewBuilder
+    private var accessory: some View {
+        if model.unsupportedReason != nil {
+            EmptyView()
+        } else {
+            switch state {
+            case .notDownloaded:
+                Button { voice.download(model) } label: {
+                    Label(Self.megabytes(model.downloadSize), systemImage: "arrow.down.circle")
+                }
+                .controlSize(.small)
+                .help("Download \(model.name) from Hugging Face")
+            case .downloading(let progress):
+                HStack(spacing: 5) {
+                    ProgressView(value: progress)
+                        .progressViewStyle(.linear)
+                        .tint(Theme.Palette.clay)
+                        .frame(width: 46)
+                    Text("\(Int(progress * 100))%")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(minWidth: 28, alignment: .trailing)
+                    Button { voice.cancelDownload(model) } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Stop downloading")
+                }
+            case .failed:
+                Button("Try again") { voice.download(model) }
+                    .controlSize(.small)
+            case .downloaded where model.isBuiltIn:
+                EmptyView()
+            case .downloaded:
+                removeButton
+            }
+        }
+    }
+
+    /// Two clicks, so one stray click doesn't throw away a download.
+    @ViewBuilder
+    private var removeButton: some View {
+        if confirmingRemoval {
+            Button("Remove") {
+                confirmingRemoval = false
+                voice.removeModel(model)
+            }
+            .controlSize(.small)
+            .tint(Theme.Palette.danger)
+            .task {
+                try? await Task.sleep(for: .seconds(3))
+                confirmingRemoval = false
+            }
+        } else {
+            Button { confirmingRemoval = true } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .opacity(isHovered || isActive ? 1 : 0.55)
+            .help("Remove \(model.name) from this Mac (\(Self.megabytes(model.downloadSize)))")
+        }
+    }
+
+    static func megabytes(_ bytes: Int64) -> String {
+        "\(Int((Double(bytes) / 1_000_000).rounded())) MB"
     }
 }
 
@@ -344,78 +505,6 @@ final class ShortcutRecorder {
         let onFinish = self.onFinish
         self.onFinish = nil
         onFinish?(shortcut)
-    }
-}
-
-// MARK: Claude clean-up
-
-/// The API key for the chosen clean-up service: a field until one is saved, then its status.
-private struct APIKeyRow: View {
-    let voice: VoiceDictation
-    let service: CleanupService
-    @State private var draft = ""
-    @State private var problem: String?
-    @State private var isChecking = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            if voice.hasKey(for: service) {
-                HStack(spacing: 6) {
-                    Image(systemName: "key.fill")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text(savedText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    Button("Remove") { voice.removeAPIKey(for: service) }
-                        .controlSize(.small)
-                }
-            } else {
-                HStack(spacing: 6) {
-                    SecureField("\(service.providerName) API key", text: $draft, prompt: Text("\(service.keyPrefix)…"))
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .onSubmit(save)
-                    Button(isChecking ? "Checking…" : "Save", action: save)
-                        .controlSize(.small)
-                        .disabled(draft.isEmpty || isChecking)
-                }
-                if let problem {
-                    SettingStatus(problem, tone: .error)
-                        .padding(.top, 3)
-                } else {
-                    let page = service.keyPage
-                    let lead = service == .openRouter ? "Get a free key at" : "Create one in the"
-                    // One wrapping line with an inline link.
-                    Text(LocalizedStringKey("\(lead) [\(page.title)](\(page.url.absoluteString)) · text only, never audio"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .tint(Theme.Palette.clay)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-        .padding(.leading, 14)
-        .padding(.bottom, 6)
-    }
-
-    private var savedText: String {
-        guard service == .openRouter, let allowance = voice.freeAllowance else { return "Key saved in your keychain" }
-        return "Key saved · \(allowance.remaining) of \(allowance.limit) free clean-ups left today"
-    }
-
-    private func save() {
-        guard !draft.isEmpty, !isChecking else { return }
-        isChecking = true
-        problem = nil
-        let key = draft
-        Task {
-            problem = await voice.saveAPIKey(key, for: service)
-            isChecking = false
-            if problem == nil { draft = "" }
-        }
     }
 }
 

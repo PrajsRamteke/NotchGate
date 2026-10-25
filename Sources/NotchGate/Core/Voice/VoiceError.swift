@@ -11,11 +11,23 @@ enum VoiceError: Error, Equatable, Sendable {
     case microphoneChanged
     case languageUnsupported(String)
     case modelDownloadFailed(String)
+    /// A downloaded model this Mac can't run.
+    case modelUnsupported(String)
+    /// A downloaded model that wouldn't load.
+    case modelLoadFailed(String)
     case notReady
     case recognitionFailed(String)
     case timedOut
     /// Run from `swift run`: macOS only grants the microphone to the bundled app.
     case unbundled
+
+    /// Worth a "Try again": the model may download or load next time.
+    var canRetry: Bool {
+        switch self {
+        case .modelDownloadFailed, .modelLoadFailed: return true
+        default: return false
+        }
+    }
 
     /// One line for the pill.
     var title: String {
@@ -28,6 +40,8 @@ enum VoiceError: Error, Equatable, Sendable {
         case .microphoneChanged: return "The microphone changed"
         case .languageUnsupported: return "This language isn't supported"
         case .modelDownloadFailed: return "The speech model didn't download"
+        case .modelUnsupported: return "This Mac can't run that model"
+        case .modelLoadFailed: return "The speech model didn't load"
         case .notReady: return "Still getting ready"
         case .recognitionFailed: return "Couldn't transcribe that"
         case .timedOut: return "Transcribing took too long"
@@ -54,6 +68,10 @@ enum VoiceError: Error, Equatable, Sendable {
             return "On-device speech recognition isn't available for \(language). Pick another language."
         case .modelDownloadFailed(let reason):
             return "Apple's speech model didn't download (\(reason)). Check your connection; NotchGate retries when you turn Notch Voice on again."
+        case .modelUnsupported(let reason):
+            return reason
+        case .modelLoadFailed(let reason):
+            return "The speech model didn't load (\(reason)). Remove it and download it again, or pick another model."
         case .notReady:
             return "Notch Voice is still getting its speech model ready."
         case .recognitionFailed(let reason):

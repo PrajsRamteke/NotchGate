@@ -176,7 +176,7 @@ own status line keeps showing exactly as before.
 ## Notch Voice
 
 <p align="center">
-  <img src="assets/voice-pill.png" alt="The Notch Voice pill: a live waveform while you talk, then transcribing, polishing with Claude and inserted" width="420">
+  <img src="assets/voice-pill.png" alt="The Notch Voice pill: a live waveform and your words while you talk, then transcribing and inserted" width="420">
 </p>
 
 Dictate into any app: hold a key, say what you want, let go. Your words are typed
@@ -194,19 +194,35 @@ message.
   **Inserted**: the words are typed straight into the focused field. Only in a password
   field (or without Accessibility) do they go on the clipboard instead, for ⌘V. Whatever
   you had copied is put back after typing.
-- **Accuracy**: Apple's newest on-device speech model does the listening (macOS 26 and
-  later; macOS 14–15 use the older recognizer). Pick the **Language** that matches your
-  accent, e.g. English (India); **Automatic** follows your Mac's region.
-- **Live words**: with **AI clean-up** off, your words appear in the pill as you speak.
-  When you let go, a more accurate pass of the same recording is typed.
-- **AI clean-up** (optional, switch it on or off any time): a model fixes punctuation,
-  drops the "um"s and corrects misheard code terms ("us in Kuwait" → "async await")
-  before typing. Pick **OpenRouter (free)**, which uses OpenRouter's free models with a
-  free [OpenRouter key](https://openrouter.ai/keys) (50 clean-ups a day, 1,000 after a
-  one-time $10 credit purchase), or **Claude Haiku** with your own Anthropic API key. Keys
-  stay in your keychain while the switch is off; your Claude subscription login is never
-  used. Only the text is sent, and if a clean-up fails or doesn't match what you said,
-  Apple's text is typed instead.
+- **Speech model**: pick who turns your speech into text. Every choice runs on your Mac,
+  with no account and no API key. They're listed smallest download first; rest the
+  pointer on one to see who it suits:
+  - **Apple** (built in): Apple's newest on-device speech model (macOS 26 and later;
+    macOS 14–15 use the older recognizer). Pick the **Language** that matches your
+    accent, e.g. English (India); **Automatic** follows your Mac's region.
+  - **[Whistle](https://huggingface.co/Cactus-Compute/whistle)** by Cactus Compute (17 MB,
+    Apache 2.0): English, German, French, Spanish, Italian, Dutch and Polish, with the
+    language detected by itself or picked under **Language**.
+  - **[Shruti](https://huggingface.co/udgamlabs/Shruti)** by Udgam Labs (30 MB, Apache 2.0):
+    Hindi, English and Hinglish. Hindi is written in Devanagari and English words stay in
+    English (“मेरा order कब आएगा”). It's Whistle retrained on Indian speech; pick
+    **English only** under **Language** for speech that's all English.
+  - **[Underdog Bark 3.0](https://huggingface.co/ConwayResearch/Underdog-Bark-3.0)** by
+    Conway Research (202 MB, English, CC-BY-4.0): a 0.6B model built on NVIDIA's Parakeet
+    TDT 0.6B v3, averaging 4.94 % word error on the Open ASR Leaderboard's English sets.
+    It runs on the Neural Engine (Apple silicon, macOS 15+). The first load after
+    downloading takes a few minutes while macOS optimizes it for your Mac (again after a
+    NotchGate or macOS update); Apple's recognizer types until then.
+
+  Whistle and Shruti run on the CPU with Cactus's needle engine, which downloads with
+  them (Apple silicon).
+  Press **↓** beside a model to download it from Hugging Face; every file is checked
+  against its published SHA-256, and when it's done NotchGate switches to it. Its own
+  text is typed then, with no Apple step. The 🗑 button removes it again. Models live
+  in `~/Library/Application Support/NotchGate/Speech Models`.
+- **Live words**: your words appear in the pill as you speak. When you let go, a more
+  accurate pass of the same recording is typed (Whistle types when you let go, without
+  live words).
 
 ## Settings
 
@@ -329,12 +345,11 @@ status line is put back) and the login item.
 
 Everything stays on your Mac. NotchGate talks to Claude Code through a private
 local socket that only your user can access, and contacts the network only to
-check GitHub for updates.
+check GitHub for updates (and Hugging Face, when you download a speech model).
 
 Notch Voice recognizes speech on your Mac, so your audio never leaves it (macOS
-downloads its speech model from Apple once). Only with **AI clean-up** on is the
-transcribed text sent: to Anthropic, or to OpenRouter and the free model's provider,
-which may keep or learn from it.
+downloads its speech model from Apple once; an open-source model you pick downloads
+once from Hugging Face). The transcribed text is only ever typed where your cursor is.
 
 ## Troubleshooting
 
@@ -366,7 +381,8 @@ Open **✦ → Notch Voice**: it lists any permission still missing. If Accessib
 already on for NotchGate but still shows as missing (macOS can forget it after an
 update), remove NotchGate from **System Settings → Privacy & Security → Accessibility**
 with **−** and add it again. To test speech recognition on its own, run
-`/Applications/NotchGate.app/Contents/MacOS/NotchGate --transcribe recording.m4a`.
+`/Applications/NotchGate.app/Contents/MacOS/NotchGate --transcribe recording.m4a`
+(add `--model whistle`, `--model shruti` or `--model underdog-bark-3.0` to try a downloaded model).
 </details>
 
 <details>
