@@ -44,14 +44,17 @@ struct SparkShape: Shape {
 }
 
 /// The animated spark. When `isActive`, it slowly turns and breathes,
-/// signalling that Claude is waiting on you.
+/// signalling that Claude is waiting on you. `isPaused` holds an active spark
+/// still, in its glowing pose, while it can't be seen.
 struct ClaudeSpark: View {
     var size: CGFloat = 18
     var isActive = true
+    var isPaused = false
     var color: Color = Theme.Palette.clay
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 60, paused: !isActive)) { context in
+        // 30 fps is plenty for a slow turn (15°/s) and breath, at half the redraws of 60.
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: !isActive || isPaused)) { context in
             let time = context.date.timeIntervalSinceReferenceDate
             let breathe = isActive ? 1 + 0.06 * sin(time * 2.4) : 1
             SparkShape()

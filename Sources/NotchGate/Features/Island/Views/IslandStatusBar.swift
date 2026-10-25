@@ -34,7 +34,13 @@ struct IslandStatusBar: View {
                     .transition(.scale(scale: 0.5).combined(with: .opacity))
             } else if !showsLive {
                 // The Live badge stands alone on the right; no spark beside it.
-                ClaudeSpark(size: 14, isActive: model.store.hasPending || model.activity.workingCount > 0, color: sparkColor)
+                ClaudeSpark(
+                    size: 14,
+                    isActive: model.store.hasPending || model.activity.workingCount > 0,
+                    // Hidden, the bar is faded out: hold the spark still rather than animate it unseen.
+                    isPaused: presentation == .hidden,
+                    color: sparkColor
+                )
             }
             if presentation == .expanded, let title = leadingTitle {
                 Text(title)
@@ -87,8 +93,7 @@ private struct ActivityPill: View {
         Label {
             Text(title)
         } icon: {
-            Image(systemName: "waveform")
-                .symbolEffect(.variableColor.iterative, options: .repeating, isActive: isLive)
+            LoopingSymbol(systemName: "waveform", pointSize: 10, weight: .semibold, color: Theme.Palette.clay, isAnimating: isLive)
         }
         .font(Theme.Typeface.micro)
         .foregroundStyle(Theme.Palette.clay)
@@ -104,10 +109,8 @@ private struct ActivityPill: View {
 /// The closed notch's sign that a session is working: just a moving waveform, no words.
 private struct LiveWaveform: View {
     var body: some View {
-        Image(systemName: "waveform")
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Theme.Palette.clay)
-            .symbolEffect(.variableColor.iterative, options: .repeating)
+        LoopingSymbol(systemName: "waveform", pointSize: 13, weight: .semibold, color: Theme.Palette.clay)
+            .accessibilityElement()
             .accessibilityLabel("Claude is working")
     }
 }
