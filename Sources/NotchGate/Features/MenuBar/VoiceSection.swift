@@ -111,9 +111,6 @@ struct VoiceSection: View {
             return (error.detail, .error)
         case .ready:
             if let next = voice.switchingTo {
-                if next.engine == .bark, !BarkTranscriber.isOptimized(in: voice.models.folder(for: next)) {
-                    return ("Optimizing \(next.name) for this Mac's Neural Engine: a few minutes, just once. \(voice.typingModelName) types until then.", .normal)
-                }
                 return ("Loading \(next.name)… \(voice.typingModelName) types until then.", .normal)
             }
             if settings.voiceShortcut.usesFunctionKeyAlone {

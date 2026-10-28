@@ -36,8 +36,15 @@ final class SpeechModelStore {
     private(set) var states: [String: State] = [:]
     @ObservationIgnored private var downloads: [String: Task<Void, Never>] = [:]
 
+    /// Models no longer offered, whose files are deleted if an older NotchGate left them behind.
+    private static let retiredIDs = ["underdog-bark-3.0"]
+
     init(folder: URL = SpeechModelStore.defaultFolder) {
         self.folder = folder
+        for id in Self.retiredIDs {
+            try? FileManager.default.removeItem(at: folder.appendingPathComponent(id, isDirectory: true))
+            try? FileManager.default.removeItem(at: folder.appendingPathComponent(id + ".partial", isDirectory: true))
+        }
         refresh()
     }
 
@@ -119,15 +126,10 @@ final class SpeechModelStore {
 
     // MARK: Files
 
-    /// Every file is there at its published size. A Core ML package also counts once it has
-    /// been compiled, since the compiled copy replaces it (see `BarkTranscriber`).
+    /// Every file is there at its published size.
     nonisolated static func hasAllFiles(_ model: SpeechModel, in folder: URL) -> Bool {
         let manager = FileManager.default
         return model.files.allSatisfy { file in
-            if let package = file.path.split(separator: "/").first, package.hasSuffix(".mlpackage") {
-                let compiled = package.dropLast(".mlpackage".count) + ".mlmodelc"
-                if manager.fileExists(atPath: folder.appendingPathComponent(String(compiled)).path) { return true }
-            }
             let attributes = try? manager.attributesOfItem(atPath: folder.appendingPathComponent(file.path).path)
             return (attributes?[.size] as? NSNumber)?.int64Value == file.size
         }
@@ -140,9 +142,8 @@ final class SpeechModelStore {
         try manager.createDirectory(at: staging, withIntermediateDirectories: true)
         let available = (try? staging.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?
             .volumeAvailableCapacityForImportantUsage
-        // Room for the files, plus what Core ML writes while compiling a package.
-        if let available, available < model.downloadSize * 2 {
-            throw DownloadError(reason: "Not enough free disk space: \(model.name) needs about \(ByteCountFormatter.string(fromByteCount: model.downloadSize * 2, countStyle: .file)).")
+        if let available, available < model.downloadSize {
+            throw DownloadError(reason: "Not enough free disk space: \(model.name) needs about \(ByteCountFormatter.string(fromByteCount: model.downloadSize, countStyle: .file)).")
         }
 
         let total = Double(model.downloadSize)

@@ -10,8 +10,6 @@ struct SpeechModel: Identifiable, Equatable, Sendable {
     enum Engine: Equatable, Sendable {
         /// Apple's on-device recognizer (see `SpeechRecognizerProvider`).
         case apple
-        /// Underdog Bark: a Core ML encoder on the Neural Engine, the decoder on the CPU (see `BarkTranscriber`).
-        case bark
         /// A model for Cactus's needle engine (Whistle, and Shruti built on it), from its model file (see `NeedleEngine`).
         case needle(weights: String)
     }
@@ -54,10 +52,6 @@ struct SpeechModel: Identifiable, Equatable, Sendable {
         switch engine {
         case .apple:
             return nil
-        case .bark:
-            guard Self.isAppleSilicon else { return "Needs a Mac with Apple silicon." }
-            let sequoia = OperatingSystemVersion(majorVersion: 15, minorVersion: 0, patchVersion: 0)
-            return ProcessInfo.processInfo.isOperatingSystemAtLeast(sequoia) ? nil : "Needs macOS 15 or later."
         case .needle:
             return Self.isAppleSilicon ? nil : "Needs a Mac with Apple silicon."
         }
@@ -78,7 +72,7 @@ extension SpeechModel {
     static let appleID = "apple"
 
     /// Every model on offer: Apple's, then the downloads from smallest to largest.
-    static let catalog: [SpeechModel] = [apple, whistle, shruti, underdogBark]
+    static let catalog: [SpeechModel] = [apple, whistle, shruti]
 
     static func withID(_ id: String) -> SpeechModel? {
         catalog.first { $0.id == id }
@@ -97,35 +91,6 @@ extension SpeechModel {
         page: URL(string: "https://developer.apple.com/documentation/speech")!,
         engine: .apple,
         files: []
-    )
-
-    /// 4.94 % average word error on the Open ASR Leaderboard's English sets, from a 0.6B
-    /// Parakeet TDT post-trained and compressed by Conway Research. NotchGate downloads its
-    /// Neural Engine package: the encoder as Core ML, the small decoder and vocabulary beside it.
-    static let underdogBark = SpeechModel(
-        id: "underdog-bark-3.0",
-        name: "Underdog Bark 3.0",
-        maker: "Conway Research",
-        summary: "Most accurate",
-        whyPick: "**Pick Underdog Bark** for the most accurate English here, names and technical words included. Worth its 202 MB download if you dictate a lot in English.",
-        about: "**Underdog Bark 3.0** by Conway Research: a 0.6B English model, post-trained from NVIDIA's Parakeet TDT 0.6B v3, that averages 4.94 % word error on the Open ASR Leaderboard's English sets. It runs on the Neural Engine; the first load after downloading takes a few minutes while macOS optimizes it.\n\nFree and open source (CC-BY-4.0), downloaded once from Hugging Face. Needs Apple silicon and macOS 15 or later.",
-        languageSummary: "English",
-        languages: [],
-        license: "CC-BY-4.0, based on NVIDIA Parakeet",
-        page: URL(string: "https://huggingface.co/ConwayResearch/Underdog-Bark-3.0")!,
-        engine: .bark,
-        files: [
-            barkFile("BarkEncoder.mlpackage/Manifest.json", size: 617,
-                     sha256: "d37c121561b99da49b9bf1e28c00152c14c56a943815fa83008ee0691b8f1149"),
-            barkFile("BarkEncoder.mlpackage/Data/com.apple.CoreML/model.mlmodel", size: 1_784_701,
-                     sha256: "7c3f1c1612ba21bcc4d8efff1b32154b39cb3e1e2f10020117793acc5c96fcdf"),
-            barkFile("BarkEncoder.mlpackage/Data/com.apple.CoreML/weights/weight.bin", size: 189_133_632,
-                     sha256: "98979e5dd731486ddfb2c312f80a3038205c058aac9fe0f403ba26e1a158d385"),
-            barkFile("decoder.npz", size: 11_168_286,
-                     sha256: "1ce79071f54c3dcec9aa9bb1d488486766f1fdbb3fd988b776da3f4da8024665"),
-            barkFile("vocab.json", size: 115_878,
-                     sha256: "eee86951e9f74921342fdc60ba26711eb70f7188e8784d98d2aecfc525b72270"),
-        ]
     )
 
     /// A 16.9 MB model in seven languages from Cactus Compute. It runs on Cactus's needle
@@ -192,11 +157,6 @@ extension SpeechModel {
         "python/cactus_needle-3.3.3-py3-none-macosx_11_0_arm64.whl", to: "engine.whl", size: 544_605,
         sha256: "c5538e045fb26f0b6f911102516582d4434fbfa38aa28e5c2f3eb990b92aaf8d"
     )
-
-    private static func barkFile(_ path: String, size: Int64, sha256: String) -> File {
-        huggingFace("ConwayResearch/Underdog-Bark-3.0", revision: "85db2ad18ab41e534a222ee253c29191d77ed919",
-                    "coreml/ane/\(path)", to: path, size: size, sha256: sha256)
-    }
 
     private static func huggingFace(
         _ repo: String, revision: String, _ remotePath: String, to path: String, size: Int64, sha256: String

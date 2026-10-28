@@ -145,7 +145,7 @@ final class VoiceDictation {
     /// The model whose text is typed right now, for the settings.
     var typingModelName: String {
         switch recognizerKind {
-        case .bark, .needle: return preparedModel.flatMap(SpeechModel.withID)?.name ?? "The current model"
+        case .needle: return preparedModel.flatMap(SpeechModel.withID)?.name ?? "The current model"
         case .speechTranscriber, .dictationTranscriber, .legacy, nil: return "Apple's recognizer"
         }
     }
@@ -262,22 +262,13 @@ final class VoiceDictation {
             guard let self, case .loading = self.model else { return }
             self.model = .loading(progress: fraction)
         }
-        // A new model gets ready while the current one keeps typing. With nothing ready yet
-        // (at launch), Apple's types while a downloaded model is optimized for the first time.
+        // A new model gets ready while the current one keeps typing.
         let hasRecognizer = recognizerKind != nil && preparedModel != speechModel.id
-        let needsStandIn = recognizerKind == nil && speechModel.engine == .bark && !BarkTranscriber.isOptimized(in: folder)
-        switchingTo = hasRecognizer || needsStandIn ? speechModel : nil
+        switchingTo = hasRecognizer ? speechModel : nil
         if !hasRecognizer { model = .loading(progress: nil) }
 
         prepareTask = Task { [weak self, recognizer] in
             do {
-                // Best effort: without a stand-in, dictation just waits for the model.
-                if needsStandIn,
-                   let kind = try? await recognizer.prepare(.apple, in: folder, language: self?.settings.voiceLanguage ?? "", progress: progress) {
-                    guard !Task.isCancelled, let self else { return }
-                    self.model = .ready(kind)
-                    self.preparedModel = SpeechModel.appleID
-                }
                 let kind = try await recognizer.prepare(speechModel, in: folder, language: language, progress: progress)
                 guard !Task.isCancelled, let self else { return }
                 self.model = .ready(kind)

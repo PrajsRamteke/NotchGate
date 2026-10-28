@@ -7,12 +7,13 @@ import Testing
 struct SpeechModelCatalogTests {
     @Test func applesIsBuiltInAndTheRestGoSmallestFirst() {
         #expect(SpeechModel.catalog.first == .apple)
-        #expect(SpeechModel.catalog.map(\.id) == ["apple", "whistle", "shruti", "underdog-bark-3.0"])
+        #expect(SpeechModel.catalog.map(\.id) == ["apple", "whistle", "shruti"])
         let sizes = SpeechModel.catalog.map(\.downloadSize)
         #expect(sizes == sizes.sorted())
         #expect(SpeechModel.apple.isBuiltIn)
         #expect(Set(SpeechModel.catalog.map(\.id)).count == SpeechModel.catalog.count)
-        #expect(SpeechModel.withID("underdog-bark-3.0") == .underdogBark)
+        #expect(SpeechModel.withID("shruti") == .shruti)
+        #expect(SpeechModel.withID("underdog-bark-3.0") == nil)
         #expect(SpeechModel.withID("nope") == nil)
     }
 
@@ -31,8 +32,6 @@ struct SpeechModelCatalogTests {
     }
 
     @Test func downloadSizesMatchTheModelCards() {
-        // The Neural Engine package: encoder, decoder and vocabulary.
-        #expect((200_000_000...205_000_000).contains(SpeechModel.underdogBark.downloadSize))
         // whistle.cact (16.9 MB) plus the engine wheel.
         #expect((17_000_000...18_000_000).contains(SpeechModel.whistle.downloadSize))
         // shruti.cact (29.5 MB) plus the same engine wheel.
@@ -41,7 +40,6 @@ struct SpeechModelCatalogTests {
     }
 
     @Test func eachModelOffersItsOwnLanguages() {
-        #expect(SpeechModel.underdogBark.languages.isEmpty)
         #expect(SpeechModel.whistle.languages.map(\.id) == ["", "en", "de", "fr", "es", "it", "nl", "pl"])
         #expect(SpeechModel.shruti.languages.map(\.id) == ["", "hi", "en"])
         #expect(SpeechModel.apple.languages.map(\.id) == VoiceLanguage.options.map(\.id))
@@ -60,8 +58,8 @@ struct SpeechModelChoiceTests {
     }
 
     /// Files of the published sizes (sparse, so nothing is really written).
-    private func fakeDownload(_ model: SpeechModel, in store: SpeechModelStore, skipping prefix: String? = nil) throws {
-        for file in model.files where prefix.map({ !file.path.hasPrefix($0) }) ?? true {
+    private func fakeDownload(_ model: SpeechModel, in store: SpeechModelStore) throws {
+        for file in model.files {
             let url = store.folder(for: model).appendingPathComponent(file.path)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             FileManager.default.createFile(atPath: url.path, contents: nil)
@@ -89,27 +87,24 @@ struct SpeechModelChoiceTests {
         defer { try? FileManager.default.removeItem(at: store.folder) }
         let settings = AppSettings(defaults: makeDefaults())
         let voice = VoiceDictation(settings: settings, models: store)
-        settings.voiceModel = SpeechModel.underdogBark.id
-        #expect(store.state(of: .underdogBark) == .notDownloaded)
+        settings.voiceModel = SpeechModel.shruti.id
+        #expect(store.state(of: .shruti) == .notDownloaded)
         #expect(voice.speechModel == .apple)
 
-        try fakeDownload(.underdogBark, in: store)
-        #expect(store.state(of: .underdogBark) == .downloaded)
-        let expected: SpeechModel = SpeechModel.underdogBark.unsupportedReason == nil ? .underdogBark : .apple
+        try fakeDownload(.shruti, in: store)
+        #expect(store.state(of: .shruti) == .downloaded)
+        let expected: SpeechModel = SpeechModel.shruti.unsupportedReason == nil ? .shruti : .apple
         #expect(voice.speechModel == expected)
     }
 
-    @Test func aCompiledPackageCountsAsDownloaded() throws {
-        let store = SpeechModelStore(folder: makeFolder())
-        defer { try? FileManager.default.removeItem(at: store.folder) }
-        try fakeDownload(.underdogBark, in: store, skipping: "BarkEncoder.mlpackage/")
-        #expect(store.state(of: .underdogBark) == .notDownloaded)
-        // Loading compiles the package and deletes it: the compiled copy stands in.
-        try FileManager.default.createDirectory(
-            at: store.folder(for: .underdogBark).appendingPathComponent("BarkEncoder.mlmodelc"), withIntermediateDirectories: true
-        )
-        store.refresh()
-        #expect(store.state(of: .underdogBark) == .downloaded)
+    @Test func aRetiredModelsFilesAreDeleted() throws {
+        let folder = makeFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let leftover = folder.appendingPathComponent("underdog-bark-3.0", isDirectory: true)
+        try FileManager.default.createDirectory(at: leftover, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: leftover.appendingPathComponent("vocab.json").path, contents: nil)
+        _ = SpeechModelStore(folder: folder)
+        #expect(!FileManager.default.fileExists(atPath: leftover.path))
     }
 
     @Test func aWrongSizeIsNotADownload() throws {
@@ -156,7 +151,7 @@ struct SpeechModelChoiceTests {
     @Test func aModelThatCantBeChosenIsNotSelected() {
         let settings = AppSettings(defaults: makeDefaults())
         let voice = VoiceDictation(settings: settings, models: SpeechModelStore(folder: makeFolder()))
-        voice.selectModel(.underdogBark)
+        voice.selectModel(.shruti)
         #expect(settings.voiceModel == SpeechModel.appleID)
     }
 
@@ -170,85 +165,20 @@ struct SpeechModelChoiceTests {
 
 @Suite("Downloaded model plumbing")
 struct DownloadedModelPlumbingTests {
-    @Test func readsStoredAndDeflatedNumpyArrays() throws {
-        let floats = try Self.npy(dtype: "<f4", shape: "(2, 2)", values: [1, -2.5, 3, 0.125] as [Float])
-        let halves = try Self.npy(dtype: "<f2", shape: "(2,)", values: [UInt16(0x3C00), 0xC000])  // 1, -2
-        let quantized = try Self.npy(dtype: "|i1", shape: "(2, 3)", values: [Int8(1), 2, 3, -1, -2, -3])
-        let archive = try NumpyArchive(data: Self.zip([
-            ("plain.npy", floats, false),
-            ("weight.q.npy", quantized, true),
-            ("weight.s.npy", halves, true),
+    @Test func readsStoredAndDeflatedZipMembers() throws {
+        let text = Data(String(repeating: "needle engine ", count: 40).utf8)
+        let archive = try ZipArchive(data: Self.zip([
+            ("stored.txt", Data("hello".utf8), false),
+            ("deflated.txt", text, true),
         ]))
-        #expect(try archive.floats("plain") == [1, -2.5, 3, 0.125])
-        #expect(try archive.array("plain").shape == [2, 2])
-        #expect(try archive.floats("weight.s") == [1, -2])
-        // int8 rows times their scale.
-        #expect(try archive.dequantized("weight") == [1, 2, 3, 2, 4, 6])
-        #expect(throws: ZipArchive.ReadError.self) { try archive.floats("missing") }
+        #expect(Set(archive.names) == ["stored.txt", "deflated.txt"])
+        #expect(try archive.read("stored.txt") == Data("hello".utf8))
+        #expect(try archive.read("deflated.txt") == text)
+        #expect(throws: ZipArchive.ReadError.self) { try archive.read("missing") }
     }
 
     @Test func notAZipIsAnError() {
         #expect(throws: ZipArchive.ReadError.self) { try ZipArchive(data: Data("hello".utf8)) }
-    }
-
-    @Test func barkPiecesAreDetokenized() {
-        let vocabulary = BarkVocabulary(
-            pieces: ["<unk>", "▁Hello", ",", "▁wor", "ld", "<pad>"], specialIds: [0, 5, 6], blankId: 6, vocabSize: 7,
-            durations: [0, 1, 2, 3, 4], maxSymbolsPerStep: 10
-        )
-        #expect(vocabulary.text([1, 2, 3, 4]) == "Hello, world")
-        #expect(vocabulary.text([0, 1, 5, 9]) == "Hello")
-        #expect(vocabulary.text([]) == "")
-    }
-
-    @Test func theEncoderShrinksFramesEightfold() {
-        #expect(BarkTranscriber.encodedLength(1500) == 188)
-        #expect(BarkTranscriber.encodedLength(25) == 4)
-        #expect(BarkTranscriber.maxPiece == 236_000)
-    }
-
-    @Test func featuresAreNormalizedPerBandAndZeroPastTheAudio() throws {
-        let filters: [Float] = (0..<(BarkFrontend.mels * BarkFrontend.bins)).map { index in
-            Float((index * 7919) % 101) / 100 + 0.01
-        }
-        let frontend = try BarkFrontend(melFilters: filters)
-        let audio: [Float] = (0..<16_000).map { sample in
-            let time = Double(sample)
-            let carrier = sin(time * 0.07) * 0.3
-            let wobble = sin(time * 0.31) * 0.1 * Double(sample % 400) / 400
-            return Float(carrier + wobble)
-        }
-        let features = frontend.features(audio)
-        #expect(features.frames == 101)
-        #expect(features.valid == 100)
-        #expect(features.values.count == 101 * BarkFrontend.mels)
-        #expect(features.values.suffix(BarkFrontend.mels).allSatisfy { $0 == 0 })
-        for mel in [0, 40, 127] {
-            let band: [Double] = (0..<features.valid).map { frame in Double(features.values[frame * BarkFrontend.mels + mel]) }
-            let mean = band.reduce(0, +) / Double(band.count)
-            let squares: Double = band.map { value in (value - mean) * (value - mean) }.reduce(0, +)
-            let variance = squares / Double(band.count - 1)
-            #expect(abs(mean) < 1e-3)
-            #expect(abs(variance - 1) < 1e-2)
-        }
-    }
-
-    @Test func longAudioIsCutInsideAPause() {
-        // 20 s of tone with a silent stretch from 9.0 s to 9.4 s.
-        var audio = (0..<(20 * 16_000)).map { Float(sin(Double($0) * 0.05) * 0.5) }
-        for index in (9 * 16_000)..<(9 * 16_000 + 6_400) { audio[index] = 0 }
-        let cut = BarkSegmenter.cut(audio, from: 0)
-        #expect(cut.map { (9 * 16_000)...(9 * 16_000 + 6_400) ~= $0 } == true)
-        // What's left fits one piece.
-        #expect(cut.flatMap { BarkSegmenter.cut(audio, from: $0) } == nil)
-    }
-
-    @Test func shortAudioIsOnePieceAndLiveCutsWaitForTheSmoothing() {
-        let fits = [Float](repeating: 0.1, count: BarkTranscriber.maxPiece)
-        #expect(BarkSegmenter.cut(fits, from: 0) == nil)
-        let justOver = [Float](repeating: 0.1, count: BarkTranscriber.maxPiece + 800)
-        #expect(BarkSegmenter.cut(justOver, from: 0) != nil)
-        #expect(BarkSegmenter.cut(justOver, from: 0, isFinal: false) == nil)
     }
 
     @Test func readsTheNeedleEnginesReply() throws {
@@ -270,17 +200,6 @@ struct DownloadedModelPlumbingTests {
     }
 
     // MARK: Fixtures
-
-    private static func npy<T>(dtype: String, shape: String, values: [T]) throws -> Data {
-        var header = "{'descr': '\(dtype)', 'fortran_order': False, 'shape': \(shape), }"
-        while (10 + header.utf8.count + 1) % 64 != 0 { header += " " }
-        header += "\n"
-        var data = Data([0x93, 0x4E, 0x55, 0x4D, 0x50, 0x59, 1, 0])
-        withUnsafeBytes(of: UInt16(header.utf8.count).littleEndian) { data.append(contentsOf: $0) }
-        data.append(Data(header.utf8))
-        values.withUnsafeBytes { data.append(contentsOf: $0) }
-        return data
-    }
 
     /// A minimal zip: each member stored or raw-deflated (CRCs are left zero; the reader doesn't check them).
     private static func zip(_ members: [(name: String, data: Data, deflate: Bool)]) throws -> Data {

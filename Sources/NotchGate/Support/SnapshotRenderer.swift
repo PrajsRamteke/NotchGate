@@ -262,7 +262,7 @@ enum SnapshotRenderer {
             to: directory.appendingPathComponent("menu-voice.png")
         )
         // Whistle downloaded and typing (its files sparse, so nothing is really written),
-        // Underdog Bark part-way through its download.
+        // Shruti part-way through its download.
         let models = SpeechModelStore(folder: modelsFolder)
         for file in SpeechModel.whistle.files {
             let url = models.folder(for: .whistle).appendingPathComponent(file.path)
@@ -271,7 +271,7 @@ enum SnapshotRenderer {
             try? FileHandle(forWritingTo: url).truncate(atOffset: UInt64(file.size))
         }
         models.refresh()
-        models.showPreview(.downloading(progress: 0.43), for: .underdogBark)
+        models.showPreview(.downloading(progress: 0.43), for: .shruti)
         voiceSettings.voiceModel = SpeechModel.whistle.id
         renderMenu(
             VoiceSection(settings: voiceSettings, voice: VoiceDictation(settings: voiceSettings, models: models)).padding(16),

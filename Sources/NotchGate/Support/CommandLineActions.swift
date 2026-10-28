@@ -12,7 +12,7 @@ import Foundation
 ///     NotchGate --transcribe FILE [--live] [--model ID]
 ///                                         run an audio file through Notch Voice's recognizer (diagnostics);
 ///                                         --live plays it at speaking pace and prints the live words too;
-///                                         --model picks a speech model (apple, whistle, shruti, underdog-bark-3.0),
+///                                         --model picks a speech model (apple, whistle, shruti),
 ///                                         downloading it first if needed
 ///     NotchGate --snapshot DIR            render every card to PNG
 @MainActor
@@ -161,9 +161,6 @@ enum CommandLineActions {
                 guard await download(model, into: store) else { return false }
             }
             let folder = store.folder(for: model)
-            if model.engine == .bark, !BarkTranscriber.isOptimized(in: folder) {
-                report("• Optimizing \(model.name) for the Neural Engine (once per NotchGate build; a few minutes)…")
-            }
             let loading = Date()
             let language = model.engine == .apple ? settings.voiceLanguage : settings.voiceModelLanguages[model.id] ?? ""
             let kind = try await provider.prepare(model, in: folder, language: language) {

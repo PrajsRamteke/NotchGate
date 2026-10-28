@@ -207,12 +207,6 @@ message.
     Hindi, English and Hinglish. Hindi is written in Devanagari and English words stay in
     English (“मेरा order कब आएगा”). It's Whistle retrained on Indian speech; pick
     **English only** under **Language** for speech that's all English.
-  - **[Underdog Bark 3.0](https://huggingface.co/ConwayResearch/Underdog-Bark-3.0)** by
-    Conway Research (202 MB, English, CC-BY-4.0): a 0.6B model built on NVIDIA's Parakeet
-    TDT 0.6B v3, averaging 4.94 % word error on the Open ASR Leaderboard's English sets.
-    It runs on the Neural Engine (Apple silicon, macOS 15+). The first load after
-    downloading takes a few minutes while macOS optimizes it for your Mac (again after a
-    NotchGate or macOS update); Apple's recognizer types until then.
 
   Whistle and Shruti run on the CPU with Cactus's needle engine, which downloads with
   them (Apple silicon).
@@ -382,7 +376,7 @@ already on for NotchGate but still shows as missing (macOS can forget it after a
 update), remove NotchGate from **System Settings → Privacy & Security → Accessibility**
 with **−** and add it again. To test speech recognition on its own, run
 `/Applications/NotchGate.app/Contents/MacOS/NotchGate --transcribe recording.m4a`
-(add `--model whistle`, `--model shruti` or `--model underdog-bark-3.0` to try a downloaded model).
+(add `--model whistle` or `--model shruti` to try a downloaded model).
 </details>
 
 <details>

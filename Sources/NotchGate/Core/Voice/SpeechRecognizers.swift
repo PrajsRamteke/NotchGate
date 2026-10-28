@@ -21,8 +21,6 @@ enum RecognizerKind: Equatable, Sendable {
     case dictationTranscriber
     /// macOS 14–15: the older on-device recognizer.
     case legacy
-    /// Underdog Bark, downloaded (see `BarkTranscriber`).
-    case bark
     /// Whistle or Shruti, downloaded (see `NeedleEngine`).
     case needle
 
@@ -38,7 +36,6 @@ final class SpeechRecognizerProvider {
     private(set) var locale: Locale?
     /// The audio format the macOS 26 analyzer wants (microphone audio is converted to it).
     private var analyzerFormat: AVAudioFormat?
-    private var bark: BarkTranscriber?
     /// The needle model file in use, and the language asked of it (nil: detect it).
     private var needleWeights: URL?
     private var needleLanguage: String?
@@ -50,23 +47,13 @@ final class SpeechRecognizerProvider {
         if let reason = model.unsupportedReason { throw VoiceError.modelUnsupported(reason) }
         switch model.engine {
         case .apple:
-            let kind = try await prepare(for: VoiceLanguage.locale(for: language), progress: progress)
-            bark = nil
-            return kind
-        case .bark:
-            let transcriber = try await BarkTranscriber.load(from: folder)
-            // A newer choice was made while this one loaded (the first load takes minutes).
-            try Task.checkCancellation()
-            bark = transcriber
-            kind = .bark
-            return .bark
+            return try await prepare(for: VoiceLanguage.locale(for: language), progress: progress)
         case .needle(let file):
             let weights = folder.appendingPathComponent(file)
             try await Task.detached { try NeedleEngine.shared.prepare(weights: weights, in: folder) }.value
             try Task.checkCancellation()
             needleWeights = weights
             needleLanguage = language.isEmpty ? nil : language
-            bark = nil
             kind = .needle
             return .needle
         }
@@ -105,9 +92,6 @@ final class SpeechRecognizerProvider {
             guard let locale else { throw VoiceError.notReady }
             guard SFSpeechRecognizer.authorizationStatus() == .authorized else { throw VoiceError.speechRecognitionDenied }
             return try LegacySession(locale: locale, onLiveText: onLiveText)
-        case .bark:
-            guard let bark else { throw VoiceError.notReady }
-            return BarkSession(transcriber: bark, onLiveText: onLiveText)
         case .needle:
             guard let needleWeights else { throw VoiceError.notReady }
             return NeedleSession(engine: .shared, weights: needleWeights, language: needleLanguage)
