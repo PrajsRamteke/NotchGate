@@ -101,6 +101,16 @@ enum SnapshotRenderer {
                 model.showActivityNow()
             }
         }
+        // Claude Code's default 30 days of transcripts, seen over a year.
+        render(to: directory.appendingPathComponent("activity-insights-short-history.png")) { model in
+            model.activity.load(DemoActivity.sessions())
+            model.settings.insightsCardShown = true
+            model.settings.insightsRange = .year
+            model.settings.sessionCardShown = false
+            model.settings.showQuickSettingsInNotch = false
+            model.insights.showPreview(DemoActivity.insights(days: 30))
+            model.showActivityNow()
+        }
         render(to: directory.appendingPathComponent("activity-insights-hover.png")) { model in
             model.activity.load(DemoActivity.sessions())
             model.settings.insightsCardShown = true

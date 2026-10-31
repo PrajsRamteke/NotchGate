@@ -82,16 +82,16 @@ enum DemoActivity {
         ]
     }
 
-    /// A month of made-up Claude Code usage for the Insights widget: busy
+    /// `days` of made-up Claude Code usage for the Insights widget: busy
     /// afternoons, quiet nights, three projects and a mix of models.
-    static func insights(now: Date = .now) -> [InsightsRange: InsightsSummary] {
+    static func insights(now: Date = .now, days: Int = 365) -> [InsightsRange: InsightsSummary] {
         let projects = [("checkout-api", 0.55), ("dashboard", 0.3), ("docs-site", 0.15)]
         var generator = SeededGenerator(seed: 7)
         var files: [TranscriptUsage] = []
         for (index, project) in projects.enumerated() {
             var file = TranscriptUsage(sessionID: "demo-\(index)", isSubagent: false)
             file.project = project.0
-            for hoursAgo in stride(from: 0, to: 30 * 24, by: 1) {
+            for hoursAgo in stride(from: 0, to: days * 24, by: 1) {
                 let time = now.addingTimeInterval(-Double(hoursAgo) * 3600 - 600)
                 let hour = Calendar.current.component(.hour, from: time)
                 let weekday = Calendar.current.component(.weekday, from: time)

@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// The Insights card: what Claude Code cost and did over the last 24 hours,
-/// 7 days or 30 days, with a bar per hour or day, the busiest projects and
-/// the split by model. Hovering a bar shows that hour's or day's numbers.
+/// 7 days, 30 days, 3 months, 6 months or year, with a bar per hour, day,
+/// week or month, the busiest projects and the split by model. Hovering a bar
+/// shows that bar's numbers.
 struct InsightsWidgetView: View {
     let monitor: InsightsMonitor
     @Bindable var settings: AppSettings
@@ -68,7 +69,7 @@ struct InsightsWidgetView: View {
             Text(option.title)
                 .font(.system(size: 10.5, weight: .semibold))
                 .foregroundStyle(isOn ? Theme.Palette.clay : Theme.Palette.textSecondary)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 7)
                 .padding(.vertical, 3)
                 .background(Capsule().fill(isOn ? Theme.Palette.clay.opacity(0.14) : Color.white.opacity(0.05)))
                 .contentShape(Capsule())
@@ -114,10 +115,10 @@ struct InsightsWidgetView: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// "at API prices", plus the daily average over a week or a month.
+    /// "at API prices", plus the daily average over anything longer than a day.
     private func costCaption(_ summary: InsightsSummary) -> String {
         guard range != .day else { return "at API prices" }
-        return "at API prices · \(InsightsFormat.cost(summary.cost / Double(range.bucketCount)))/day"
+        return "at API prices · \(InsightsFormat.cost(summary.cost / Double(summary.dayCount)))/day"
     }
 
     private func tokensCaption(_ summary: InsightsSummary) -> String {
@@ -159,10 +160,14 @@ struct InsightsWidgetView: View {
 
             if let hoveredBar, buckets.indices.contains(hoveredBar) {
                 hoverLine(buckets[hoveredBar])
-            } else if range == .week {
-                weekdays(buckets)
+            } else if range == .week || range == .year {
+                barLabels(buckets)
             } else {
                 axis
+            }
+
+            if let begins = summary.historyBegins {
+                historyNote(begins)
             }
         }
     }
@@ -186,17 +191,17 @@ struct InsightsWidgetView: View {
         HStack {
             Text(axisStart)
             Spacer()
-            Text(range == .day ? "Now" : "Today")
+            Text(axisEnd)
         }
         .font(.system(size: 9.5))
         .foregroundStyle(Theme.Palette.textTertiary)
     }
 
-    /// A label under each of the week's bars.
-    private func weekdays(_ buckets: [InsightsSummary.Bucket]) -> some View {
+    /// A label under each bar: the week's days, or the year's months.
+    private func barLabels(_ buckets: [InsightsSummary.Bucket]) -> some View {
         HStack(spacing: 4) {
             ForEach(Array(buckets.enumerated()), id: \.offset) { index, bucket in
-                Text(index == buckets.count - 1 ? "Today" : bucket.start.formatted(.dateTime.weekday(.abbreviated)))
+                Text(barLabel(bucket.start, isLast: index == buckets.count - 1))
                     .frame(maxWidth: .infinity)
             }
         }
@@ -204,12 +209,43 @@ struct InsightsWidgetView: View {
         .foregroundStyle(Theme.Palette.textTertiary)
     }
 
+    private func barLabel(_ start: Date, isLast: Bool) -> String {
+        if range == .year { return start.formatted(.dateTime.month(.abbreviated)) }
+        return isLast ? "Today" : start.formatted(.dateTime.weekday(.abbreviated))
+    }
+
     private var axisStart: String {
         switch range {
         case .day: return "24 hours ago"
         case .week: return "7 days ago"
         case .month: return "30 days ago"
+        case .quarter: return "3 months ago"
+        case .half: return "6 months ago"
+        case .year: return "12 months ago"
         }
+    }
+
+    private var axisEnd: String {
+        switch range {
+        case .day: return "Now"
+        case .week, .month: return "Today"
+        case .quarter, .half: return "This week"
+        case .year: return "This month"
+        }
+    }
+
+    /// Claude Code deletes old transcripts, so a long range may reach further back than there's history for.
+    private func historyNote(_ begins: Date) -> some View {
+        HStack(spacing: 3) {
+            Text("History only goes back to \(begins.formatted(.dateTime.day().month(.abbreviated).year()))")
+            InfoButton(
+                text: "Claude Code deletes transcripts older than **30 days** by default, so there's nothing earlier to count.\n\nTo keep more, set **cleanupPeriodDays** in **~/.claude/settings.json**, e.g. `\"cleanupPeriodDays\": 365`. Transcripts already deleted can't be brought back.",
+                title: "History",
+                tint: Theme.Palette.textTertiary
+            )
+        }
+        .font(.system(size: 9.5))
+        .foregroundStyle(Theme.Palette.textTertiary)
     }
 
     private func hoverLine(_ bucket: InsightsSummary.Bucket) -> some View {
@@ -236,6 +272,11 @@ struct InsightsWidgetView: View {
             return "\(start.formatted(date: .omitted, time: .shortened)) – \(end.formatted(date: .omitted, time: .shortened))"
         case .week, .month:
             return start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        case .quarter, .half:
+            let end = Calendar.current.date(byAdding: .day, value: 6, to: start) ?? start
+            return "\(start.formatted(.dateTime.day().month(.abbreviated))) – \(end.formatted(.dateTime.day().month(.abbreviated)))"
+        case .year:
+            return start.formatted(.dateTime.month(.wide).year())
         }
     }
 

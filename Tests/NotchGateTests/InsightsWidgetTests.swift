@@ -62,7 +62,7 @@ struct InsightsWidgetTests {
     }
 
     private func files(in projects: Projects, cache: TranscriptScanner.Cache = [:]) throws -> TranscriptScanner.Cache {
-        try TranscriptScanner.scan(root: projects.root, since: now.addingTimeInterval(-InsightsRange.longestWindow), cache: cache)
+        try TranscriptScanner.scan(root: projects.root, since: InsightsRange.earliestStart(now: now), cache: cache)
     }
 
     // MARK: Pricing
@@ -156,7 +156,7 @@ struct InsightsWidgetTests {
         let projects = try Projects()
         try projects.write("-shop/s1.jsonl", lines: [reply(id: "a", at: now)], modified: now)
         try projects.write("-shop/s1/subagents/agent-1.jsonl", lines: [reply(id: "b", at: now)], modified: now)
-        try projects.write("-shop/old.jsonl", lines: [reply(id: "c", at: now)], modified: now.addingTimeInterval(-40 * 86_400))
+        try projects.write("-shop/old.jsonl", lines: [reply(id: "c", at: now)], modified: now.addingTimeInterval(-400 * 86_400))
 
         let scanned: [TranscriptUsage] = try files(in: projects).values.sorted { !$0.isSubagent && $1.isSubagent }
         #expect(scanned.count == 2)
@@ -201,6 +201,46 @@ struct InsightsWidgetTests {
         #expect(month.buckets.count == 30)
         #expect(month.replies == 3)
         #expect(month.buckets.last?.replies == 2)
+    }
+
+    @Test func bucketsByWeekForMonthsAndByMonthForAYear() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let file = ledger("s1", project: "shop", replies: [("now", 60), ("40d", 40 * 86_400), ("120d", 120 * 86_400), ("300d", 300 * 86_400), ("400d", 400 * 86_400)])
+
+        let quarter = InsightsSummary.make(.quarter, from: [file], now: now, calendar: calendar)
+        #expect(quarter.buckets.count == 13)
+        #expect(quarter.replies == 2)
+        #expect(quarter.buckets.last?.replies == 1)
+        #expect(quarter.historyBegins == nil)
+
+        let half = InsightsSummary.make(.half, from: [file], now: now, calendar: calendar)
+        #expect(half.buckets.count == 26)
+        #expect(half.replies == 3)
+
+        let year = InsightsSummary.make(.year, from: [file], now: now, calendar: calendar)
+        #expect(year.buckets.count == 12)
+        #expect(year.replies == 4)
+        #expect(year.buckets.last?.replies == 1)
+        // Older history exists, so the average covers the whole year.
+        #expect(year.historyBegins == nil)
+        #expect(year.dayCount >= 334 && year.dayCount <= 366)
+    }
+
+    @Test func aLongRangeSpreadsItsAverageOverTheHistoryThatsLeft() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        // Claude Code kept 10 days of transcripts.
+        let file = ledger("s1", project: "shop", replies: [("10d", 10 * 86_400), ("now", 60)])
+
+        let year = InsightsSummary.make(.year, from: [file], now: now, calendar: calendar)
+        #expect(year.historyBegins == now.addingTimeInterval(-10 * 86_400))
+        #expect(year.dayCount == 11)
+
+        // Short ranges keep their own length, even for someone new to Claude Code.
+        let week = InsightsSummary.make(.week, from: [file], now: now, calendar: calendar)
+        #expect(week.historyBegins == nil)
+        #expect(week.dayCount == 7)
     }
 
     @Test func activeTimeAddsShortGapsAndSkipsSubagents() {

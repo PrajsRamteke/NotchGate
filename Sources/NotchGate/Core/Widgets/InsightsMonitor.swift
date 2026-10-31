@@ -2,7 +2,8 @@ import Foundation
 import Observation
 
 /// Backs the Insights widget: Claude Code's cost, tokens and activity over
-/// the last 24 hours, 7 days and 30 days, read from its transcripts.
+/// the last 24 hours, 7 days, 30 days, 3 months, 6 months and year, read
+/// from its transcripts.
 ///
 /// Transcripts are only read while the card is visible (each time the hover
 /// panel opens, at most every `minimumInterval`), never on a timer. The first
@@ -50,7 +51,7 @@ final class InsightsMonitor {
         scan = Task { [weak self] in
             let result = await Task.detached(priority: .utility) {
                 Result { () throws(SessionHistory.ScanError) in
-                    let since = now.addingTimeInterval(-InsightsRange.longestWindow)
+                    let since = InsightsRange.earliestStart(now: now)
                     let files = try TranscriptScanner.scan(root: root, since: since, cache: cache)
                     let summaries = Dictionary(uniqueKeysWithValues: InsightsRange.allCases.map {
                         ($0, InsightsSummary.make($0, from: files.values, now: now))

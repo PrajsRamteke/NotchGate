@@ -2,7 +2,7 @@ import Foundation
 
 /// The span the Insights card covers.
 enum InsightsRange: String, CaseIterable, Identifiable, Sendable {
-    case day, week, month
+    case day, week, month, quarter, half, year
 
     var id: String { rawValue }
 
@@ -11,6 +11,9 @@ enum InsightsRange: String, CaseIterable, Identifiable, Sendable {
         case .day: return "24h"
         case .week: return "7d"
         case .month: return "30d"
+        case .quarter: return "3m"
+        case .half: return "6m"
+        case .year: return "1y"
         }
     }
 
@@ -19,28 +22,48 @@ enum InsightsRange: String, CaseIterable, Identifiable, Sendable {
         case .day: return "last 24 hours"
         case .week: return "last 7 days"
         case .month: return "last 30 days"
+        case .quarter: return "last 3 months"
+        case .half: return "last 6 months"
+        case .year: return "last 12 months"
         }
     }
 
-    /// Bars in the chart: hours for a day, days otherwise.
+    /// Bars in the chart: hours for a day, days for a week or a month, weeks
+    /// for 3 or 6 months, months for a year.
     var bucketCount: Int {
         switch self {
         case .day: return 24
         case .week: return 7
         case .month: return 30
+        case .quarter: return 13
+        case .half: return 26
+        case .year: return 12
         }
     }
 
-    var bucketComponent: Calendar.Component { self == .day ? .hour : .day }
+    var bucketComponent: Calendar.Component {
+        switch self {
+        case .day: return .hour
+        case .week, .month: return .day
+        case .quarter, .half: return .weekOfYear
+        case .year: return .month
+        }
+    }
 
-    /// The first bar's start: the hour 23 hours ago, or midnight 6 / 29 days ago.
+    /// Longer than Claude Code keeps transcripts by default (30 days).
+    var outlastsDefaultHistory: Bool { bucketComponent == .weekOfYear || bucketComponent == .month }
+
+    /// The first bar's start: the hour 23 hours ago, midnight 6 / 29 days ago,
+    /// the start of the week 12 / 25 weeks ago, or the first of the month 11 months ago.
     func start(now: Date, calendar: Calendar) -> Date {
         let current = calendar.dateInterval(of: bucketComponent, for: now)?.start ?? now
         return calendar.date(byAdding: bucketComponent, value: -(bucketCount - 1), to: current) ?? current
     }
 
     /// How far back transcripts are read to cover every range.
-    static let longestWindow: TimeInterval = 31 * 86_400
+    static func earliestStart(now: Date, calendar: Calendar = .current) -> Date {
+        allCases.map { $0.start(now: now, calendar: calendar) }.min() ?? now
+    }
 }
 
 /// Claude Code usage over one range: totals, a bar per hour or day, and where
@@ -75,6 +98,12 @@ struct InsightsSummary: Equatable, Sendable {
     /// Most expensive first.
     var projects: [Share] = []
     var models: [Share] = []
+    /// Days the per-day average is spread over: the whole range, or only the
+    /// part Claude Code still has transcripts for.
+    var dayCount = 1
+    /// For a range longer than Claude Code's default 30 days of history: when
+    /// the oldest transcript still on disk begins, if that's after the range starts.
+    var historyBegins: Date?
 
     var isEmpty: Bool { replies == 0 && prompts == 0 }
 
@@ -102,6 +131,16 @@ struct InsightsSummary: Equatable, Sendable {
             calendar.date(byAdding: range.bucketComponent, value: offset, to: start).map { Bucket(start: $0) }
         }
         let bucketStarts = summary.buckets.map(\.start)
+
+        let oldest = files.compactMap { file in
+            [file.replies.lazy.map(\.time).min(), file.prompts.lazy.map(\.time).min()].compactMap { $0 }.min()
+        }.min()
+        var covered = start
+        if range.outlastsDefaultHistory, let oldest, oldest > start {
+            summary.historyBegins = oldest
+            covered = calendar.startOfDay(for: oldest)
+        }
+        summary.dayCount = max(1, Int((now.timeIntervalSince(covered) / 86_400).rounded(.up)))
 
         var seenReplies = Set<String>(), seenPrompts = Set<String>()
         var sessions = Set<String>(), changed = Set<String>()
